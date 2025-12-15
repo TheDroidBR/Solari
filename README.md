@@ -6,7 +6,7 @@
   <h1>Solari RPC</h1>
   
   <p>
-    <strong>O cliente de Rich Presence mais avançado para Discord.</strong>
+    <strong>The most advanced Rich Presence client for Discord.</strong>
   </p>
 
   <p>
@@ -19,43 +19,53 @@
   </p>
 
   <h3>
-    <a href="https://github.com/TheDroidBR/Solari/releases/latest/download/SolariApp.exe">📥 Download para Windows</a>
+    <a href="https://github.com/TheDroidBR/Solari/releases/latest/download/SolariApp.exe">📥 Download for Windows</a>
   </h3>
 </div>
 
 ---
 
-## ✨ Sobre
+## ✨ About
 
-O **Solari** permite que você tenha total controle sobre o seu status no Discord (Rich Presence). 
-Com uma interface moderna, presets ilimitados e sistema de plugins, você pode mostrar exatamente o que está fazendo com estilo.
+**Solari** gives you total control over your Discord Status (Rich Presence). 
+With a modern interface, unlimited presets, and a plugin system, you can show exactly what you are doing with style.
 
-## 🚀 Funcionalidades
+## 🚀 Features
 
-- **🎨 Presets Ilimitados**: Crie e salve configurações para diferentes atividades.
-- **🎮 Auto-Detecção**: O Solari identifica o que você está jogando ou usando e muda o status sozinho.
-- **🌐 Detecção de Sites**: Mostre "Assistindo Netflix" ou "No YouTube" automaticamente.
-- **😴 Smart AFK**: Muda seu status para ausente quando você sai do PC.
-- **🔌 Plugins**: Expansível via sistema de plugins WebSocket.
-- **💎 Design Premium**: Interface inspirada no Cyberpunk/Glassmorphism.
+- **🎨 Unlimited Presets**: Create and save configurations for different activities.
+- **🎮 Auto-Detect**: Solari identifies what you are playing or using and switches status automatically.
+- **🌐 Site Detection**: Show "Watching Netflix" or "On YouTube" automatically.
+- **😴 Smart AFK**: Automatically switches to away status when you leave your PC.
+- **🔌 Plugins**: Expandable via WebSocket API plugin system.
+- **💎 Premium Design**: Interface inspired by Cyberpunk/Glassmorphism.
 
-## 📦 Como Instalar
+## 📦 How to Install
 
-1. Baixe a última versão em **[Releases](https://github.com/TheDroidBR/Solari/releases)**.
-2. Execute o arquivo `SolariApp.exe`.
-3. Pronto! O Solari é portátil e não precisa de instalação complexa.
+1. Download the latest version from **[Releases](https://github.com/TheDroidBR/Solari/releases)**.
+2. Run the `SolariApp.exe` file.
+4. Done! Solari is portable and requires no complex installation.
 
-## 🛡️ Segurança
+## 🔌 SmartAFK Plugin (Optional)
+To use the advanced **AFK Detection** features, you need BetterDiscord installed.
 
-O Solari é um software **Freeware** (Grátis), desenvolvido com foco em privacidade e segurança.
-O código é ofuscado para proteção de propriedade intelectual, mas é totalmente seguro e livre de malware.
+1. Download **`SmartAFKDetector.plugin.js`** from [Releases](https://github.com/TheDroidBR/Solari/releases).
+2. Open Discord → User Settings → **Plugins**.
+3. Click **"Open Plugins Folder"**.
+4. Drag the `SmartAFKDetector.plugin.js` file into that folder.
+5. Enable the plugin in the list.
 
-## 👨‍💻 Créditos
 
-Desenvolvido por **[TheDroid](https://github.com/TheDroidBR)**.
+## 🛡️ Security
+
+Solari is **Freeware**, developed with a focus on privacy and security.
+The code is obfuscated for intellectual property protection but is completely safe and malware-free.
+
+## 👨‍💻 Credits
+
+Developed by **[TheDroid](https://github.com/TheDroidBR)**.
 
 ---
 
 <p align="center">
-  © 2025 Solari RPC. Todos os direitos reservados.
+  © 2025 Solari RPC. All rights reserved.
 </p>
