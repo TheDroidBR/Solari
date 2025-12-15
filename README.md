@@ -1,7 +1,7 @@
 # Solari - Premium Discord Rich Presence
 
 <div align="center">
-  <img src="https://www.solarirpc.com/assets/logo.png" alt="Solari Logo" width="128" height="128">
+  <img src="SolariPhotoTransparente.png" alt="Solari Logo" width="128" height="128">
   
   <h1>Solari RPC</h1>
   
