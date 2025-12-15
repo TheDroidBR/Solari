@@ -45,6 +45,18 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 2. Run the `SolariApp.exe` file.
 4. Done! Solari is portable and requires no complex installation.
 
+## 🔑 How to Get a Client ID
+
+To use Solari, you need a Discord Application Client ID. Here is how to get one:
+
+1. Go to the **[Discord Developer Portal](https://discord.com/developers/applications)**.
+2. Click on **"New Application"** (top right button).
+3. Give it a name (e.g., "Playing Solari" or the name of the game/status you want to show).
+4. Go to the **"Rich Presence"** → **"Art Assets"** tab to upload images (Large/Small Image Keys).
+5. Go back to the **"General Information"** tab.
+6. Copy the **"Application ID"**.
+7. Paste this ID into Solari in the **"Client ID"** field.
+
 ## 🔌 SmartAFK Plugin (Optional)
 To use the advanced **AFK Detection** features, you need BetterDiscord installed.
 
