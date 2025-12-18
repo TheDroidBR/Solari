@@ -36,7 +36,9 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 - **🎮 Auto-Detect**: Solari identifies what you are playing or using and switches status automatically.
 - **🌐 Site Detection**: Show "Watching Netflix" or "On YouTube" automatically.
 - **😴 Smart AFK**: Automatically switches to away status when you leave your PC.
-- **🔌 Plugins**: Expandable via WebSocket API plugin system.
+- **🎵 Spotify Sync**: Control your music directly from Discord with our dedicated plugin.
+- **🌐 Multi-Language**: Fully localized in English and Portuguese (Brazil).
+- **🔌 Plugins**: Expandable system via BetterDiscord plugins.
 - **💎 Premium Design**: Interface inspired by Cyberpunk/Glassmorphism.
 
 ## 📦 How to Install
@@ -57,14 +59,22 @@ To use Solari, you need a Discord Application Client ID. Here is how to get one:
 6. Copy the **"Application ID"**.
 7. Paste this ID into Solari in the **"Client ID"** field.
 
-## 🔌 SmartAFK Plugin (Optional)
-To use the advanced **AFK Detection** features, you need BetterDiscord installed.
+## 🧩 Plugins (BetterDiscord)
 
-1. Download **`SmartAFKDetector.plugin.js`** from [Releases](https://github.com/TheDroidBR/Solari/releases).
-2. Open Discord → User Settings → **Plugins**.
-3. Click **"Open Plugins Folder"**.
-4. Drag the `SmartAFKDetector.plugin.js` file into that folder.
-5. Enable the plugin in the list.
+Solari integrates with Discord via BetterDiscord plugins to enable advanced features.
+
+### 🔌 SmartAFK (Auto-Away)
+Automatically switches your status to "Away" when you leave your PC.
+1. Download **`SmartAFKDetector.plugin.js`**.
+2. Place it in your BetterDiscord **plugins** folder.
+3. Enable it in Discord settings.
+
+### 🎵 Spotify Sync
+Adds playback controls (Play/Pause/Next) and status synchronization.
+1. Download **`SpotifySync.plugin.js`**.
+2. Place it in your BetterDiscord **plugins** folder.
+3. Enable it.
+4. You can now control Spotify directly from your Discord profile!
 
 
 ## 🛡️ Security
