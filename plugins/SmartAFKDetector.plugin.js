@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Detects AFK and changes Discord status. ⚠️ LIMITATION: BetterDiscord plugins have limited AFK detection (only works while Discord is focused). For full system-wide AFK detection, use the Solari app!
- * @version 1.0.0
+ * @version 1.1.0
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SmartAFKDetector.plugin.js
@@ -149,20 +149,203 @@ module.exports = class SmartAFKDetector {
         console.log("[SmartAFK] Starting...");
         this.loadConfig(); // Load saved config first
 
-        // CRITICAL: Add beforeunload listener to reset status before Discord closes
-        // This ensures that if the plugin sets AFK during shutdown, we correct it
+        // Reset custom status when Discord closes
         this.beforeUnloadHandler = () => {
-            console.log("[SmartAFK] beforeunload triggered - resetting status to online");
+            console.log("[SmartAFK] beforeunload triggered - clearing custom status");
             this.isAFK = false;
             this.currentTierIndex = -1;
-            this.setStatus('online');
-            this.setCustomStatus(null);
+            this.setCustomStatus(null); // Only clear custom status, don't touch idle state
         };
         window.addEventListener('beforeunload', this.beforeUnloadHandler);
+
+        // Try to patch Discord's native idle timeout
+        this.patchIdleTimeout();
 
         this.connectToServer();
         this.attachListeners();
         this.startIdleCheck();
+    }
+
+    // Patch Discord's internal idle timeout to use our custom value
+    patchIdleTimeout() {
+        try {
+            const targetTimeout = (this.config.timeoutMinutes || 5) * 60 * 1000;
+            console.log(`[SmartAFK] Attempting to patch idle timeout to ${targetTimeout}ms (${this.config.timeoutMinutes} min)`);
+
+            // Method 1: Try to find via getBySource (looking for the IDLE dispatch pattern)
+            // The Vencord pattern is: 'type:"IDLE",idle:'
+            let idleModule = null;
+
+            try {
+                // Try to find the module that contains the idle dispatch logic
+                idleModule = BdApi.Webpack.getModule(
+                    (m, exports, id) => {
+                        if (!m || typeof m !== 'object') return false;
+                        // Check if the module's minified source contains the idle pattern
+                        const moduleStr = m.toString?.() || '';
+                        return moduleStr.includes('type:"IDLE"') || moduleStr.includes("type:'IDLE'");
+                    },
+                    { first: true, searchExports: true }
+                );
+            } catch (e) {
+                console.log("[SmartAFK] getModule with source search failed:", e.message);
+            }
+
+            // Method 2: Try to find any module with MINUTE/SECOND constants (often used for idle)
+            if (!idleModule) {
+                const constantsModule = BdApi.Webpack.getModule(
+                    (m) => m?.MINUTE !== undefined && m?.SECOND !== undefined,
+                    { first: true }
+                );
+
+                if (constantsModule) {
+                    console.log("[SmartAFK] Found time constants module:", {
+                        SECOND: constantsModule.SECOND,
+                        MINUTE: constantsModule.MINUTE
+                    });
+                }
+            }
+
+            // Method 3: Find the idle handler by looking for setInterval patterns
+            // Discord uses setInterval to periodically check for idle
+            const originalSetInterval = window.setInterval;
+            let patchedSuccessfully = false;
+
+            // We'll intercept the next setInterval call that looks like an idle checker
+            // This is a temporary patch during plugin start
+            window.setInterval = function (callback, delay, ...args) {
+                // The default Discord idle check interval is around 5000-10000ms
+                // and the callback checks if Date.now() - lastActivity > 600000 (10 min)
+                const callbackStr = callback?.toString?.() || '';
+
+                if ((delay >= 5000 && delay <= 15000) &&
+                    (callbackStr.includes('IDLE') || callbackStr.includes('idle'))) {
+                    console.log(`[SmartAFK] Intercepted potential idle checker with interval ${delay}ms`);
+                    console.log(`[SmartAFK] Callback preview: ${callbackStr.substring(0, 200)}...`);
+                    patchedSuccessfully = true;
+                }
+
+                return originalSetInterval.call(window, callback, delay, ...args);
+            };
+
+            // Restore original setInterval after a short delay
+            setTimeout(() => {
+                window.setInterval = originalSetInterval;
+                if (!patchedSuccessfully) {
+                    console.log("[SmartAFK] Could not intercept Discord idle checker");
+                }
+            }, 5000);
+
+            // Method 4: Try to find and override the idle timeout constant directly
+            // Look for modules that export a number around 600000 (10 minutes in ms)
+            const allModules = BdApi.Webpack.getModule(
+                (m) => {
+                    if (!m || typeof m !== 'object') return false;
+                    const values = Object.values(m);
+                    return values.some(v => v === 600000 || v === 6e5);
+                },
+                { first: false } // Get all matching modules
+            );
+
+            if (allModules && allModules.length > 0) {
+                console.log(`[SmartAFK] Found ${allModules.length} modules with 600000ms constant`);
+                // Try to patch each one
+                for (const mod of allModules) {
+                    for (const [key, value] of Object.entries(mod)) {
+                        if (value === 600000 || value === 6e5) {
+                            console.log(`[SmartAFK] Patching ${key} from 600000ms to ${targetTimeout}ms`);
+                            try {
+                                mod[key] = targetTimeout;
+                                this._patchedModules = this._patchedModules || [];
+                                this._patchedModules.push({ module: mod, key, original: value });
+                            } catch (e) {
+                                console.log(`[SmartAFK] Could not patch ${key}:`, e.message);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Also try dispatching IDLE directly with our custom timeout
+            console.log("[SmartAFK] Setting up custom idle dispatcher...");
+            this.setupCustomIdleDispatcher(targetTimeout);
+
+        } catch (e) {
+            console.error("[SmartAFK] Error patching idle timeout:", e);
+        }
+    }
+
+    // Setup our own idle dispatcher that works with Discord's Flux system
+    setupCustomIdleDispatcher(timeoutMs) {
+        const FluxDispatcher = this.getFluxDispatcher();
+        if (!FluxDispatcher) {
+            console.log("[SmartAFK] FluxDispatcher not found, cannot setup custom idle dispatcher");
+            return;
+        }
+
+        // Clear any existing dispatcher
+        if (this._customIdleInterval) {
+            clearInterval(this._customIdleInterval);
+        }
+
+        // Setup our own idle check that dispatches IDLE events
+        let lastKnownActivity = Date.now();
+        let currentlyIdle = false;
+
+        // Subscribe to track user activity via Discord's internal events
+        FluxDispatcher.subscribe("TRACK", () => {
+            lastKnownActivity = Date.now();
+        });
+
+        this._customIdleInterval = setInterval(() => {
+            const idleTime = Date.now() - lastKnownActivity;
+            const shouldBeIdle = idleTime >= timeoutMs;
+
+            if (shouldBeIdle && !currentlyIdle) {
+                console.log(`[SmartAFK] Custom dispatcher: Going IDLE after ${idleTime}ms`);
+                FluxDispatcher.dispatch({ type: "IDLE", idle: true });
+                currentlyIdle = true;
+            } else if (!shouldBeIdle && currentlyIdle) {
+                console.log("[SmartAFK] Custom dispatcher: Going ONLINE");
+                FluxDispatcher.dispatch({ type: "IDLE", idle: false });
+                currentlyIdle = false;
+            }
+        }, 5000);
+
+        console.log(`[SmartAFK] Custom idle dispatcher setup with ${timeoutMs}ms timeout`);
+    }
+
+    // Restore original idle timeout when plugin stops
+    unpatchIdleTimeout() {
+        try {
+            // Clear custom idle dispatcher
+            if (this._customIdleInterval) {
+                clearInterval(this._customIdleInterval);
+                this._customIdleInterval = null;
+                console.log("[SmartAFK] Cleared custom idle dispatcher");
+            }
+
+            // Restore any patched modules
+            if (this._patchedModules) {
+                for (const patch of this._patchedModules) {
+                    try {
+                        patch.module[patch.key] = patch.original;
+                        console.log(`[SmartAFK] Restored ${patch.key} to ${patch.original}ms`);
+                    } catch (e) {
+                        console.log(`[SmartAFK] Could not restore ${patch.key}`);
+                    }
+                }
+                this._patchedModules = null;
+            }
+
+            // Legacy restore
+            if (this.patchedIdleConstants && this._originalIdleDuration) {
+                this.patchedIdleConstants.IDLE_DURATION = this._originalIdleDuration;
+                console.log(`[SmartAFK] Restored original IDLE_DURATION: ${this._originalIdleDuration}ms`);
+            }
+        } catch (e) {
+            console.error("[SmartAFK] Error restoring idle timeout:", e);
+        }
     }
 
     stop() {
@@ -172,6 +355,9 @@ module.exports = class SmartAFKDetector {
         if (this.beforeUnloadHandler) {
             window.removeEventListener('beforeunload', this.beforeUnloadHandler);
         }
+
+        // Restore original Discord idle timeout
+        this.unpatchIdleTimeout();
 
         this.detachListeners();
         if (this.idleTimer) clearInterval(this.idleTimer);
@@ -407,10 +593,12 @@ module.exports = class SmartAFKDetector {
         const tier = this.config.afkTiers[tierIndex];
         if (!tier) return;
 
-        // 1. Set Status to Idle (Yellow)
-        this.setStatus('idle');
+        // NOTE: We do NOT set status to idle manually anymore!
+        // This caused the status to get "stuck" when opening Discord on another device.
+        // Discord will handle idle status natively based on its own inactivity detection.
+        // We only set the custom status text as a visual indicator.
 
-        // 2. Set Custom Status Text from tier
+        // Set Custom Status Text from tier (this is safe - has expiration)
         this.setCustomStatus(tier.status);
 
         this.send({ type: 'afk_status_change', isAFK: true, tier: tierIndex + 1, status: tier.status });
@@ -441,10 +629,10 @@ module.exports = class SmartAFKDetector {
         this.currentTierIndex = -1;
         this.log(this.t('returnedFromAFK'));
 
-        // 1. Restore Status to Online (Green)
-        this.setStatus('online');
+        // NOTE: We do NOT set status to online manually anymore!
+        // Discord handles this natively when user activity is detected.
 
-        // 2. Clear Custom Status
+        // Clear Custom Status
         this.setCustomStatus(null);
 
         this.send({ type: 'afk_status_change', isAFK: false });
@@ -463,18 +651,58 @@ module.exports = class SmartAFKDetector {
         return this._userSettingsProtoUtils;
     }
 
+    // Get FluxDispatcher for native idle control
+    getFluxDispatcher() {
+        if (!this._fluxDispatcher) {
+            this._fluxDispatcher = BdApi.Webpack.getModule(
+                (m) => m.dispatch && m.subscribe && m.unsubscribe,
+                { first: true }
+            );
+        }
+        return this._fluxDispatcher;
+    }
+
     setStatus(status) {
         try {
             console.log("[SmartAFK] Attempting to set status to:", status);
 
+            // Try FluxDispatcher first (native idle, doesn't create manual preference)
+            const FluxDispatcher = this.getFluxDispatcher();
+
+            if (FluxDispatcher) {
+                const isIdle = (status === 'idle');
+                console.log("[SmartAFK] FluxDispatcher found! Dispatching IDLE event, idle:", isIdle);
+
+                FluxDispatcher.dispatch({
+                    type: "IDLE",
+                    idle: isIdle
+                });
+
+                // Also try the UserSettingsProtoUtils as backup to ensure visibility
+                const UserSettingsProtoUtils = this.getUserSettingsProtoUtils();
+                if (UserSettingsProtoUtils && UserSettingsProtoUtils.updateAsync) {
+                    console.log("[SmartAFK] Also updating via UserSettingsProtoUtils for visibility");
+                    UserSettingsProtoUtils.updateAsync(
+                        "status",
+                        (statusSetting) => {
+                            statusSetting.status.value = status;
+                        },
+                        0
+                    );
+                }
+
+                this.log(`${this.t('statusChangedTo')} ${status}`);
+                return true;
+            }
+
+            // Fallback to just UserSettingsProtoUtils
+            console.log("[SmartAFK] FluxDispatcher not found, using UserSettingsProtoUtils only");
             const UserSettingsProtoUtils = this.getUserSettingsProtoUtils();
 
             if (UserSettingsProtoUtils && UserSettingsProtoUtils.updateAsync) {
-                console.log("[SmartAFK] Using UserSettingsProtoUtils.updateAsync");
                 UserSettingsProtoUtils.updateAsync(
                     "status",
                     (statusSetting) => {
-                        console.log("[SmartAFK] Current statusSetting:", statusSetting);
                         statusSetting.status.value = status;
                     },
                     0
@@ -483,7 +711,7 @@ module.exports = class SmartAFKDetector {
                 return true;
             }
 
-            console.error("[SmartAFK] UserSettingsProtoUtils not found!");
+            console.error("[SmartAFK] No status module found!");
             this.safeShowToast(this.t('errorModuleNotFound'), { type: "error" });
             return false;
         } catch (e) {
@@ -504,17 +732,14 @@ module.exports = class SmartAFKDetector {
                     "status",
                     (statusSetting) => {
                         if (text) {
-                            // Set expiration to 5 minutes from now
-                            // This ensures if plugin stops (PC shutdown), status auto-clears
-                            // The status is renewed periodically while AFK to stay alive
-                            const expirationMs = Date.now() + (5 * 60 * 1000); // 5 minutes
+                            // Don't use expiresAtMs - it causes format errors
+                            // We manually clear the status when returning from AFK
                             statusSetting.customStatus = {
                                 text: text,
-                                expiresAtMs: expirationMs.toString(), // Discord expects string
-                                emojiId: null,
-                                emojiName: null
+                                emojiId: "0", // Use "0" instead of null
+                                emojiName: ""
                             };
-                            console.log(`[SmartAFK] Custom status set, expires at: ${new Date(expirationMs).toLocaleTimeString()}`);
+                            console.log(`[SmartAFK] Custom status set to: ${text}`);
                         } else {
                             statusSetting.customStatus = null;
                         }
