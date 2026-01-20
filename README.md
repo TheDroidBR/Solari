@@ -32,9 +32,10 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 
 ## 🚀 Features
 
+- **🧩 Browser Extension**: Detects Netflix, YouTube, Twitch, and Crunchyroll automatically.
 - **🎨 Unlimited Presets**: Create and save configurations for different activities.
+- **🔄 Multi-Client IDs**: Assign specific Discord Client IDs to individual presets.
 - **🎮 Auto-Detect**: Solari identifies what you are playing or using and switches status automatically.
-- **🌐 Site Detection**: Show "Watching Netflix" or "On YouTube" automatically.
 - **😴 Smart AFK**: Automatically switches to away status when you leave your PC.
 - **🎵 Spotify Sync**: Control your music directly from Discord with our dedicated plugin.
 - **🌐 Multi-Language**: Fully localized in English and Portuguese (Brazil).
@@ -45,6 +46,7 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 
 1. Download the latest version from **[Releases](https://github.com/TheDroidBR/Solari/releases)**.
 2. Run the `SolariApp.exe` file.
+3. **(Optional)** Install the **Browser Extension** for website detection (included in release).
 4. Done! Solari is portable and requires no complex installation.
 
 ## 🔑 How to Get a Client ID
@@ -64,7 +66,7 @@ To use Solari, you need a Discord Application Client ID. Here is how to get one:
 Solari integrates with Discord via BetterDiscord plugins to enable advanced features.
 
 ### 🔌 SmartAFK (Auto-Away)
-Automatically switches your status to "Away" when you leave your PC.
+Patches Discord's native idle detection to ensure perfect synchronization across all devices.
 1. Download **`SmartAFKDetector.plugin.js`**.
 2. Place it in your BetterDiscord **plugins** folder.
 3. Enable it in Discord settings.
