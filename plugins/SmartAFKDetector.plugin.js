@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Detects AFK and changes Discord status. ⚠️ LIMITATION: BetterDiscord plugins have limited AFK detection (only works while Discord is focused). For full system-wide AFK detection, use the Solari app!
- * @version 1.1.0
+ * @version 1.1.1
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SmartAFKDetector.plugin.js
@@ -728,24 +728,50 @@ module.exports = class SmartAFKDetector {
 
             if (UserSettingsProtoUtils && UserSettingsProtoUtils.updateAsync) {
                 console.log("[SmartAFK] Using UserSettingsProtoUtils for custom status");
-                UserSettingsProtoUtils.updateAsync(
-                    "status",
-                    (statusSetting) => {
-                        if (text) {
-                            // Don't use expiresAtMs - it causes format errors
-                            // We manually clear the status when returning from AFK
-                            statusSetting.customStatus = {
-                                text: text,
-                                emojiId: "0", // Use "0" instead of null
-                                emojiName: ""
-                            };
-                            console.log(`[SmartAFK] Custom status set to: ${text}`);
-                        } else {
-                            statusSetting.customStatus = null;
-                        }
-                    },
-                    0
-                );
+
+                // Use aca=1 for better server synchronization
+                // aca=0 can sometimes only update locally without syncing to Discord's servers
+                // aca=1 (USER_GUILD_UPDATE) ensures the change is propagated
+                const performUpdate = (attempt = 1) => {
+                    UserSettingsProtoUtils.updateAsync(
+                        "status",
+                        (statusSetting) => {
+                            if (text) {
+                                // Don't use expiresAtMs - it causes format errors
+                                // We manually clear the status when returning from AFK
+                                statusSetting.customStatus = {
+                                    text: text,
+                                    emojiId: "0", // Use "0" instead of null
+                                    emojiName: ""
+                                };
+                                console.log(`[SmartAFK] Custom status set to: ${text} (attempt ${attempt})`);
+                            } else {
+                                statusSetting.customStatus = null;
+                                console.log(`[SmartAFK] Custom status cleared (attempt ${attempt})`);
+                            }
+                        },
+                        1 // aca=1 for better server sync (was 0)
+                    );
+                };
+
+                // First attempt
+                performUpdate(1);
+
+                // Retry mechanism: If clearing status, do multiple attempts with delay
+                // This ensures the clear propagates to Discord's servers
+                if (!text) {
+                    // Send a second update after 500ms to ensure propagation
+                    setTimeout(() => {
+                        performUpdate(2);
+                    }, 500);
+
+                    // Third update after 1.5s as final confirmation
+                    setTimeout(() => {
+                        performUpdate(3);
+                        console.log("[SmartAFK] Status clear retry sequence completed");
+                    }, 1500);
+                }
+
                 this.log(`${this.t('customStatusChangedTo')} ${text || this.t('cleared')}`);
                 return true;
             }
