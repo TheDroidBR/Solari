@@ -46,7 +46,7 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 
 1. Download the latest version from **[Releases](https://github.com/TheDroidBR/Solari/releases)**.
 2. Run the `SolariApp.exe` file.
-3. **(Optional)** Install the **Browser Extension** for website detection (included in release).
+3. **(Optional)** Install the **Browser Extension** for website detection.
 4. Done! Solari is portable and requires no complex installation.
 
 ## 🔑 How to Get a Client ID
@@ -93,3 +93,4 @@ Developed by **[TheDroid](https://github.com/TheDroidBR)**.
 <p align="center">
   © 2025 Solari RPC. All rights reserved.
 </p>
+
