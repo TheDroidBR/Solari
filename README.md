@@ -46,7 +46,7 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 
 1. Download the latest version from **[Releases](https://github.com/TheDroidBR/Solari/releases)**.
 2. Run the `SolariApp.exe` file.
-3. **(Optional)** Install the **Browser Extension** for website detection.
+3. **(Optional)** Install the **Browser Extension** for website detection (included in release).
 4. Done! Solari is portable and requires no complex installation.
 
 ## 🔑 How to Get a Client ID
@@ -84,6 +84,16 @@ Adds playback controls (Play/Pause/Next) and status synchronization.
 Solari is **Freeware**, developed with a focus on privacy and security.
 The code is obfuscated for intellectual property protection but is completely safe and malware-free.
 
+## 🔒 Privacy
+
+Solari collects **minimal, anonymous telemetry** to help us understand how many users are active:
+
+- ✅ App version (e.g., "1.3.1")
+- ✅ Random ID (not tied to your identity)
+- ❌ No IP address, Discord info, or personal data
+
+This data is used solely for usage statistics and is automatically deleted after 90 seconds of inactivity. For more details, see our [Privacy Policy](https://solarirpc.com/privacy.html).
+
 ## 👨‍💻 Credits
 
 Developed by **[TheDroid](https://github.com/TheDroidBR)**.
@@ -93,4 +103,3 @@ Developed by **[TheDroid](https://github.com/TheDroidBR)**.
 <p align="center">
   © 2025 Solari RPC. All rights reserved.
 </p>
-
