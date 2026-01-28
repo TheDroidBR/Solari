@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Detects AFK and changes Discord status. ⚠️ LIMITATION: BetterDiscord plugins have limited AFK detection (only works while Discord is focused). For full system-wide AFK detection, use the Solari app!
- * @version 1.1.1
+ * @version 1.1.2
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SmartAFKDetector.plugin.js
@@ -350,6 +350,7 @@ module.exports = class SmartAFKDetector {
 
     stop() {
         console.log("[SmartAFK] Stopping...");
+        this.shouldReconnect = false; // Prevent reconnection
 
         // Remove beforeunload listener
         if (this.beforeUnloadHandler) {
@@ -383,6 +384,7 @@ module.exports = class SmartAFKDetector {
     // --- Communication ---
     connectToServer() {
         try {
+            this.shouldReconnect = true; // Enable reconnection
             this.ws = new WebSocket(this.config.serverUrl);
             this.ws.onopen = () => {
                 this.safeShowToast(this.t('connectedToSolariToast'), { type: "success" });
@@ -395,7 +397,11 @@ module.exports = class SmartAFKDetector {
             this.ws.onclose = () => {
                 this.log(this.t('disconnectedFromSolari'));
                 this.useSolariAFK = false; // Reset connection indicator
-                setTimeout(() => this.connectToServer(), 5000);
+
+                // Only reconnect if we didn't intentionally stop
+                if (this.shouldReconnect) {
+                    setTimeout(() => this.connectToServer(), 5000);
+                }
             };
             this.ws.onerror = (err) => console.error("[SmartAFK] WebSocket Error:", err);
         } catch (e) {

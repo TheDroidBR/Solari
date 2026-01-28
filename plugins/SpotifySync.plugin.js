@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Adds Spotify playback controls above your Discord profile. Control music (play/pause, skip, previous) directly from Discord. Integrates with Solari for synchronized settings. Supports visibility modes: always show when Spotify is open, or only when playing music.
- * @version 1.0.0
+ * @version 1.0.1
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
@@ -122,6 +122,7 @@ module.exports = class SpotifySync {
 
     stop() {
         console.log("[SpotifySync] Stopping...");
+        this.shouldReconnect = false; // Prevent reconnection
         this.stopSpotifyDetection();
         if (this.ws) this.ws.close();
         this.removeControls();
@@ -142,6 +143,7 @@ module.exports = class SpotifySync {
     // === WebSocket Connection ===
     connectToServer() {
         try {
+            this.shouldReconnect = true; // Enable reconnection
             this.ws = new WebSocket(this.config.serverUrl);
             this.ws.onopen = () => {
                 this.isConnectedToSolari = true;
@@ -154,7 +156,11 @@ module.exports = class SpotifySync {
             this.ws.onclose = () => {
                 this.isConnectedToSolari = false;
                 console.log("[SpotifySync]", this.t('disconnectedFromSolari'));
-                setTimeout(() => this.connectToServer(), 5000);
+
+                // Only reconnect if we didn't intentionally stop
+                if (this.shouldReconnect) {
+                    setTimeout(() => this.connectToServer(), 5000);
+                }
             };
             this.ws.onerror = (err) => console.error("[SpotifySync] WebSocket Error:", err);
         } catch (e) {
