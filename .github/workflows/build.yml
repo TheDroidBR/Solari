@@ -1,0 +1,48 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.x'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build Solari
+      run: npm run build
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    # === SIGNPATH INTEGRATION (Enable after getting approved) ===
+    # 1. Add your SignPath secrets in GitHub > Settings > Secrets and variables > Actions
+    # 2. Uncomment the step below
+    #
+    # - name: Sign with SignPath
+    #   uses: signpath/github-action-submit-signing-request@v1
+    #   with:
+    #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+    #     organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+    #     project-slug: 'solari'
+    #     signing-policy-slug: 'release-signing'
+    #     artifact-directory: 'Solari - Programa'
+    #     wait-for-completion: true
+    # ==========================================================
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Solari-Windows-Portable
+        path: "Solari - Programa/*.exe"
