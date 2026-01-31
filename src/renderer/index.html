@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solari</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>Solari</h1>
+        <span class="version">v1.4.0</span>
+      </div>
+      <div class="header-controls">
+        <div class="toggle-container">
+          <span class="toggle-label" data-i18n="app.enabled">Enabled</span>
+          <label class="switch">
+            <input type="checkbox" id="statusToggle" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <div class="toggle-container" style="margin-left: 15px;">
+          <span class="toggle-label" style="font-size: 0.85em;" data-i18n="app.autoDetect">Auto-Detect</span>
+          <label class="switch" style="transform: scale(0.85);">
+            <input type="checkbox" id="autoDetectToggle">
+            <span class="slider round"></span>
+          </label>
+          <button id="autoDetectSettingsBtn" class="btn-icon" data-i18n-title="autoDetect.title"
+            style="margin-left: 5px; font-size: 1em;">⚙️</button>
+          <button id="exitManualModeBtn" class="btn-icon" title="Sair do Modo Manual (Voltar para Auto)"
+            style="margin-left: 5px; font-size: 1em; display: none; color: #f59e0b; animation: pulse 2s infinite;">↩️</button>
+        </div>
+        <div class="toggle-container" style="margin-left: 15px;">
+          <span class="toggle-label" style="font-size: 0.85em;" title="Eco Mode (Saves CPU)">Eco</span>
+          <label class="switch" style="transform: scale(0.85);">
+            <input type="checkbox" id="ecoModeToggle">
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <div class="status">
+          <span class="status-indicator"></span>
+          <span class="status-text" data-i18n="app.starting">Starting...</span>
+        </div>
+        <div class="afk-indicator" id="afkIndicator" style="display: none;">
+          <span class="afk-icon">🌙</span>
+          <span class="afk-text">AFK</span>
+        </div>
+        <div class="theme-selector">
+          <button class="theme-btn active" data-theme="default" data-i18n-title="app.themeDefault">🌅</button>
+          <button class="theme-btn" data-theme="dark" data-i18n-title="app.themeDark">🌙</button>
+          <button class="theme-btn" data-theme="light" data-i18n-title="app.themeLight">☀️</button>
+          <div class="theme-divider"></div>
+          <button class="neon-btn active" id="neonToggle" title="Toggle Neon Effects">⚡</button>
+          <button class="btn-icon" id="customCssBtn" title="Custom CSS"
+            style="font-size: 1rem; margin-left:8px;">🎨</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="rpc-tab">
+        <span class="tab-icon">🎮</span>
+        <span data-i18n="tabs.rpc">Rich Presence</span>
+      </button>
+      <button class="tab-btn" data-tab="soundboard-tab">
+        <span class="tab-icon">🔊</span>
+        <span data-i18n="tabs.soundboard">SoundBoard</span>
+      </button>
+    </nav>
+
+    <main>
+      <!-- SoundBoard Tab -->
+      <div id="soundboard-tab" class="tab-content">
+        <div class="soundboard-wrapper-final">
+
+          <!-- Driver Not Installed State -->
+          <div id="soundboard-driver-not-installed" class="soundboard-empty-state">
+            <div class="empty-state-icon">🔊</div>
+            <h2 data-i18n="soundboard.driverRequired">Driver de Áudio Necessário</h2>
+            <p data-i18n="soundboard.driverDescription">
+              Para usar o SoundBoard no Discord, você precisa instalar o VB-Audio Virtual Cable (grátis).
+            </p>
+            <div class="instruction-card">
+              <h3>📋 <span data-i18n="soundboard.howToInstallDriver">Como Instalar:</span></h3>
+              <ol>
+                <li data-i18n="soundboard.driverStep1">Clique no botão abaixo para baixar o VB-Cable</li>
+                <li data-i18n="soundboard.driverStep2">Execute o instalador como Administrador</li>
+                <li data-i18n="soundboard.driverStep3">Reinicie o computador</li>
+                <li data-i18n="soundboard.driverStep4">Volte aqui e clique em "Verificar Driver"</li>
+              </ol>
+            </div>
+            <div class="driver-action-buttons">
+              <button class="btn-modern btn-gradient" onclick="window.sbDownloadDriver()">
+                <span>⬇️</span> <span data-i18n="soundboard.downloadDriver">Baixar VB-Cable</span>
+              </button>
+              <button class="btn-modern btn-secondary" onclick="window.sbRefreshDriver()">
+                <span>🔄</span> <span data-i18n="soundboard.checkDriver">Verificar Driver</span>
+              </button>
+            </div>
+            <div class="instruction-card" style="margin-top: 20px; background: rgba(88, 101, 242, 0.1);">
+              <h3>🎮 <span data-i18n="soundboard.discordSetup">No Discord:</span></h3>
+              <ol>
+                <li data-i18n="soundboard.discordStep1">Abra Configurações → Voz e Vídeo</li>
+                <li data-i18n="soundboard.discordStep2">Em "Dispositivo de Entrada", selecione "CABLE Output"</li>
+                <li data-i18n="soundboard.discordStep3">Pronto! Os sons do Solari irão para sua call</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Driver Installed - SoundBoard Ready -->
+          <div id="soundboard-ready" style="display: none;">
+            <section class="soundboard-section">
+              <!-- Section Header -->
+              <div class="section-header">
+                <h2>🔊 <span data-i18n="tabs.soundboard">SoundBoard</span></h2>
+                <div class="section-header-controls">
+                  <span class="connection-badge connected">
+                    <span class="status-dot"></span>
+                    <span data-i18n="soundboard.ready">Pronto</span>
+                  </span>
+                </div>
+              </div>
+
+              <!-- Quick Controls Row -->
+              <div class="soundboard-quick-controls">
+                <!-- Search and Filters -->
+                <div class="control-group-row">
+                  <div class="search-box">
+                    <input type="text" id="soundboard-search" placeholder="🔍 Search sounds..." class="search-input">
+                  </div>
+                  <select id="soundboard-category-filter" class="category-select">
+                    <option value="all">📁 All</option>
+                    <option value="favorites">⭐ Favorites</option>
+                  </select>
+                </div>
+
+                <!-- Output Device Selector -->
+                <div class="control-group">
+                  <label class="control-label">
+                    <span class="control-icon">🎚️</span>
+                    <span data-i18n="soundboard.outputDevice">Saída</span>
+                  </label>
+                  <select id="soundboard-output-device" class="device-select">
+                    <option value="">🔊 Default</option>
+                  </select>
+                </div>
+
+                <!-- Microphone Input Selector -->
+                <div class="control-group">
+                  <label class="control-label">
+                    <span class="control-icon">🎤</span>
+                    <span data-i18n="soundboard.inputDevice">Microfone</span>
+                  </label>
+                  <select id="soundboard-input-device" class="device-select">
+                    <option value="">🎤 Default</option>
+                  </select>
+                </div>
+
+                <!-- Mic Passthrough Toggle -->
+                <div class="control-group mic-passthrough-control">
+                  <label class="control-label">
+                    <span class="control-icon">🔄</span>
+                    <span data-i18n="soundboard.micPassthrough">Mic + Sons</span>
+                  </label>
+                  <label class="toggle-switch-mini">
+                    <input type="checkbox" id="soundboard-mic-passthrough" checked>
+                    <span class="toggle-slider-mini"></span>
+                  </label>
+                </div>
+
+                <!-- Noise Suppression Toggle (RNNoise) -->
+                <div class="control-group noise-suppression-control" style="margin-left: 10px;">
+                  <label class="control-label" title="Enables RNNoise noise suppression">
+                    <span class="control-icon">🔇</span>
+                    <span data-i18n="soundboard.noiseSuppression">Supressão Ruído</span>
+                  </label>
+                  <label class="toggle-switch-mini">
+                    <input type="checkbox" id="soundboard-noise-suppression" checked>
+                    <span class="toggle-slider-mini"></span>
+                  </label>
+                </div>
+
+                <!-- Loudness Equalization Toggle (NEW) -->
+                <div class="control-group loudness-eq-control" style="margin-left: 10px;">
+                  <label class="control-label" title="Normalizes volume levels for consistent loudness">
+                    <span class="control-icon">📈</span>
+                    <span data-i18n="soundboard.loudnessEq">Equalização Vol.</span>
+                  </label>
+                  <label class="toggle-switch-mini">
+                    <input type="checkbox" id="soundboard-loudness-eq">
+                    <span class="toggle-slider-mini"></span>
+                  </label>
+                </div>
+
+                <!-- Mic Volume -->
+                <div class="control-group">
+                  <label class="control-label">
+                    <span class="control-icon">🎙️</span>
+                    <span data-i18n="soundboard.micVolume">Vol. Mic</span>
+                  </label>
+                  <input type="range" id="soundboard-mic-volume" min="0" max="100" value="100"
+                    class="volume-slider-mini">
+                </div>
+
+                <!-- Sound Volume Control -->
+                <div class="control-group">
+                  <label class="control-label">
+                    <span class="control-icon">🔊</span>
+                    <span data-i18n="soundboard.globalVolume">Vol. Sons</span>
+                  </label>
+                  <div class="volume-control-inline">
+                    <input type="range" id="global-volume" min="0" max="100" value="80" class="volume-slider-modern">
+                    <span id="global-volume-value" class="volume-value-badge">80%</span>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="control-actions">
+                  <!-- Small Drop Zone Square -->
+                  <div id="drop-zone" class="drop-zone-mini" title="Arraste arquivos aqui">
+                    <span class="drop-icon">📁</span>
+                    <span class="drop-text">Drop</span>
+                  </div>
+                  <button id="soundboard-view-mode" class="btn-icon" title="Grid/List View">
+                    <span id="view-mode-icon">▦</span>
+                  </button>
+                  <button id="soundboard-stop-all" class="btn-icon btn-danger" title="Stop All Sounds">
+                    <span>⏹️</span>
+                  </button>
+                  <button id="soundboard-export-btn" class="btn-icon" title="Export Library">
+                    <span>📤</span>
+                  </button>
+                  <button id="soundboard-import-btn" class="btn-icon" title="Import Library">
+                    <span>📥</span>
+                  </button>
+                  <button id="soundboard-add-btn" class="btn-modern btn-gradient">
+                    <span>➕</span>
+                    <span data-i18n="soundboard.addSound">Add Sound</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Discord Setup Reminder -->
+              <div class="discord-reminder" id="discord-reminder">
+                <span>💡</span>
+                <span data-i18n="soundboard.discordReminder">Lembre-se: No Discord, selecione "CABLE Output" como
+                  dispositivo de entrada!</span>
+                <button class="btn-text"
+                  onclick="document.getElementById('discord-reminder').style.display='none'">✕</button>
+              </div>
+
+              <!-- Sounds Grid -->
+              <div class="soundboard-grid-modern view-grid" id="soundboard-grid">
+                <!-- Sound cards will be rendered here dynamically -->
+              </div>
+
+            </section>
+          </div> <!-- end soundboard-ready -->
+        </div> <!-- end soundboard-wrapper-final -->
+      </div> <!-- end soundboard-tab -->
+      <!-- RPC Tab Content -->
+      <div id="rpc-tab" class="tab-content active">
+        <div class="main-grid">
+          <!-- Left Column: RPC Config -->
+          <section class="rpc-config">
+            <h2 data-i18n="presence.title">Configuração de Presença</h2>
+
+            <div class="form-group">
+              <label for="activityType" data-i18n="presence.activityType">Tipo de Atividade</label>
+              <select id="activityType">
+                <option value="0" data-i18n="presence.playing">Jogando (Playing)</option>
+                <option value="2" data-i18n="presence.listening">Ouvindo (Listening)</option>
+                <option value="3" data-i18n="presence.watching">Assistindo (Watching)</option>
+                <option value="5" data-i18n="presence.competing">Competindo (Competing)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="details" data-i18n="presence.details">Detalhes (Linha 1)</label>
+              <input type="text" id="details" placeholder="O que você está fazendo?"
+                data-i18n-placeholder="presence.detailsPlaceholder" />
+            </div>
+
+            <div class="form-group">
+              <label for="state" data-i18n="presence.state">Estado (Linha 2)</label>
+              <input type="text" id="state" placeholder="Status atual"
+                data-i18n-placeholder="presence.statePlaceholder" />
+            </div>
+
+            <div class="form-group">
+              <label>Imagem Grande (URL)</label>
+              <input type="text" id="largeImage" placeholder="Cole URL da imagem (ex: https://i.imgur.com/...)" />
+              <p class="hint" style="margin-top: 5px;">Faça upload no <a href="https://imgur.com/upload" target="_blank"
+                  style="color: #ff9966;">Imgur</a> e cole o link aqui</p>
+              <p class="hint" style="margin-top: 3px; font-size: 11px; opacity: 0.7;">Caso a imagem não seja alterada,
+                reinicie o Solari e tente novamente! Caso o link termine com um '/h[extensão do arquivo]', quer dizer
+                que
+                não houve conversão da URL. Altere a URL manualmente!</p>
+            </div>
+
+            <div class="form-group">
+              <label for="largeImageText">Texto da Imagem Grande</label>
+              <input type="text" id="largeImageText" placeholder="Texto ao passar o mouse" />
+            </div>
+
+            <div class="form-group">
+              <label data-i18n="presence.smallImage">Imagem Pequena (URL)</label>
+              <input type="text" id="smallImage" placeholder="Cole URL da imagem pequena (ex: https://i.imgur.com/...)"
+                data-i18n-placeholder="presence.smallImagePlaceholder" />
+              <p class="hint" style="margin-top: 5px;" data-i18n="presence.smallImageHint">Imagem que aparece no canto
+                inferior direito do Rich Presence</p>
+            </div>
+
+            <div class="form-group">
+              <label for="smallImageText" data-i18n="presence.smallImageText">Texto da Imagem Pequena</label>
+              <input type="text" id="smallImageText" placeholder="Texto ao passar o mouse na imagem pequena"
+                data-i18n-placeholder="presence.smallImageTextPlaceholder" />
+            </div>
+
+            <!-- Party Size Section -->
+            <div class="form-group"
+              style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 10px;">
+              <label style="font-size: 0.95em; color: #ff9966;">👥 <span
+                  data-i18n="presence.partySize">Jogadores</span></label>
+            </div>
+
+            <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
+              <div style="flex: 1;">
+                <label for="partyCurrent" data-i18n="presence.partyCurrent">Atual</label>
+                <input type="number" id="partyCurrent" min="0" max="999" placeholder="5" />
+              </div>
+              <span id="partyOfLabel" style="color: var(--text-muted); font-size: 1.2em; margin-top: 20px;"
+                data-i18n="presence.partyOf">de</span>
+              <div style="flex: 1;">
+                <label for="partyMax" data-i18n="presence.partyMax">Máximo</label>
+                <input type="number" id="partyMax" min="0" max="999" placeholder="10" />
+              </div>
+            </div>
+
+            <!-- Timestamp Section -->
+            <div class="form-group"
+              style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 10px;">
+              <label style="font-size: 0.95em; color: #ff9966;">⏱️ <span
+                  data-i18n="presence.timestamp">Tempo</span></label>
+            </div>
+
+            <div class="form-group">
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="timestampMode" value="normal" checked style="accent-color: #ff9966;" />
+                  <span data-i18n="presence.timestampNormal">Normal</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="timestampMode" value="local" style="accent-color: #ff9966;" />
+                  <span data-i18n="presence.timestampLocal">Horário Local</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                  <input type="radio" name="timestampMode" value="custom" style="accent-color: #ff9966;" />
+                  <span data-i18n="presence.timestampCustom">Personalizado</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group" id="customTimestampGroup" style="display: none;">
+              <label for="customTimestamp" data-i18n="presence.timestampCustomLabel">Data e Hora</label>
+              <input type="datetime-local" id="customTimestamp" style="color-scheme: dark;" />
+            </div>
+
+            <div class="form-group">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="useEndTimestamp" style="accent-color: #ff9966;" />
+                <span data-i18n="presence.timestampEnd">Mostrar tempo restante (termina em...)</span>
+              </label>
+              <p class="hint" style="margin-top: 5px;" data-i18n="presence.timestampEndHint">Mostra quanto tempo falta
+                ao
+                invés de
+                quanto passou</p>
+            </div>
+
+
+            <!-- Buttons Section -->
+            <div class="form-group"
+              style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 10px;">
+              <label style="font-size: 0.95em; color: #ff9966;">🔗 <span data-i18n="presence.buttons">Botões (aparecem
+                  no
+                  Rich Presence)</span></label>
+            </div>
+
+            <div class="form-group" style="display: flex; gap: 10px;">
+              <div style="flex: 1;">
+                <label for="button1Label">Botão 1 - Texto</label>
+                <input type="text" id="button1Label" placeholder="Ex: Jogar Comigo" />
+              </div>
+              <div style="flex: 1;">
+                <label for="button1Url">Botão 1 - Link</label>
+                <input type="text" id="button1Url" placeholder="https://..." />
+              </div>
+            </div>
+
+            <div class="form-group" style="display: flex; gap: 10px;">
+              <div style="flex: 1;">
+                <label for="button2Label">Botão 2 - Texto</label>
+                <input type="text" id="button2Label" placeholder="Ex: Meu Discord" />
+              </div>
+              <div style="flex: 1;">
+                <label for="button2Url">Botão 2 - Link</label>
+                <input type="text" id="button2Url" placeholder="https://..." />
+              </div>
+            </div>
+
+            <div class="button-group">
+              <button id="updateBtn" class="btn btn-primary" data-i18n="presence.updateStatus">Atualizar
+                Status</button>
+              <button id="resetBtn" class="btn btn-secondary" data-i18n="presence.resetToDefault">Resetar para
+                Padrão</button>
+            </div>
+          </section>
+
+          <!-- Right Column -->
+          <div class="right-column">
+            <!-- Discord Preview -->
+            <section class="discord-preview-section">
+              <h2 data-i18n="preview.title">👁️ Preview do Discord</h2>
+              <div class="discord-preview-card">
+                <div class="discord-preview-header">
+                  <span class="activity-type-label" id="previewActivityType">JOGANDO</span>
+                </div>
+                <div class="discord-preview-content">
+                  <div class="discord-preview-image" id="previewLargeImage">
+                    <span>🎮</span>
+                    <div class="discord-preview-small-image" id="previewSmallImage" style="display: none;">
+                      <span>⭐</span>
+                    </div>
+                  </div>
+                  <div class="discord-preview-info">
+                    <div class="discord-preview-name" id="previewAppName">Carregando...</div>
+                    <div class="discord-preview-details" id="previewDetails"></div>
+                    <div class="discord-preview-state" id="previewState"></div>
+                    <div class="discord-preview-time" id="previewTime">00:00 <span
+                        data-i18n="preview.elapsed">decorrido</span></div>
+                  </div>
+                </div>
+                <div class="discord-preview-buttons" id="previewButtons" style="display: none;">
+                  <button class="discord-btn" id="previewBtn1">Botão 1</button>
+                  <button class="discord-btn" id="previewBtn2" style="display: none;">Botão 2</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- Presets -->
+            <section class="presets">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>Presets</h2>
+                <div style="display: flex; gap: 5px;">
+                  <button id="exportPresetsBtn" class="btn btn-small btn-secondary" title="Exportar Presets"
+                    data-i18n="presets.export">📤 Exportar</button>
+                  <button id="importPresetsBtn" class="btn btn-small btn-secondary" title="Importar Presets"
+                    data-i18n="presets.import">📥 Importar</button>
+                </div>
+              </div>
+              <div class="preset-controls">
+                <input type="text" id="presetName" placeholder="Nome do Preset"
+                  data-i18n-placeholder="presets.namePlaceholder" />
+                <select id="presetClientId" style="min-width: 140px;">
+                  <option value="">🌐 Padrão Global</option>
+                </select>
+                <button id="savePresetBtn" class="btn btn-small" data-i18n="presets.save">Salvar</button>
+              </div>
+              <div id="presetList" class="preset-list"></div>
+            </section>
+
+            <!-- App Profiles (Identity Manager) -->
+            <section class="identity-manager">
+              <h2 data-i18n="identities.title">🆔 App Profiles</h2>
+              <p class="hint" data-i18n="identities.hint">Create multiple profiles with different Discord Client IDs.
+                Each preset can use a different profile.</p>
+
+              <div class="identity-list" id="identityList">
+                <!-- Identities will be rendered here -->
+              </div>
+
+              <div class="identity-add-form" style="margin-top: 12px;">
+                <input type="text" id="newIdentityName" data-i18n-placeholder="identities.namePlaceholder"
+                  placeholder="App Name (ex: Visual Studio)" style="flex: 1;" />
+                <div class="input-group" style="flex: 1;">
+                  <input type="password" id="newIdentityId" data-i18n-placeholder="identities.idPlaceholder"
+                    placeholder="Client ID" />
+                  <button id="toggleIdentityIdBtn" class="input-group-btn">👁️</button>
+                </div>
+                <div style="flex: none; display: flex; gap: 5px;">
+                  <button id="cancelIdentityEditBtn" class="btn btn-secondary btn-small"
+                    style="display: none;">Cancel</button>
+                  <button id="addIdentityBtn" class="btn btn-small" data-i18n="identities.add">+ Add</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- Server Status -->
+            <section class="server-info">
+              <h2 data-i18n="server.title">Status do Servidor</h2>
+              <div class="info-card">
+                <p><strong>WebSocket:</strong> <span id="wsStatus" data-i18n="server.running">Rodando</span></p>
+                <p><strong>Discord RPC:</strong> <span id="rpcStatus" data-i18n="server.connected">Conectado</span></p>
+              </div>
+              <!-- Plugin Status -->
+              <div class="info-card" style="margin-top: 10px;">
+                <p style="display: flex; align-items: center; gap: 8px;">
+                  <strong>SpotifySync:</strong>
+                  <span id="spotifyStatusDot"
+                    style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
+                  <span id="spotifyPluginStatus" style="color: #ef4444;">Desconectado</span>
+                </p>
+                <p style="display: flex; align-items: center; gap: 8px;">
+                  <strong>SmartAFK:</strong>
+                  <span id="smartAfkStatusDot"
+                    style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
+                  <span id="smartAfkPluginStatus" style="color: #ef4444;">Desconectado</span>
+                </p>
+              </div>
+              <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button id="testConnectionBtn" class="btn btn-secondary" style="font-size: 0.8em;"
+                  data-i18n="server.testConnection">Testar Conexão</button>
+                <button id="exportLogsBtn" class="btn btn-secondary" style="font-size: 0.8em;">📋 <span
+                    data-i18n="server.exportLogs">Exportar Logs</span></button>
+              </div>
+              <p id="testResult" style="margin-top: 5px; font-size: 0.8em; color: #aaa;"></p>
+            </section>
+
+            <!-- Plugin Manager -->
+
+            <section class="plugin-manager">
+              <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: none; padding-bottom: 0;">
+                <h2 style="margin: 0 0 0 0; border: none; padding-bottom: 14px;">🔌 Plugins</h2>
+                <button id="toggleTrashBtn" class="btn-icon" title="Ver Lixeira">🗑️</button>
+              </div>
+
+              <!-- Active Plugins -->
+              <ul id="pluginList" class="plugin-list">
+                <li class="plugin-item placeholder">Nenhum plugin conectado...</li>
+              </ul>
+
+              <!-- Trash List (Hidden by default) -->
+              <div id="trashContainer" style="display: none; margin-top: 10px;">
+                <h3 style="font-size: 0.9rem; color: #ef4444; margin-bottom: 5px;">Lixeira (Bloqueados)</h3>
+                <ul id="trashList" class="plugin-list">
+                  <li class="plugin-item placeholder">Lixeira vazia...</li>
+                </ul>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- Plugin Configuration Area (Dynamic) -->
+        <div id="pluginConfigArea" class="plugin-config-area" style="margin-top: 20px; display: none;">
+          <!-- SmartAFK Config -->
+          <div id="configSmartAFKDetector" class="plugin-config-panel" style="display: none;">
+            <h2>⚙️ Smart AFK Detector</h2>
+            <div class="config-grid">
+              <div class="form-group">
+                <div class="toggle-container" style="justify-content: flex-start;">
+                  <span class="toggle-label" style="margin-right: 12px;">Ativar Detector</span>
+                  <label class="switch">
+                    <input type="checkbox" id="afkToggle" checked>
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top: 20px;">
+                <label style="margin-bottom: 12px; display: block; font-size: 0.95em;">📊 NÍVEIS DE AFK</label>
+                <p class="hint" style="margin-bottom: 14px; font-size: 0.85em; color: rgba(255,255,255,0.5);">
+                  Configure
+                  múltiplos níveis com tempos e
+                  status diferentes:</p>
+                <div id="afkTiersContainer">
+                  <!-- Tiers will be rendered dynamically -->
+                </div>
+                <div style="margin-top: 14px; display: flex; gap: 12px;">
+                  <button id="addAfkTierBtn" class="btn"
+                    style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); flex: 1;">+ Adicionar
+                    Nível</button>
+                  <button id="saveAfkBtn" class="btn btn-primary" style="flex: 1;">💾 Salvar Configurações</button>
+                </div>
+                <p id="afkSaveStatus" style="color: #4ade80; margin-top: 10px; display: none; font-size: 0.9em;">✓
+                  Salvo
+                  e
+                  sincronizado!</p>
+
+              </div>
+            </div>
+
+            <!-- AFK Disabled Presets -->
+            <div class="form-group" style="margin-top: 22px;">
+              <label style="margin-bottom: 12px; display: block; font-size: 0.95em;">🎮 PRESETS QUE DESATIVAM
+                AFK</label>
+              <p class="hint" style="margin-bottom: 12px; font-size: 0.85em; color: rgba(255,255,255,0.5);">Quando um
+                destes presets estiver ativo, você
+                não ficará AFK:</p>
+              <div id="afkDisabledPresetsContainer" class="afk-presets-container">
+                <!-- Presets will be rendered dynamically -->
+                <p style="color: rgba(255,255,255,0.4); font-size: 0.85em;">Nenhum preset selecionado</p>
+              </div>
+              <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center;">
+                <select id="addPresetToAfkDisable" class="form-group" style="flex: 1; margin: 0;">
+                  <option value="">Selecione um preset...</option>
+                </select>
+                <button id="addPresetToDisableBtn" class="btn"
+                  style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); flex: none; padding: 12px 18px;">+
+                  Adicionar</button>
+              </div>
+            </div>
+            <div class="afk-logs-container" style="margin-top: 20px;">
+              <h3>📜 Logs de Atividade</h3>
+              <ul id="afkLogs">
+                <li>Aguardando logs...</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- SpotifySync Config (Modern) -->
+          <div id="configSpotifySync" class="plugin-config-panel" style="display: none;">
+            <!-- Spotify Header with gradient -->
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+              <div
+                style="width: 48px; height: 48px; background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(29, 185, 84, 0.4);">
+                <span style="font-size: 1.5em;">🎵</span>
+              </div>
+              <div>
+                <h2
+                  style="margin: 0; padding: 0; font-size: 1.3em; background: linear-gradient(90deg, #1DB954, #1ed760); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                  SpotifySync</h2>
+                <p style="margin: 2px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.5);"
+                  data-i18n="spotify.controlsVisibility">Visibilidade dos Controles</p>
+              </div>
+            </div>
+
+            <!-- Visibility Options as modern cards -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <label
+                style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(29, 185, 84, 0.08); border: 1px solid rgba(29, 185, 84, 0.2); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                <input type="radio" name="controlsVisibility" value="whenOpen"
+                  style="width: 18px; height: 18px; accent-color: #1DB954;" />
+                <div>
+                  <div style="font-weight: 500; color: #fff;" data-i18n="spotify.showAlwaysWhenOpen">Sempre mostrar
+                    quando
+                    Spotify aberto</div>
+                  <div style="font-size: 0.8em; color: rgba(255,255,255,0.4); margin-top: 2px;"
+                    data-i18n="spotify.showAlwaysWhenOpenHint">Controles visíveis mesmo
+                    quando pausado</div>
+                  <div style="font-size: 0.75em; color: #f59e0b; margin-top: 4px;">⚠️ <span
+                      data-i18n="spotify.showAlwaysWhenOpenWarning">Limite de 1 hora sem tocar música
+                      (limitação do Discord)</span></div>
+                </div>
+              </label>
+              <label
+                style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(29, 185, 84, 0.08); border: 1px solid rgba(29, 185, 84, 0.2); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                <input type="radio" name="controlsVisibility" value="whenPlaying" checked
+                  style="width: 18px; height: 18px; accent-color: #1DB954;" />
+                <div>
+                  <div style="font-weight: 500; color: #fff;" data-i18n="spotify.showOnlyWhenPlaying">Mostrar apenas
+                    quando tocando</div>
+                  <div style="font-size: 0.8em; color: rgba(255,255,255,0.4); margin-top: 2px;"
+                    data-i18n="spotify.showOnlyWhenPlayingHint">Oculta quando a música
+                    está pausada</div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Now Playing Card -->
+            <div id="spotifyPluginNowPlaying"
+              style="margin-top: 16px; padding: 14px; background: linear-gradient(135deg, rgba(29, 185, 84, 0.15) 0%, rgba(29, 185, 84, 0.05) 100%); border-radius: 12px; border: 1px solid rgba(29, 185, 84, 0.3); display: none;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div
+                  style="width: 8px; height: 8px; background: #1DB954; border-radius: 50%; animation: pulse 2s infinite;">
+                </div>
+                <span
+                  style="font-size: 0.75em; color: #1DB954; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"
+                  data-i18n="spotify.nowPlaying">Tocando Agora</span>
+              </div>
+              <div id="spotifyPluginTrackTitle"
+                style="color: #fff; font-weight: 600; font-size: 1.1em; margin-top: 8px;">
+                -</div>
+              <div id="spotifyPluginTrackArtist" style="color: rgba(255,255,255,0.6); font-size: 0.9em;">-</div>
+            </div>
+
+            <!-- Save Button -->
+            <button id="saveSpotifyPluginBtn" class="btn"
+              style="margin-top: 16px; background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); color: #fff; width: 100%; padding: 12px; font-weight: 600; box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);">
+              💾 <span data-i18n="spotify.save">Salvar</span>
+            </button>
+          </div>
+
+          <!-- Solari Plugin Config (User Info / Toast) -->
+          <div id="configSolari" class="plugin-config-panel" style="display: none;">
+            <h2>⚙️ Solari Plugin</h2>
+            <div class="info-card">
+              <p><strong>Usuário Discord:</strong> <span id="discordUser">Aguardando conexão...</span></p>
+            </div>
+            <div class="form-group" style="margin-top: 15px;">
+              <label for="toastMessage">Enviar Notificação para Discord</label>
+              <input type="text" id="toastMessage" placeholder="Mensagem para o Discord" />
+            </div>
+            <button id="sendToastBtn" class="btn btn-small">Enviar Notificação</button>
+          </div>
+        </div>
+      </div> <!-- end main-grid -->
+  </div> <!-- end rpc-tab -->
+
+
+  </main>
+  </div>
+
+  <!-- Toast Container - Outside all scrolling containers for fixed positioning -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Custom Modal for Confirmations (Fixes native dialog focus bug) -->
+  <div id="customModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 id="modalTitle" data-i18n="modal.confirmTitle">Confirmação</h3>
+      <p id="modalMessage">Tem certeza?</p>
+      <div class="modal-buttons">
+        <button id="modalCancelBtn" class="btn btn-secondary" data-i18n="modal.cancel">Cancelar</button>
+        <button id="modalConfirmBtn" class="btn btn-primary" data-i18n="modal.confirm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- About Modal -->
+  <div id="aboutModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <h2 style="margin-bottom: 5px;">Solari RPC</h2>
+      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.4.0</p>
+
+      <p style="margin-bottom: 15px;">
+        <span data-i18n="about.description">Premium Discord Rich Presence Manager</span><br>
+        <span data-i18n="about.developedBy">Developed by</span> <strong>TheDroid</strong><br>
+        <span style="font-size: 0.85em; opacity: 0.7;">Licensed under GPL v2.0</span>
+      </p>
+
+      <div class="modal-buttons" style="flex-direction: column; gap: 10px;">
+        <button class="btn btn-secondary"
+          onclick="require('electron').shell.openExternal('https://solarirpc.com/privacy.html')">
+          🔒 <span data-i18n="about.privacyPolicy">Privacy Policy</span>
+        </button>
+        <button class="btn btn-secondary"
+          onclick="require('electron').shell.openExternal('https://github.com/TheDroidBR/Solari')">
+          <span style="font-size: 1.1em;">🐱</span> GitHub
+        </button>
+        <button class="btn btn-secondary"
+          onclick="require('electron').shell.openExternal('https://discord.gg/hR8nQZhDgf')">
+          <span style="font-size: 1.1em;">💬</span> <span data-i18n="about.discordServer">Discord Server</span>
+        </button>
+        <button id="closeAboutBtn" class="btn btn-primary" style="margin-top: 10px;"
+          data-i18n="about.close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom CSS Modal -->
+  <div id="customCssModal" class="modal-overlay">
+    <div class="modal-content" style="width: 700px; max-width: 95vw;">
+      <h3>🎨 <span data-i18n="customCss.title">Custom CSS</span></h3>
+      <p class="hint" data-i18n="customCss.hint">Customize Solari's look with your own CSS or choose a preset.</p>
+
+      <!-- Preset Selector -->
+      <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+          <label style="font-size: 0.85em; opacity: 0.7; margin-bottom: 5px; display: block;"
+            data-i18n="customCss.presets">Presets</label>
+          <select id="cssPresetSelect" class="select-styled" style="width: 100%;">
+            <option value="none" data-i18n="customCss.noPreset">-- No Preset --</option>
+            <optgroup label="Built-in Themes" data-i18n-label="customCss.builtInThemes">
+              <option value="neon-purple">💜 Neon Purple</option>
+              <option value="crimson">🔥 Crimson</option>
+              <option value="ocean">🌊 Ocean Blue</option>
+              <option value="matrix">💚 Matrix</option>
+              <option value="minimal">⬛ Minimal Dark</option>
+              <option value="sunset">🌅 Sunset</option>
+            </optgroup>
+            <optgroup id="userPresetsGroup" label="My Presets" data-i18n-label="customCss.myPresets">
+            </optgroup>
+          </select>
+        </div>
+        <div style="display: flex; gap: 5px; align-items: flex-end;">
+          <button id="saveAsPresetBtn" class="btn btn-small btn-secondary" title="Save as new preset">💾</button>
+          <button id="deletePresetBtn" class="btn btn-small btn-secondary" title="Delete selected preset"
+            style="display: none;">🗑️</button>
+        </div>
+      </div>
+
+      <!-- CSS Editor -->
+      <textarea id="customCssInput"
+        style="width: 100%; height: 280px; background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); color: #e0e0e0; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; padding: 12px; border-radius: 8px; resize: vertical; line-height: 1.5;"
+        placeholder=":root {
+  --primary: #a855f7;
+  --primary-glow: rgba(168, 85, 247, 0.4);
+}"></textarea>
+
+      <!-- Quick Tips -->
+      <details style="margin-top: 10px; font-size: 0.85em; opacity: 0.8;">
+        <summary style="cursor: pointer; user-select: none;" data-i18n="customCss.tips">💡 Tips</summary>
+        <div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-top: 5px;">
+          <code style="color: #f97316;">--primary</code> - <span data-i18n="customCss.tipPrimary">Main accent
+            color</span><br>
+          <code style="color: #f97316;">--primary-glow</code> - <span data-i18n="customCss.tipGlow">Glow effect
+            color</span><br>
+          <code style="color: #f97316;">.glass-card</code> - <span data-i18n="customCss.tipCards">Card
+            elements</span><br>
+          <code style="color: #f97316;">body</code> - <span data-i18n="customCss.tipBody">Background styling</span>
+        </div>
+      </details>
+
+      <div class="modal-buttons" style="margin-top: 15px;">
+        <button id="resetCssBtn" class="btn btn-secondary" style="margin-right: auto;"
+          data-i18n="customCss.reset">Reset</button>
+        <button id="closeCustomCssBtn" class="btn btn-secondary" data-i18n="modal.cancel">Cancel</button>
+        <button id="saveCustomCssBtn" class="btn btn-primary" data-i18n="customCss.saveApply">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- Preset Name Prompt Modal -->
+  <div id="presetNameModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+      <h3>💾 <span data-i18n="customCss.savePreset">Save Preset</span></h3>
+      <p class="hint" data-i18n="customCss.enterPresetName">Enter a name for your preset:</p>
+      <input type="text" id="presetNameInput" class="input-styled"
+        style="width: 100%; padding: 12px; margin: 15px 0; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; font-size: 1rem;"
+        placeholder="My Custom Theme" maxlength="50">
+      <div class="modal-buttons">
+        <button id="cancelPresetNameBtn" class="btn btn-secondary" data-i18n="modal.cancel">Cancel</button>
+        <button id="confirmPresetNameBtn" class="btn btn-primary" data-i18n="modal.confirm">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Setup Wizard -->
+  <div id="setupWizard" class="wizard-overlay" style="display: none;">
+    <div class="wizard-containerglass">
+
+      <!-- Slide 1: Welcome -->
+      <div class="wizard-slide active" data-slide="1">
+        <div class="wizard-content-centered">
+          <img src="./SolariPhotoTransparente.png" alt="Solari Logo" class="wizard-logo-large-img">
+          <h1 data-i18n="wizard.welcome">Welcome to Solari</h1>
+          <p class="wizard-subtitle" data-i18n="wizard.subtitle">Your ultimate Discord Rich Presence companion.</p>
+
+          <div class="wizard-language-select">
+            <p data-i18n="wizard.selectLanguage">Select your language</p>
+            <div class="language-cards">
+              <div class="lang-card" data-lang="en">
+                <span class="flag">🇺🇸</span>
+                <span>English</span>
+              </div>
+              <div class="lang-card" data-lang="pt-BR">
+                <span class="flag">🇧🇷</span>
+                <span>Português</span>
+              </div>
+              <div class="lang-card" data-lang="es">
+                <span class="flag">🇪🇸</span>
+                <span>Español</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 2: Theme -->
+      <div class="wizard-slide" data-slide="2">
+        <h2 data-i18n="wizard.chooseStyle">Choose your Style</h2>
+        <p class="wizard-subtitle" data-i18n="wizard.styleSubtitle">Select a theme that fits your vibe.</p>
+
+        <div class="theme-preview-grid">
+          <!-- Base Themes (Radio Behavior) -->
+          <div class="theme-card" data-theme-preview="default">
+            <div class="theme-icon-wrapper">
+              <svg viewBox="0 0 24 24" fill="none" class="theme-icon" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div class="theme-info">
+              <span class="theme-name" data-i18n="wizard.themeOriginal">Original</span>
+              <span class="theme-desc" data-i18n="wizard.themeOriginalDesc">The classic Solari.</span>
+            </div>
+          </div>
+
+          <div class="theme-card" data-theme-preview="dark">
+            <div class="theme-icon-wrapper">
+              <svg viewBox="0 0 24 24" fill="none" class="theme-icon" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            </div>
+            <div class="theme-info">
+              <span class="theme-name" data-i18n="wizard.themeDark">Dark</span>
+              <span class="theme-desc" data-i18n="wizard.themeDarkDesc">Total focus.</span>
+            </div>
+          </div>
+
+          <div class="theme-card" data-theme-preview="light">
+            <div class="theme-icon-wrapper">
+              <svg viewBox="0 0 24 24" fill="none" class="theme-icon" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            </div>
+            <div class="theme-info">
+              <span class="theme-name" data-i18n="wizard.themeLight">Light</span>
+              <span class="theme-desc" data-i18n="wizard.themeLightDesc">Clear and clean.</span>
+            </div>
+          </div>
+
+          <!-- Neon Toggle (Complementary) -->
+          <div class="theme-card neon-toggle-card" data-theme-preview="neon">
+            <div class="neon-content-left">
+              <div class="theme-icon-wrapper neon-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div class="theme-info">
+                <span class="theme-name" data-i18n="wizard.themeNeon">Neon Mode</span>
+                <span class="theme-desc" data-i18n="wizard.themeNeonDesc">Add glow and color.</span>
+              </div>
+            </div>
+            <div class="neon-switch">
+              <div class="switch-knob"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 3: Core Concepts -->
+      <div class="wizard-slide" data-slide="3">
+        <h2 data-i18n="wizard.howItWorks">How Solari Works</h2>
+        <div class="concepts-grid">
+          <div class="concept-card">
+            <div class="concept-icon">🤖</div>
+            <h3 data-i18n="wizard.autoDetectTitle">Auto-Detect</h3>
+            <p data-i18n="wizard.autoDetectDesc">Solari automatically detects which game or app you are using and
+              updates your status.</p>
+          </div>
+          <div class="concept-card">
+            <div class="concept-icon">🆔</div>
+            <h3 data-i18n="wizard.profilesTitle">App Profiles</h3>
+            <p data-i18n="wizard.profilesDesc">Each preset can have its own <strong>Client ID</strong>. You can appear
+              as "Playing Visual Studio" and "Playing GTA" correctly without changing settings manually.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 4: Client ID -->
+      <div class="wizard-slide" data-slide="4">
+        <h2 data-i18n="wizard.clientIdTitle">Global Client ID</h2>
+        <p class="wizard-subtitle" data-i18n="wizard.clientIdSubtitle">This is used when no specific profile is active.
+        </p>
+
+        <div class="wizard-input-group">
+          <input type="text" id="wizardClientId" data-i18n-placeholder="wizard.clientIdPlaceholder"
+            placeholder="Paste your Discord Application ID here">
+          <button class="btn-help-icon" title="Need help?">?</button>
+        </div>
+        <p class="wizard-hint" data-i18n="wizard.clientIdHint">Don't have one? You can configure this later or use the
+          default one.</p>
+        <a href="#" id="wizardPortalLink" class="wizard-link"
+          style="color: var(--accent-color); text-decoration: none; margin-top: 10px; display: inline-block; font-size: 0.9rem; width: fit-content;"
+          data-i18n="wizard.getPortalLink">Create Discord Application</a>
+      </div>
+
+      <!-- Slide 5: Plugins -->
+      <div class="wizard-slide" data-slide="5">
+        <h2 data-i18n="wizard.powerUpTitle">Power Up</h2>
+        <p class="wizard-subtitle" data-i18n="wizard.powerUpSubtitle">Enable extra features to get the most out of
+          Solari.</p>
+
+        <div class="plugin-toggles-list">
+          <div class="plugin-toggle-item">
+            <div class="plugin-info">
+              <span class="plugin-icon">🌙</span>
+              <div>
+                <h3 data-i18n="wizard.pluginSmartAfkTitle">Smart AFK</h3>
+                <p data-i18n="wizard.pluginSmartAfkDesc">Automatically set status when you're away.</p>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="wizardToggleSmartAfk">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="plugin-toggle-item">
+            <div class="plugin-info">
+              <span class="plugin-icon">🎵</span>
+              <div>
+                <h3 data-i18n="wizard.pluginSpotifyTitle">Spotify Sync</h3>
+                <p data-i18n="wizard.pluginSpotifyDesc">Show what you're listening to with album art.</p>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="wizardToggleSpotify">
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 6: Finish -->
+      <div class="wizard-slide" data-slide="6">
+        <div class="wizard-content-centered">
+          <div class="wizard-rocket-anim">🚀</div>
+          <h2 data-i18n="wizard.readyTitle">Ready to lift off?</h2>
+          <p data-i18n="wizard.readySubtitle">You're all set! Enjoy Solari.</p>
+        </div>
+      </div>
+
+      <!-- Wizard Controls -->
+      <div class="wizard-footer">
+        <div class="step-indicators">
+          <span class="step-dot active"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+          <span class="step-dot"></span>
+        </div>
+        <div class="wizard-buttons">
+          <button id="wizardBackBtn" class="btn-text" style="visibility: hidden;" data-i18n="wizard.back">Back</button>
+          <button id="wizardNextBtn" class="btn-primary-large" data-i18n="wizard.next">Next</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+
+  <script src="soundboard-ui.js"></script>
+  <script src="renderer.js"></script>
+  <script src="tabs-fix.js"></script> <!-- Tab Fix (Must be last) -->
+</body>
+
+</html>

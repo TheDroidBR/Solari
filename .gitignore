@@ -1,0 +1,22 @@
+node_modules/
+dist/
+Solari - Programa/
+electron-cache/
+*.log
+build_*.txt
+build_*.log
+.env
+.DS_Store
+Thumbs.db
+nul
+
+# Development mock files
+mock_*.html
+
+# Temporary/old files
+solari@*
+npm
+electron-builder
+convert-icon.js
+download-assets.js
+UsersGabrielDesktopItensAntigravityCustomRP2icon.png

@@ -1,0 +1,64 @@
+{
+  "name": "solari",
+  "productName": "Solari",
+  "version": "1.4.0",
+  "description": "Solari - Advanced Discord Rich Presence with SoundBoard Manager",
+  "main": "src/main/index.js",
+  "scripts": {
+    "dev": "electron .",
+    "build": "electron-builder --win portable",
+    "build:clean": "rmdir /s /q \"Solari - Programa\" 2>nul & npm run build"
+  },
+  "keywords": [
+    "electron",
+    "discord",
+    "rpc"
+  ],
+  "author": "TheDroid",
+  "license": "GPL-2.0",
+  "devDependencies": {
+    "electron": "^40.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "discord-rpc": "^4.0.1",
+    "express": "^4.18.0",
+    "uuid": "^9.0.0",
+    "wavesurfer.js": "^7.12.1",
+    "ws": "^8.16.0"
+  },
+  "build": {
+    "appId": "com.solari.app",
+    "productName": "Solari",
+    "directories": {
+      "output": "Solari - Programa"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "*.png",
+      "*.ico"
+    ],
+    "extraResources": [
+      {
+        "from": "SolariPhotoTransparente.png",
+        "to": "icon.png"
+      }
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "SolariPhotoTransparente.ico"
+    },
+    "portable": {
+      "artifactName": "SolariApp.exe"
+    },
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "**/discord-rpc/**/*",
+      "**/*.dll"
+    ],
+    "npmRebuild": true,
+    "nodeGypRebuild": false
+  }
+}
