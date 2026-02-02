@@ -25,24 +25,23 @@ jobs:
       run: npm run build
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
-    # === SIGNPATH INTEGRATION (Enable after getting approved) ===
-    # 1. Add your SignPath secrets in GitHub > Settings > Secrets and variables > Actions
-    # 2. Uncomment the step below
-    #
-    # - name: Sign with SignPath
-    #   uses: signpath/github-action-submit-signing-request@v1
-    #   with:
-    #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-    #     organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
-    #     project-slug: 'solari'
-    #     signing-policy-slug: 'release-signing'
-    #     artifact-directory: 'Solari - Programa'
-    #     wait-for-completion: true
-    # ==========================================================
-
-    - name: Upload Artifacts
+    
+    # Step 1: Upload the Unsigned Artifact to GitHub (Required for SignPath)
+    - name: Upload Unsigned Artifact
+      id: upload_unsigned
       uses: actions/upload-artifact@v4
       with:
-        name: Solari-Windows-Portable
+        name: Unsigned-Solari
         path: "Solari - Programa/*.exe"
+        retention-days: 1
+
+    # Step 2: Submit to SignPath using the Artifact ID
+    - name: Sign with SignPath
+      uses: signpath/github-action-submit-signing-request@v1
+      with:
+        api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+        organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+        project-slug: 'solari'
+        signing-policy-slug: 'release-signing'
+        github-artifact-id: ${{ steps.upload_unsigned.outputs.artifact-id }}
+        wait-for-completion: true
