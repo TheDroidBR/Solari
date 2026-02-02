@@ -33,6 +33,8 @@ Solari is now **fully Open Source** under GPL v2.0 — built with the community 
 - **About Modal**: Now displays the correct version automatically and supports all languages dynamically.
 - **Toast Notifications**: Fixed "undefined" titles in toast notifications and translated all system messages.
 - **Priority Race Condition**: Fixed a rare bug where multiple sources (e.g., Browser Extension + Auto-Detect) could mix Client IDs and activity data.
+- **Soundboard Persistence**: Fixed settings (volume, mic toggle) resetting to default on restart due to race condition.
+- **Microphone Optimization**: Fixed Solari holding the microphone stream active even when "Mic + Sounds" was disabled.
 
 ---
 

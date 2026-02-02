@@ -103,9 +103,10 @@
     // Enumerate audio output and input devices
     async function enumerateAudioDevices() {
         try {
-            // Request mic permission to get device labels
+            // Request mic permission to get device labels (and immediately release)
             try {
-                await navigator.mediaDevices.getUserMedia({ audio: true });
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
             } catch (e) {
                 console.warn('[SoundBoard] Mic permission not granted, device labels may be unavailable');
             }

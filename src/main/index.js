@@ -3707,45 +3707,44 @@ app.whenReady().then(() => {
 
     // Initialize SoundBoard (Safe Mode)
     // Initialize SoundBoard (Lazy Load for faster startup)
-    setTimeout(() => {
+    // Initialize SoundBoard immediately to prevent race conditions with Renderer
+    try {
+        console.log('[Solari] Initializing SoundSystem...');
+        if (!SoundBoard) SoundBoard = require('./soundboard');
+        if (!SoundServer) SoundServer = require('./soundServer');
+
+        soundBoard = new SoundBoard();
+
+        // First, scan for sound files on disk
+        soundBoard.loadSounds();
+
+        // Then, apply saved metadata (shortcuts, favorites, volume) to scanned sounds
         try {
-            console.log('[Solari] Initializing SoundSystem (Lazy Load)...');
-            if (!SoundBoard) SoundBoard = require('./soundboard');
-            if (!SoundServer) SoundServer = require('./soundServer');
-
-            soundBoard = new SoundBoard();
-
-            // First, scan for sound files on disk
-            soundBoard.loadSounds();
-
-            // Then, apply saved metadata (shortcuts, favorites, volume) to scanned sounds
-            try {
-                if (global.pendingSoundBoardData) {
-                    soundBoard.fromJSON(global.pendingSoundBoardData);
-                    console.log('[Solari] Applied saved soundboard metadata from pending.');
-                } else if (fs.existsSync(DATA_PATH)) {
-                    const savedData = JSON.parse(fs.readFileSync(DATA_PATH));
-                    if (savedData.soundBoardData) {
-                        soundBoard.fromJSON(savedData.soundBoardData);
-                        console.log('[Solari] Applied saved soundboard metadata from file.');
-                    }
+            if (global.pendingSoundBoardData) {
+                soundBoard.fromJSON(global.pendingSoundBoardData);
+                console.log('[Solari] Applied saved soundboard metadata from pending.');
+            } else if (fs.existsSync(DATA_PATH)) {
+                const savedData = JSON.parse(fs.readFileSync(DATA_PATH));
+                if (savedData.soundBoardData) {
+                    soundBoard.fromJSON(savedData.soundBoardData);
+                    console.log('[Solari] Applied saved soundboard metadata from file.');
                 }
-            } catch (e) {
-                console.error('[Solari] Error loading saved soundboard data:', e);
             }
-
-            soundServer = new SoundServer(soundBoard);
-            soundServer.start().then(port => {
-                console.log(`[Solari] SoundServer started on port ${port}`);
-                // Register global shortcuts after everything is ready
-                soundBoard.initializeShortcuts((soundId) => handleShortcutPlay(soundId));
-            }).catch(err => {
-                console.error('[Solari] Failed to start SoundServer:', err);
-            });
         } catch (e) {
-            console.error('[Solari] CRITICAL: Failed to initialize SoundBoard:', e);
+            console.error('[Solari] Error loading saved soundboard data:', e);
         }
-    }, 1500); // Wait 1.5s to let UI load first
+
+        soundServer = new SoundServer(soundBoard);
+        soundServer.start().then(port => {
+            console.log(`[Solari] SoundServer started on port ${port}`);
+            // Register global shortcuts after everything is ready
+            soundBoard.initializeShortcuts((soundId) => handleShortcutPlay(soundId));
+        }).catch(err => {
+            console.error('[Solari] Failed to start SoundServer:', err);
+        });
+    } catch (e) {
+        console.error('[Solari] CRITICAL: Failed to initialize SoundBoard:', e);
+    }
 
     // Check if running as admin and show warning if not
     checkAdminStatus();
