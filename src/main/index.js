@@ -1814,6 +1814,10 @@ async function updatePresence() {
         if (currentPrioritySource !== 'none' || (rpcClient && rpcConnected)) {
             console.log('[Solari-Core] No active source, clearing activity');
             currentPrioritySource = 'none';
+            // CRITICAL FIX: Reset currentActivity BEFORE clearing
+            // This ensures the deduplication check in setActivity won't skip the next update
+            // when the same platform is reopened (e.g., close Twitch, reopen Twitch)
+            currentActivity = {};
             if (rpcClient && rpcConnected) {
                 rpcClient.clearActivity().catch(err => console.error('[Solari] Failed to clear activity:', err));
             }

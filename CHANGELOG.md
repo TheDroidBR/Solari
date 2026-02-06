@@ -35,6 +35,7 @@ Solari is now **fully Open Source** under GPL v2.0 — built with the community 
 - **Priority Race Condition**: Fixed a rare bug where multiple sources (e.g., Browser Extension + Auto-Detect) could mix Client IDs and activity data.
 - **Soundboard Persistence**: Fixed settings (volume, mic toggle) resetting to default on restart due to race condition.
 - **Microphone Optimization**: Fixed Solari holding the microphone stream active even when "Mic + Sounds" was disabled.
+- **Extension Reapply Bug**: Fixed Rich Presence not reapplying when closing and reopening the same platform (e.g., Twitch → close → reopen Twitch).
 
 ---
 
