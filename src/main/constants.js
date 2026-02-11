@@ -24,9 +24,9 @@ module.exports = {
     PROCESS_TIMEOUT_MS: 5000,
 
     // RPC Connection
-    RPC_RETRY_DELAY_MS: 5000,
-    RPC_MAX_ATTEMPTS: 5,
-    RPC_LONG_RETRY_DELAY_MS: 30000,
+    RPC_RETRY_DELAY_MS: 3000,
+    RPC_MAX_ATTEMPTS: 999999, // Effectively infinite - never give up
+    RPC_LONG_RETRY_DELAY_MS: 10000,
     ACTIVITY_UPDATE_DEBOUNCE_MS: 300,
 
     // Startup Delays

@@ -12,6 +12,25 @@
 (() => {
     const { ipcRenderer: sbIpcRenderer } = require('electron');
 
+    // ===== DRAG AND DROP (handled by inline script in index.html) =====
+    // The inline script dispatches 'soundboard-files-added' when files are added via DnD.
+    // We listen for it here to refresh the sounds list and re-render.
+    window.addEventListener('soundboard-files-added', async () => {
+        try {
+            const result = await sbIpcRenderer.invoke('soundboard:get-sounds');
+            // get-sounds returns an array directly, not { sounds: [...] }
+            if (result && Array.isArray(result)) {
+                sounds = result;
+            }
+            if (typeof renderSounds === 'function') {
+                renderSounds();
+            }
+            console.log('[SoundBoard] Refreshed after DnD, sounds count:', sounds.length);
+        } catch (e) {
+            console.error('[SoundBoard] Error refreshing after DnD:', e);
+        }
+    });
+
     // State
     let sounds = [];
     let categories = ['default', 'custom'];
@@ -1096,62 +1115,8 @@
             elements.importBtn.addEventListener('click', window.sbImportLibrary);
         }
 
-        // Drag and Drop (New Mini Drop Zone) - This was likely missing or targeting wrong element!
-        const dropZone = document.getElementById('drop-zone');
-        if (dropZone) {
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, preventDefaults, false);
-            });
-
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropZone.addEventListener(eventName, highlight, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, unhighlight, false);
-            });
-
-            function highlight(e) {
-                dropZone.classList.add('drag-over');
-            }
-
-            function unhighlight(e) {
-                dropZone.classList.remove('drag-over');
-            }
-
-            dropZone.addEventListener('drop', handleDrop, false);
-
-            function handleDrop(e) {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                handleFiles(files);
-            }
-
-            function handleFiles(files) {
-                const validFiles = [...files].filter(file => {
-                    const type = file.type;
-                    return type.startsWith('audio/') ||
-                        file.name.endsWith('.mp3') ||
-                        file.name.endsWith('.wav') ||
-                        file.name.endsWith('.ogg') ||
-                        file.name.endsWith('.m4a');
-                });
-
-                if (validFiles.length > 0) {
-                    validFiles.forEach(file => {
-                        window.sbAddSoundFromFile(file);
-                    });
-                    safeShowToast('✅', `${validFiles.length} file(s) added!`, 'success');
-                } else {
-                    safeShowToast('⚠️', 'No valid audio files dropped', 'warning');
-                }
-            }
-        }
+        // Drag and drop is now handled by the self-executing setupGlobalDragDrop() at script load time.
+        // No need to call setupDropTarget here.
 
         // Output device selector
         if (elements.outputDeviceSelect) {
@@ -1226,69 +1191,7 @@
             });
         }
 
-        // Drag and drop for sounds
-        setupDragDrop();
     }
-
-    // Setup drag and drop
-    function setupDragDrop() {
-        const tabContent = document.getElementById('soundboard-tab');
-        if (!tabContent) return;
-
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            tabContent.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            });
-        });
-
-        tabContent.addEventListener('dragenter', () => tabContent.classList.add('drag-over'));
-        tabContent.addEventListener('dragleave', () => tabContent.classList.remove('drag-over'));
-        tabContent.addEventListener('drop', async (e) => {
-            tabContent.classList.remove('drag-over');
-            const files = Array.from(e.dataTransfer.files).filter(f =>
-                /\.(mp3|wav|ogg|m4a)$/i.test(f.name)
-            );
-
-            for (const file of files) {
-                const name = file.name.replace(/\.[^/.]+$/, '');
-                try {
-                    const result = await sbIpcRenderer.invoke('soundboard:add-sound', file.path, name, 'custom');
-                    if (result.success) {
-                        sounds.push(result.sound);
-                    }
-                } catch (e) {
-                    console.error('[SoundBoard] Error adding dropped file:', e);
-                }
-            }
-
-            if (files.length > 0) {
-                renderSounds();
-                safeShowToast('✅', `Added ${files.length} sound(s)`, 'success');
-            }
-        });
-    }
-    // Add sound from file (Exposed for DnD)
-    window.sbAddSoundFromFile = async function (file) {
-        if (!file || !file.path) return;
-
-        const fileName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-        const category = 'default'; // Default category
-
-        try {
-            const result = await sbIpcRenderer.invoke('soundboard:add-sound', file.path, fileName, category);
-            if (result.success) {
-                await loadData();
-                safeShowToast('🎵', `Sound added: ${fileName}`, 'success');
-            } else {
-                console.error('[SoundBoard] Add sound failed:', result.error);
-                safeShowToast('❌', 'Failed to add sound', 'error');
-            }
-        } catch (e) {
-            console.error('[SoundBoard] Add sound error:', e);
-            safeShowToast('❌', 'Error adding sound', 'error');
-        }
-    };
 
     // Initialize SoundBoard
     window.initSoundBoard = async function () {

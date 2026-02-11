@@ -298,6 +298,7 @@
     "menu": {
         "file": "File",
         "startWithWindows": "Start with Windows",
+        "startMinimized": "Start Minimized",
         "minimizeToTray": "Minimize to Tray",
         "exit": "Exit",
         "edit": "Edit",
@@ -346,7 +347,10 @@
         "clientIdInvalid": "Please enter a valid Client ID!",
         "exportLogs": "Export Debug Logs",
         "exportPresets": "Export Presets",
-        "importPresets": "Import Presets"
+        "importPresets": "Import Presets",
+        "autoCheckAppUpdates": "Auto-check for app updates",
+        "autoCheckPluginUpdates": "Auto-check for plugin updates",
+        "runSetupWizard": "Run Setup Wizard"
     },
     "wizard": {
         "welcome": "Welcome to Solari",
