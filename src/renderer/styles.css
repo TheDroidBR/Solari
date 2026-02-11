@@ -3691,6 +3691,11 @@ main {
   line-height: 1;
 }
 
+.drop-zone-mini .drop-icon,
+.drop-zone-mini .drop-text {
+  pointer-events: none;
+}
+
 .drop-zone-mini:hover {
   border-color: var(--primary);
   background: rgba(255, 153, 102, 0.15);

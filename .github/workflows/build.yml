@@ -15,7 +15,7 @@ jobs:
     - name: Use Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18.x'
+        node-version: '20.x'
         cache: 'npm'
         
     - name: Install dependencies
@@ -26,22 +26,9 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    # Step 1: Upload the Unsigned Artifact to GitHub (Required for SignPath)
-    - name: Upload Unsigned Artifact
-      id: upload_unsigned
+    - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Unsigned-Solari
+        name: SolariAPP
         path: "Solari - Programa/*.exe"
-        retention-days: 1
-
-    # Step 2: Submit to SignPath using the Artifact ID
-    - name: Sign with SignPath
-      uses: signpath/github-action-submit-signing-request@v1
-      with:
-        api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-        organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
-        project-slug: 'solari'
-        signing-policy-slug: 'release-signing'
-        github-artifact-id: ${{ steps.upload_unsigned.outputs.artifact-id }}
-        wait-for-completion: true
+        retention-days: 5

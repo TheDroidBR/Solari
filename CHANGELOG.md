@@ -1,4 +1,4 @@
-## [1.4.0] - 2026-01-30
+## [1.4.0] - 2026-02-11
 ### 🌟 The Open Source Update
 
 Solari is now **fully Open Source** under GPL v2.0 — built with the community in mind.
@@ -7,11 +7,19 @@ Solari is now **fully Open Source** under GPL v2.0 — built with the community 
 
 ### ✨ New Features
 
+- **Start Minimized**: New option (under File > Start with Windows) to launch Solari directly to the system tray when auto-starting with Windows.
 - **Quick Setup Wizard**: Beautiful first-run experience that guides you through Language, Theme, and Plugin setup with smooth animations and confetti! 🎉
 - **Eco Mode**: New performance toggle (⚡) that disables glassmorphism, blur effects, and animations for low-end PCs.
 - **Custom CSS with Presets**: Redesigned CSS customization with 6 built-in themes (Neon Purple, Crimson, Ocean, Matrix, Minimal, Sunset), save/load your own presets, and quick tips! 🎨
 - **Spanish Language**: Full localized support for Español 🇪🇸!
 - **Plugin Auto-Download**: The wizard can now automatically install SmartAFK and SpotifySync plugins for you.
+- **Automatic App Updates**: Solari now checks for new versions on startup. If an update is found, it downloads and replaces the portable executable automatically — invisible, no CMD windows, no manual steps. 🔄
+- **Automatic Plugin Updates**: SmartAFK and SpotifySync plugins are silently updated on startup if newer versions are available on the Solari server.
+- **Update Toggle Options**: New toggles in the Help menu to enable/disable automatic app and plugin update checks. Both are on by default and persist across sessions. ⚙️
+- **Smart Tab Mode (Extension)**: Added Auto/Manual toggle for browser extension.
+  - **Auto**: Automatically switches status to the tab you are actively viewing.
+  - **Manual**: Lets you lock the status to a specific tab (e.g. keep "Netflix" showing while you browse Reddit).
+- **Netflix Season Fix**: Completely rewritten season detection using React Fiber interception. Works during fullscreen playback now! 📺
 
 ---
 
@@ -25,7 +33,9 @@ Solari is now **fully Open Source** under GPL v2.0 — built with the community 
 
 ### 🐛 Bug Fixes
 
+- **Config Persistence**: Fixed all settings (Quick Setup Wizard, SoundBoard, presets, etc.) being lost when switching to a different .exe or version. Data is now stored in a stable `%APPDATA%\Solari` location instead of being tied to the executable path. 🔧
 - **"Iniciando..." Stuck**: Fixed the status text getting stuck on "Starting..." due to translation system conflicts.
+- **Timestamp Preservation**: Fixed Rich Presence elapsed time resetting every time a browser extension status changed (viewer count, episode, category, channel). The timestamp now only resets when the **platform actually changes** (e.g., Twitch → YouTube), preserving continuity within the same platform.
 - **RPC Reconnection**: Fixed Rich Presence not reconnecting after Discord restarts.
 - **Zombie Plugins**: Fixed SmartAFK and SpotifySync attempting to reconnect after being disabled.
 - **Auto-Detect Notifications**: Fixed duplicate 'Auto-Detection' notifications when the preset hasn't changed.
@@ -34,8 +44,14 @@ Solari is now **fully Open Source** under GPL v2.0 — built with the community 
 - **Toast Notifications**: Fixed "undefined" titles in toast notifications and translated all system messages.
 - **Priority Race Condition**: Fixed a rare bug where multiple sources (e.g., Browser Extension + Auto-Detect) could mix Client IDs and activity data.
 - **Soundboard Persistence**: Fixed settings (volume, mic toggle) resetting to default on restart due to race condition.
+- **SoundBoard Drag-and-Drop**: Fixed audio file drop zone not accepting files. Both the mini drop zone and the entire SoundBoard tab now support drag-and-drop with multiple files at once. 📁
+- **SoundBoard Multi-File Picker**: The "Add Sound" button now allows selecting multiple files at once instead of one at a time.
 - **Microphone Optimization**: Fixed Solari holding the microphone stream active even when "Mic + Sounds" was disabled.
 - **Extension Reapply Bug**: Fixed Rich Presence not reapplying when closing and reopening the same platform (e.g., Twitch → close → reopen Twitch).
+- **Infinite RPC Retry**: Solari now aggressively retries Discord connection (every 3s instead of 10s) and never gives up, ensuring it connects even if other apps (Medal) act up. 🔌
+- **Preview App Name**: Fixed global Client ID showing "Discord App" in the Rich Presence preview when RPC is disconnected. The real app name is now fetched on startup. 🏷️
+- **Dev Mode Auto-Launch**: Fixed `npm run dev` accidentally registering as the Windows auto-start entry. Auto-launch now only registers in packaged builds.
+- **Tab Fallback**: Smarter clearing logic prevents status flickering when closing duplicate tabs.
 
 ---
 

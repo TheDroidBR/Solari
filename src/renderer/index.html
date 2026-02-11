@@ -848,7 +848,7 @@
       <!-- Slide 1: Welcome -->
       <div class="wizard-slide active" data-slide="1">
         <div class="wizard-content-centered">
-          <img src="./SolariPhotoTransparente.png" alt="Solari Logo" class="wizard-logo-large-img">
+          <img src="../../SolariPhotoTransparente.png" alt="Solari Logo" class="wizard-logo-large-img">
           <h1 data-i18n="wizard.welcome">Welcome to Solari</h1>
           <p class="wizard-subtitle" data-i18n="wizard.subtitle">Your ultimate Discord Rich Presence companion.</p>
 
@@ -1040,6 +1040,139 @@
 
   </div>
   </div>
+
+  <!-- Drag-and-Drop Handler (inline for maximum reliability) -->
+  <script>
+    (function () {
+      'use strict';
+      var electron = require('electron');
+      var ipc = electron.ipcRenderer;
+
+      // Get file path — works with Electron 40+ and legacy
+      function getPath(file) {
+        try {
+          if (electron.webUtils && electron.webUtils.getPathForFile) {
+            var p = electron.webUtils.getPathForFile(file);
+            if (p) return p;
+          }
+        } catch (e) { }
+        return file.path || null;
+      }
+
+      // Check if element is inside the soundboard tab
+      function isSoundboardArea(el) {
+        while (el) {
+          if (el.id === 'soundboard-tab' || el.id === 'drop-zone') return true;
+          el = el.parentElement;
+        }
+        return false;
+      }
+
+      // Global dragover — prevent default on soundboard areas to show copy cursor
+      window.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        if (isSoundboardArea(e.target)) {
+          e.dataTransfer.dropEffect = 'copy';
+          var dz = document.getElementById('drop-zone');
+          if (dz) dz.classList.add('drag-over');
+        } else {
+          e.dataTransfer.dropEffect = 'none';
+        }
+      }, false);
+
+      // Global dragleave
+      window.addEventListener('dragleave', function (e) {
+        var dz = document.getElementById('drop-zone');
+        if (dz && !document.elementFromPoint(e.clientX, e.clientY)) {
+          dz.classList.remove('drag-over');
+        }
+      }, false);
+
+      // Global drop handler
+      window.addEventListener('drop', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var dz = document.getElementById('drop-zone');
+        if (dz) dz.classList.remove('drag-over');
+
+        // Only process if dropped on soundboard area
+        if (!isSoundboardArea(e.target)) {
+          console.log('[DnD] Drop outside soundboard, ignoring');
+          return;
+        }
+
+        var allFiles = e.dataTransfer.files;
+        console.log('[DnD] Drop on soundboard! Files:', allFiles.length);
+
+        var audioFiles = [];
+        for (var i = 0; i < allFiles.length; i++) {
+          if (/\.(mp3|wav|ogg|m4a|flac|aac|wma)$/i.test(allFiles[i].name)) {
+            audioFiles.push(allFiles[i]);
+          }
+        }
+
+        if (audioFiles.length === 0) {
+          if (typeof showToast === 'function') showToast('⚠️', 'No valid audio files found', 'warning');
+          return;
+        }
+
+        var added = 0;
+        var pending = audioFiles.length;
+
+        audioFiles.forEach(function (file) {
+          var filePath = getPath(file);
+          var name = file.name.replace(/\.[^/.]+$/, '');
+
+          console.log('[DnD] File:', name, 'Path:', filePath);
+
+          if (!filePath) {
+            console.error('[DnD] Empty path for:', file.name);
+            pending--;
+            return;
+          }
+
+          ipc.invoke('soundboard:add-sound', filePath, name, 'custom')
+            .then(function (result) {
+              console.log('[DnD] Result:', JSON.stringify(result));
+              if (result && result.success) added++;
+              pending--;
+              if (pending <= 0 && added > 0) {
+                // Trigger UI refresh
+                if (typeof showToast === 'function') showToast('✅', 'Added ' + added + ' sound(s)', 'success');
+                // Dispatch custom event so soundboard-ui.js can re-render
+                window.dispatchEvent(new CustomEvent('soundboard-files-added', { detail: { count: added } }));
+              }
+            })
+            .catch(function (err) {
+              console.error('[DnD] Error:', err);
+              pending--;
+            });
+        });
+      }, false);
+
+      // Click-to-browse fallback for when DnD is blocked (admin mode / UIPI)
+      document.addEventListener('DOMContentLoaded', function () {
+        var dz = document.getElementById('drop-zone');
+        if (dz) {
+          dz.style.cursor = 'pointer';
+          dz.title = 'Drop audio files here or click to browse';
+          dz.addEventListener('click', function () {
+            ipc.invoke('soundboard:pick-file').then(function (result) {
+              if (result && result.success) {
+                if (typeof showToast === 'function') showToast('✅', 'Added sound: ' + (result.sound ? result.sound.name : 'audio'), 'success');
+                window.dispatchEvent(new CustomEvent('soundboard-files-added', { detail: { count: 1 } }));
+              }
+            }).catch(function (err) {
+              console.error('[DnD] Click fallback error:', err);
+            });
+          });
+        }
+      });
+
+      console.log('[DnD] Inline drag-and-drop handler ready');
+    })();
+  </script>
 
   <script src="soundboard-ui.js"></script>
   <script src="renderer.js"></script>

@@ -103,6 +103,7 @@ let lastAfkSaveTime = 0; // Timestamp of last save - ignore config updates for 2
 
 // Plugin connection state tracking (for language change refresh)
 let smartAfkConnected = false;
+let isRpcActuallyConnected = false; // Tracks REAL RPC connection state from main process
 
 // Spotify Sync Elements
 const spotifySyncToggle = document.getElementById('spotifySyncToggle');
@@ -618,16 +619,19 @@ ipcRenderer.on('rpc-status', (event, data) => {
     statusText.removeAttribute('data-i18n');
 
     if (data.connected) {
+        isRpcActuallyConnected = true;
         statusIndicator.style.background = '#22c55e'; // Green
         statusIndicator.style.boxShadow = '0 0 8px #22c55e';
         statusText.textContent = t('app.connected') || 'Conectado';
         statusText.style.color = '#22c55e';
     } else if (data.reconnecting) {
+        isRpcActuallyConnected = false;
         statusIndicator.style.background = '#f59e0b'; // Orange
         statusIndicator.style.boxShadow = '0 0 8px #f59e0b';
         statusText.textContent = 'Reconectando...';
         statusText.style.color = '#f59e0b';
     } else {
+        isRpcActuallyConnected = false;
         statusIndicator.style.background = '#ef4444'; // Red
         statusIndicator.style.boxShadow = '0 0 8px #ef4444';
         statusText.textContent = t('app.disconnected') || 'Desconectado';
@@ -1799,14 +1803,13 @@ function updateUILanguage() {
         activityOptions[3].textContent = t('presence.competing');
     }
 
-    // Status text in header - Logic corrected:
-    // If toggle is ON, we show 'Enabled' or 'Searching...' until we have actual activity?
-    // User wants "Connected" if the app is ON.
-    if (statusToggle.checked) {
-        statusText.textContent = t('app.enabled'); // Changed from 'connected' to 'enabled' to be more accurate, or stick to 'connected' if user prefers.
-        // ACTUALLY, sticking to 'connected' as per existing keys, but ensure logic holds.
+    // Status text in header - Use REAL RPC connection state, not just toggle state
+    if (statusToggle.checked && isRpcActuallyConnected) {
         statusText.textContent = t('app.connected');
         statusText.style.color = '#10b981'; // Green
+    } else if (statusToggle.checked && !isRpcActuallyConnected) {
+        statusText.textContent = 'Reconectando...';
+        statusText.style.color = '#f59e0b'; // Orange
     } else {
         statusText.textContent = t('app.disconnected');
         statusText.style.color = '#ef4444'; // Red
@@ -1820,7 +1823,7 @@ function updateUILanguage() {
     if (wsStatus) wsStatus.textContent = t('server.running');
 
     const rpcStatus = document.getElementById('rpcStatus');
-    if (rpcStatus) rpcStatus.textContent = t('app.connected');
+    if (rpcStatus) rpcStatus.textContent = isRpcActuallyConnected ? t('app.connected') : t('app.disconnected');
 
     // Trash section
     const trashTitle = document.querySelector('#trashContainer h3');

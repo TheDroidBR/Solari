@@ -18,6 +18,7 @@
 
 const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, shell, powerMonitor, globalShortcut, dialog } = require('electron');
 app.setName('Solari');
+app.setPath('userData', require('path').join(require('os').homedir(), 'AppData', 'Roaming', 'Solari'));
 
 // Single Instance Lock - Prevent multiple Solari processes
 const gotTheLock = app.requestSingleInstanceLock();
@@ -40,7 +41,8 @@ const path = require('path');
 const DiscordRPC = require('discord-rpc');
 const WebSocket = require('ws');
 const fs = require('fs');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
+const { installUpdateAndRestart } = require('./updater');
 const CONSTANTS = require('./constants');
 let SoundBoard = null;
 let SoundServer = null;
@@ -102,10 +104,13 @@ let processCheckBackoffUntil = 0;
 
 let appSettings = {
     startWithWindows: false,
+    startMinimized: false,
     closeToTray: false,
     language: 'en', // 'en' or 'pt-BR'
     dontRemindAdmin: false, // Don't show admin warning
-    theme: 'default' // 'default', 'dark', 'light'
+    theme: 'default', // 'default', 'dark', 'light'
+    autoCheckAppUpdates: true,
+    autoCheckPluginUpdates: true
 };
 
 let connectedPlugins = new Map();
@@ -463,11 +468,19 @@ ipcMain.on('complete-setup', () => {
 });
 
 function applyAppSettings() {
+    // Only register auto-launch in packaged builds, never in dev mode
+    if (app.isPackaged) {
+        // Register with --hidden arg when startMinimized is on, so Windows passes it during auto-launch
+        const loginArgs = (appSettings.startWithWindows && appSettings.startMinimized) ? ['--hidden'] : [];
 
-    app.setLoginItemSettings({
-        openAtLogin: appSettings.startWithWindows,
-        path: app.getPath('exe')
-    });
+        app.setLoginItemSettings({
+            openAtLogin: appSettings.startWithWindows,
+            path: app.getPath('exe'),
+            args: loginArgs
+        });
+    } else {
+        console.log('[Solari] Dev mode: skipping auto-launch registration');
+    }
 }
 
 // Helper to load translations dynamically from renderer/locales matching language code
@@ -558,7 +571,8 @@ function createMenu() {
         {
             label: labels.file || 'File',
             submenu: [
-                { label: labels.startWithWindows || 'Start with Windows', type: 'checkbox', checked: appSettings.startWithWindows, click: (item) => { appSettings.startWithWindows = item.checked; applyAppSettings(); saveData(); } },
+                { label: labels.startWithWindows || 'Start with Windows', type: 'checkbox', checked: appSettings.startWithWindows, click: (item) => { appSettings.startWithWindows = item.checked; if (!item.checked) appSettings.startMinimized = false; applyAppSettings(); saveData(); createMenu(); } },
+                ...(appSettings.startWithWindows ? [{ label: labels.startMinimized || 'Start Minimized', type: 'checkbox', checked: appSettings.startMinimized, click: (item) => { appSettings.startMinimized = item.checked; applyAppSettings(); saveData(); } }] : []),
                 { label: labels.minimizeToTray || 'Minimize to Tray', type: 'checkbox', checked: appSettings.closeToTray, click: (item) => { appSettings.closeToTray = item.checked; saveData(); } },
                 { type: 'separator' },
                 { label: labels.exit || 'Exit', click: () => { isQuitting = true; app.quit(); } }
@@ -602,6 +616,9 @@ function createMenu() {
         {
             label: labels.help,
             submenu: [
+                { label: labels.autoCheckAppUpdates || 'Auto-check for app updates', type: 'checkbox', checked: appSettings.autoCheckAppUpdates, click: (item) => { appSettings.autoCheckAppUpdates = item.checked; saveData(); } },
+                { label: labels.autoCheckPluginUpdates || 'Auto-check for plugin updates', type: 'checkbox', checked: appSettings.autoCheckPluginUpdates, click: (item) => { appSettings.autoCheckPluginUpdates = item.checked; saveData(); } },
+                { type: 'separator' },
                 { label: labels.checkForUpdates, click: async () => { await checkForUpdates(labels); } },
                 { label: labels.runSetupWizard || 'Run Setup Wizard', click: () => { mainWindow.webContents.send('run-setup-wizard'); } },
                 { label: labels.changelog, click: () => { require('electron').shell.openExternal('https://solarirpc.com/changelog.html'); } },
@@ -678,6 +695,157 @@ async function checkForUpdates(labels) {
     });
 
     req.end();
+}
+
+// ===== AUTO UPDATE SYSTEM =====
+
+async function checkAppUpdateOnStartup(labels) {
+    if (process.env.NODE_ENV === 'development') return;
+
+    const https = require('https');
+    const pkg = require('../../package.json');
+    const currentVersion = pkg.version;
+
+    console.log('[Solari] Checking for startup updates...');
+
+    const options = {
+        hostname: 'api.github.com',
+        path: '/repos/TheDroidBR/Solari/releases/latest',
+        method: 'GET',
+        headers: {
+            'User-Agent': 'Solari-AutoUpdater',
+            'Accept': 'application/vnd.github.v3+json'
+        }
+    };
+
+    const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', async () => {
+            try {
+                const release = JSON.parse(data);
+                const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
+
+                // Look for .exe asset
+                const exeAsset = release.assets?.find(a => a.name.endsWith('.exe'));
+
+                if (compareVersions(latestVersion, currentVersion) > 0 && exeAsset) {
+                    console.log('[Solari] Update available:', latestVersion);
+
+                    const { response } = await dialog.showMessageBox(mainWindow, {
+                        type: 'question',
+                        title: labels.updateAvailable || 'Update Available',
+                        message: `Solari v${latestVersion} is available!`,
+                        detail: 'An automatic update is ready. The app needs to restart to apply it.\n\nDo you want to update now?',
+                        buttons: ['Restart & Update', 'Later'],
+                        defaultId: 0,
+                        cancelId: 1
+                    });
+
+                    if (response === 0) {
+                        downloadAndInstallUpdate(exeAsset.browser_download_url, exeAsset.name);
+                    }
+                }
+            } catch (e) {
+                console.error('[Solari] Startup update check failed:', e);
+            }
+        });
+    });
+    req.on('error', e => console.error('[Solari] Update request error:', e));
+    req.end();
+}
+
+function downloadAndInstallUpdate(url, fileName) {
+    const { app } = require('electron');
+    const https = require('https');
+    const tempPath = path.join(app.getPath('temp'), fileName); // e.g. SolariAPP.exe
+
+    // Notify user
+    sendToast('Downloading Update', 'Please wait...', 'info');
+
+    const file = fs.createWriteStream(tempPath);
+    https.get(url, (response) => {
+        // Handle redirects
+        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+            downloadAndInstallUpdate(response.headers.location, fileName);
+            return;
+        }
+
+        response.pipe(file);
+
+        file.on('finish', () => {
+            file.close(() => {
+                console.log('[Solari] Update downloaded to:', tempPath);
+                installUpdateAndRestart(tempPath);
+            });
+        });
+    }).on('error', (err) => {
+        fs.unlink(tempPath, () => { });
+        sendToast('Update Failed', err.message, 'error');
+    });
+}
+
+
+
+async function updatePluginsOnStartup() {
+    console.log('[Solari] Checking for plugin updates...');
+    const pluginsPath = getBDPluginsPath();
+    if (!fs.existsSync(pluginsPath)) return;
+
+    const plugins = [
+        { name: 'SpotifySync.plugin.js', url: 'https://solarirpc.com/downloads/SpotifySync.plugin.js' },
+        { name: 'SmartAFK.plugin.js', url: 'https://solarirpc.com/downloads/SmartAFK.plugin.js' }
+    ];
+
+    let updatedCount = 0;
+    const https = require('https');
+
+    for (const plugin of plugins) {
+        const filePath = path.join(pluginsPath, plugin.name);
+        if (fs.existsSync(filePath)) {
+            // Download to memory/buffer to compare? Or just blindly update?
+            // "Blind update" is safer/simpler for now as these are small files.
+            // But let's verify size/content to avoid toast spam if nothing changed.
+            // Actually, for simplicity and speed, just downloading and overwriting is fine. 
+            // Better: Read local file, download remote to string, compare.
+
+            downloadPluginToString(plugin.url).then(remoteContent => {
+                if (!remoteContent) return;
+
+                try {
+                    const localContent = fs.readFileSync(filePath, 'utf8');
+                    // Simple comparison (ignoring newlines slightly ideally, but exact match is fine)
+                    if (localContent.trim() !== remoteContent.trim()) {
+                        fs.writeFileSync(filePath, remoteContent);
+                        console.log(`[Solari] Updated plugin: ${plugin.name}`);
+                        updatedCount++;
+                        // If last one, show toast? Hard to coordinate.
+                        // We can just log it. Or show individual toasts?
+                        // Let's increment count and show toast at end? No, async.
+                        // Just show toast per plugin for now, or silence it. 
+                        // User asked "fazer atualização automatica".
+                        // Silent is usually preferred unless it's a major change.
+                        // I'll show a toast if any update happens.
+                        sendToast('Plugin Updated', `${plugin.name} was auto-updated`, 'success');
+                    }
+                } catch (e) {
+                    console.error(`[Solari] Error updating ${plugin.name}:`, e);
+                }
+            });
+        }
+    }
+}
+
+function downloadPluginToString(url) {
+    return new Promise(resolve => {
+        const https = require('https');
+        https.get(url, res => {
+            if (res.statusCode !== 200) { resolve(null); return; }
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => resolve(data));
+        }).on('error', () => resolve(null));
+    });
 }
 
 // Compare version strings (returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal)
@@ -1117,13 +1285,27 @@ function stopSystemAFKCheck() {
 }
 
 function createWindow() {
+    // Log process args for debugging auto-launch detection
+    console.log('[Solari] process.argv:', JSON.stringify(process.argv));
+
+    // Only start hidden if launched by Windows auto-start with --hidden flag
+    // Manual launches (double-clicking exe) won't have this flag
+    const launchedWithHidden = process.argv.includes('--hidden');
+    const shouldStartHidden = appSettings.startMinimized && appSettings.startWithWindows && launchedWithHidden;
+
     mainWindow = new BrowserWindow({
         width: 1200, height: 950, minWidth: 1100, title: "Solari",
         icon: ICON_PATH,
         backgroundColor: '#0f0c29',
+        show: !shouldStartHidden,
         webPreferences: { nodeIntegration: true, contextIsolation: false }
     });
     mainWindow.loadFile('src/renderer/index.html');
+
+    if (shouldStartHidden) {
+        console.log('[Solari] Starting minimized to tray (auto-launch detected)');
+    }
+
     mainWindow.on('close', (event) => {
         if (!isQuitting && appSettings.closeToTray) {
             event.preventDefault();
@@ -1192,165 +1374,187 @@ function initializeDiscordRPC(targetClientId = null) {
         isReconnecting = true;
 
         connectionAttempts++;
-        console.log('[Solari] Attempting RPC connection, attempt:', connectionAttempts);
-
-        // Properly cleanup old client if exists
-        if (rpcClient) {
-            try {
-                rpcClient.removeAllListeners();
-                if (rpcClient.transport) {
-                    rpcClient.transport.removeAllListeners();
-                }
-                rpcClient.destroy().catch(() => { }); // Ignore errors on destroy
-            } catch (e) {
-                // Ignore cleanup errors
-            }
-            rpcClient = null;
+        if (connectionAttempts <= 3 || connectionAttempts % 10 === 0) {
+            console.log('[Solari] Attempting RPC connection, attempt:', connectionAttempts);
         }
 
-        rpcClient = new DiscordRPC.Client({ transport: 'ipc' });
-
-        rpcClient.on('ready', async () => {
-            console.log('[Solari] Discord RPC Connected!');
-            rpcConnected = true;
-            connectionAttempts = 0;
-            if (mainWindow) {
-                mainWindow.webContents.send('rpc-status', { connected: true });
-            }
-
-            // Try to get app name from rpcClient or fetch from Discord API
-            let appName = rpcClient.application?.name;
-            if (!appName) {
+        try {
+            // Properly cleanup old client if exists
+            if (rpcClient) {
                 try {
-                    // Fetch app info from Discord API with timeout
-                    const https = require('https');
-                    const res = await Promise.race([
-                        new Promise((resolve, reject) => {
-                            const req = https.get(`https://discord.com/api/v10/applications/${clientId}/rpc`, (resp) => {
-                                let data = '';
-                                resp.on('data', (chunk) => data += chunk);
-                                resp.on('end', () => {
-                                    try {
-                                        resolve(JSON.parse(data));
-                                    } catch (e) {
-                                        reject(e);
-                                    }
-                                });
-                            });
-                            req.on('error', reject);
-                            req.setTimeout(5000, () => {
-                                req.destroy();
-                                reject(new Error('Timeout'));
-                            });
-                        }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-                    ]);
-                    appName = res.name || 'Discord App';
-                    console.log('[Solari] Fetched app name from API:', appName);
-                } catch (err) {
-                    console.log('[Solari] Could not fetch app name:', err.message, '- using fallback');
-                    appName = 'Discord App';
+                    rpcClient.removeAllListeners();
+                    if (rpcClient.transport) {
+                        rpcClient.transport.removeAllListeners();
+                    }
+                    rpcClient.destroy().catch(() => { }); // Ignore errors on destroy
+                } catch (e) {
+                    // Ignore cleanup errors
                 }
+                rpcClient = null;
             }
 
-            if (mainWindow) {
-                mainWindow.webContents.send('app-name-loaded', appName);
-            }
+            rpcClient = new DiscordRPC.Client({ transport: 'ipc' });
 
-            // ALWAYS restore activity on connection to prevent "away" status
-            if (isEnabled) {
-                console.log('[Solari] RPC Ready - Waiting 2s before restoring activity...');
-
-                // Force clear again just to be safe
-                currentActivity = {};
-
-                // Check if we have a pending activity from Client ID switch
-                if (pendingActivity) {
-                    console.log('[Solari] Applying pending activity from Client ID switch');
-                    const activityToApply = pendingActivity;
-                    pendingActivity = null; // Clear pending
-                    setActivity(activityToApply); // Apply the stored activity
-                } else {
-                    // Use priority system to get the best activity source
-                    // Wait 2 seconds (2000ms) to ensure Discord is fully ready to receive commands
-                    setTimeout(() => {
-                        console.log('[Solari] Restoring activity now...');
-                        updatePresence(); // Force update on reconnection
-                    }, 2000);
-                }
-            }
-        });
-
-        rpcClient.transport.on('close', () => {
-            // If we are intentionally switching, ignore this close event
-            if (isSwitching) return;
-
-            console.log('[Solari] Discord RPC connection closed, waiting 10s before reconnect...');
-            rpcConnected = false;
-            currentActivity = {}; // Reset current activity so next update forces a refresh
-            isReconnecting = false; // Allow new reconnection attempt
-            connectionAttempts = 0; // Reset counter for fresh reconnection cycle
-            if (mainWindow) {
-                mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
-            }
-            // Use longer delay when Discord closes - it needs time to fully restart
-            scheduleReconnect(10000); // 10 seconds
-        });
-
-        // Handle transport errors (e.g., pipe broken when Discord restarts)
-        rpcClient.transport.on('error', (err) => {
-            // If we are intentionally switching, ignore this error
-            if (isSwitching) return;
-
-            console.log('[Solari] Discord RPC transport error:', err.message, '- waiting 10s before reconnect...');
-            rpcConnected = false;
-            currentActivity = {}; // Reset current activity so next update forces a refresh
-            isReconnecting = false; // Allow new reconnection attempt
-            connectionAttempts = 0; // Reset counter for fresh reconnection cycle
-            if (mainWindow) {
-                mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
-            }
-            // Use longer delay when Discord closes - it needs time to fully restart
-            scheduleReconnect(10000); // 10 seconds
-        });
-
-        rpcClient.login({ clientId: useClientId }).catch((err) => {
-            // GUARD
-            if (currentClientId !== useClientId) return;
-
-            console.error('[Solari] Discord RPC connection failed:', err.message);
-            addLog('[RPC] Connection failed: ' + err.message);
-            rpcConnected = false;
-            currentActivity = {}; // Reset current activity
-            isReconnecting = false; // Allow new reconnection attempt
-
-            if (connectionAttempts >= maxAttempts) {
-                console.log('[Solari] Max connection attempts reached, retrying in 30s');
-                if (mainWindow) {
-                    mainWindow.webContents.send('rpc-status', {
-                        connected: false,
-                        error: 'Discord not found. Make sure Discord is running.'
-                    });
-                }
+            rpcClient.on('ready', async () => {
+                console.log('[Solari] Discord RPC Connected!');
+                rpcConnected = true;
                 connectionAttempts = 0;
-                scheduleReconnect(CONSTANTS.RPC_LONG_RETRY_DELAY_MS);
-            } else {
-                scheduleReconnect(CONSTANTS.RPC_RETRY_DELAY_MS);
-            }
-        });
+                if (mainWindow) {
+                    mainWindow.webContents.send('rpc-status', { connected: true });
+                }
+
+                // Try to get app name from rpcClient or fetch from Discord API
+                let appName = rpcClient.application?.name;
+                if (!appName) {
+                    try {
+                        // Fetch app info from Discord API with timeout
+                        const https = require('https');
+                        const res = await Promise.race([
+                            new Promise((resolve, reject) => {
+                                const req = https.get(`https://discord.com/api/v10/applications/${clientId}/rpc`, (resp) => {
+                                    let data = '';
+                                    resp.on('data', (chunk) => data += chunk);
+                                    resp.on('end', () => {
+                                        try {
+                                            resolve(JSON.parse(data));
+                                        } catch (e) {
+                                            reject(e);
+                                        }
+                                    });
+                                });
+                                req.on('error', reject);
+                                req.setTimeout(5000, () => {
+                                    req.destroy();
+                                    reject(new Error('Timeout'));
+                                });
+                            }),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+                        ]);
+                        appName = res.name || 'Discord App';
+                        console.log('[Solari] Fetched app name from API:', appName);
+                    } catch (err) {
+                        console.log('[Solari] Could not fetch app name:', err.message, '- using fallback');
+                        appName = 'Discord App';
+                    }
+                }
+
+                if (mainWindow) {
+                    mainWindow.webContents.send('app-name-loaded', appName);
+                }
+
+                // ALWAYS restore activity on connection to prevent "away" status
+                if (isEnabled) {
+                    console.log('[Solari] RPC Ready - Waiting 2s before restoring activity...');
+
+                    // Force clear again just to be safe
+                    currentActivity = {};
+
+                    // Check if we have a pending activity from Client ID switch
+                    if (pendingActivity) {
+                        console.log('[Solari] Applying pending activity from Client ID switch');
+                        const activityToApply = pendingActivity;
+                        pendingActivity = null; // Clear pending
+                        setActivity(activityToApply); // Apply the stored activity
+                    } else {
+                        // Use priority system to get the best activity source
+                        // Wait 2 seconds (2000ms) to ensure Discord is fully ready to receive commands
+                        setTimeout(() => {
+                            console.log('[Solari] Restoring activity now...');
+                            updatePresence(); // Force update on reconnection
+                        }, 2000);
+                    }
+                }
+            });
+
+            rpcClient.transport.on('close', () => {
+                // If we are intentionally switching, ignore this close event
+                if (isSwitching) return;
+
+                console.log('[Solari] Discord RPC connection closed, retrying soon...');
+                rpcConnected = false;
+                currentActivity = {}; // Reset current activity so next update forces a refresh
+                isReconnecting = false; // Allow new reconnection attempt
+                connectionAttempts = 0; // Reset counter for fresh reconnection cycle
+                if (mainWindow) {
+                    mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
+                }
+                // Use shorter delay for faster recovery
+                scheduleReconnect(3000); // 3 seconds
+            });
+
+            // Handle transport errors (e.g., pipe broken when Discord restarts)
+            rpcClient.transport.on('error', (err) => {
+                // If we are intentionally switching, ignore this error
+                if (isSwitching) return;
+
+                console.log('[Solari] Discord RPC transport error:', err.message, '- retrying soon...');
+                rpcConnected = false;
+                currentActivity = {}; // Reset current activity so next update forces a refresh
+                isReconnecting = false; // Allow new reconnection attempt
+                connectionAttempts = 0; // Reset counter for fresh reconnection cycle
+                if (mainWindow) {
+                    mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
+                }
+                // Use shorter delay for faster recovery
+                scheduleReconnect(3000); // 3 seconds
+            });
+
+            rpcClient.login({ clientId: useClientId }).catch((err) => {
+                // GUARD
+                if (currentClientId !== useClientId) return;
+
+                if (connectionAttempts <= 3 || connectionAttempts % 10 === 0) {
+                    console.error('[Solari] Discord RPC connection failed (attempt ' + connectionAttempts + '):', err.message);
+                }
+                addLog('[RPC] Connection failed: ' + err.message);
+                rpcConnected = false;
+                currentActivity = {}; // Reset current activity
+                isReconnecting = false; // Allow new reconnection attempt
+
+                // ALWAYS send reconnecting status so UI never shows plain "Disconnected"
+                if (mainWindow) {
+                    mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
+                }
+
+                // Persistent Reconnection Logic — NEVER GIVE UP
+                if (connectionAttempts >= 10) {
+                    // Slow down after 10 attempts to reduce resource usage
+                    scheduleReconnect(CONSTANTS.RPC_LONG_RETRY_DELAY_MS);
+                } else {
+                    scheduleReconnect(CONSTANTS.RPC_RETRY_DELAY_MS);
+                }
+            });
+
+        } catch (unexpectedErr) {
+            // SAFETY NET: If anything unexpected throws during attemptConnection,
+            // reset isReconnecting and schedule another attempt
+            console.error('[Solari] Unexpected error during connection attempt:', unexpectedErr.message);
+            isReconnecting = false;
+            scheduleReconnect(CONSTANTS.RPC_LONG_RETRY_DELAY_MS);
+        }
     };
     attemptConnection();
 
-    // Proactive health check - detect Discord restart even if close event doesn't fire
-    // This runs every 10 seconds to verify RPC is still working
-    setInterval(() => {
+    // Proactive health check & reconnection safety net
+    // Runs every 5 seconds:
+    // - If connected: verify the transport is still alive
+    // - If NOT connected: ensure a reconnection attempt is scheduled (safety net)
+    rpcHealthCheckInterval = setInterval(() => {
+        // GUARD: If Client ID changed, this health check becomes stale — stop it
+        if (currentClientId !== useClientId) {
+            clearInterval(rpcHealthCheckInterval);
+            rpcHealthCheckInterval = null;
+            return;
+        }
+
         if (rpcConnected && rpcClient && !isReconnecting) {
-            // Try to verify connection is still alive by checking transport state
+            // Connected: verify transport is alive
             try {
                 const transport = rpcClient.transport;
                 if (!transport || !transport.socket || transport.socket.destroyed) {
                     console.log('[Solari] RPC health check: Connection appears dead, scheduling reconnect...');
                     rpcConnected = false;
+                    isReconnecting = false;
                     if (mainWindow) {
                         mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
                     }
@@ -1358,13 +1562,18 @@ function initializeDiscordRPC(targetClientId = null) {
                 }
             } catch (e) {
                 console.log('[Solari] RPC health check error:', e.message);
-                // If we get an error checking, connection is probably dead
                 rpcConnected = false;
-                currentActivity = {}; // Reset current activity
+                currentActivity = {};
+                isReconnecting = false;
                 scheduleReconnect(CONSTANTS.RPC_RETRY_DELAY_MS);
             }
+        } else if (!rpcConnected && !isReconnecting && !reconnectTimeout) {
+            // SAFETY NET: Not connected, not reconnecting, and no reconnect scheduled.
+            // This should NEVER happen, but if it does, force a reconnection attempt.
+            console.log('[Solari] RPC safety net: No reconnect scheduled while disconnected! Forcing reconnect...');
+            scheduleReconnect(CONSTANTS.RPC_RETRY_DELAY_MS);
         }
-    }, 10000); // Check every 10 seconds
+    }, 5000); // Check every 5 seconds
 }
 
 // Helper to switch RPC connection to a different Client ID (SMART POLLING METHOD)
@@ -1407,16 +1616,14 @@ async function switchRpcClient(newClientId) {
     // 2. Update current ID immediately
     currentClientId = newClientId;
 
-    // 3. Smart reconnection - poll until Discord accepts the connection
-    // SAFEGUARD: Limit total time to 60 seconds to prevent freezing the app forever
-    const maxTotalTime = 60000; // 60 seconds
-    const startTime = Date.now();
-    const retryDelay = 1000; // 1 second between attempts
+    // 3. Smart reconnection - poll FOREVER until Discord accepts the connection
+    // Only aborts if: (a) user switches to a different Client ID, or (b) connection succeeds
+    let retryDelay = 1000; // Start with 1s between attempts
     let attempt = 1;
 
     console.log('[Solari] Starting smart switch to', newClientId);
 
-    while (Date.now() - startTime < maxTotalTime) {
+    while (true) {
         // ABORT CHECK 1: If user wants to switch to yet ANOTHER client ID, abort this one
         if (currentClientId !== newClientId) {
             console.log('[Solari] Switch aborted: Target Client ID changed');
@@ -1424,8 +1631,8 @@ async function switchRpcClient(newClientId) {
             return false;
         }
 
-        if (attempt % 5 === 0 || attempt === 1) {
-            const elapsed = Math.round((Date.now() - startTime) / 1000);
+        if (attempt === 1 || attempt % 5 === 0) {
+            const elapsed = Math.round((attempt * retryDelay) / 1000);
             console.log(`[Solari] Switch attempt ${attempt} (${elapsed}s elapsed)...`);
         }
 
@@ -1440,12 +1647,22 @@ async function switchRpcClient(newClientId) {
                 new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
             ]);
 
+            // VALIDATION: Test if the connection actually works by attempting a simple operation
+            // This catches "ghost connections" where login succeeds but the pipe is non-functional
+            try {
+                await newClient.clearActivity();
+            } catch (validationErr) {
+                console.log(`[Solari] Post-login validation failed: ${validationErr.message}. Connection is not functional.`);
+                try { newClient.destroy(); } catch (_) { }
+                throw new Error('Post-login validation failed: ' + validationErr.message);
+            }
+
             // Success! Store the client and mark as connected
             rpcClient = newClient;
             rpcConnected = true;
             isSwitching = false;
 
-            console.log(`[Solari] Switch successful on attempt ${attempt}!`);
+            console.log(`[Solari] Switch successful on attempt ${attempt}! (validated)`);
 
             // Setup event handlers for the new client
             newClient.on('disconnected', () => {
@@ -1508,27 +1725,21 @@ async function switchRpcClient(newClientId) {
                 console.log(`[Solari] Switch attempt ${attempt} failed: ${err.message}. Retrying...`);
             }
 
+            // Slow down after 60 attempts (~60s) to reduce resource usage
+            if (attempt >= 60) {
+                retryDelay = 5000; // 5 seconds between attempts after 1 minute
+            }
+
             // Wait before next attempt
             await new Promise(resolve => setTimeout(resolve, retryDelay));
             attempt++;
         }
     }
 
-    // TIMEOUT REACHED
-    console.error('[Solari] CRITICAL: Switch timed out after 60s.');
-    isSwitching = false; // RELEASE THE LOCK so other updates can happen
-
-    // Notify UI of failure
-    if (mainWindow) {
-        mainWindow.webContents.send('show-toast', {
-            messageKey: 'rpc.connectionTimeout',
-            title: '❌',
-            type: 'error'
-        });
-    }
-
-    // Attempt to fallback to global ID if this specific one failed? 
-    // Or just leave it disconnected until next update.
+    // This code is unreachable now (infinite loop above only exits via return)
+    // Kept as safety net in case future changes break the loop
+    isSwitching = false;
+    rpcConnected = false;
     return false;
 }
 
@@ -2026,6 +2237,7 @@ function handleBrowserMediaUpdate(message, ws) {
                 presenceSources.browserExtension.data = null;
                 presenceSources.browserExtension.platform = null;
                 presenceSources.browserExtension.clearTimeout = null;
+                presenceSources.browserExtension.startTimestamp = null; // Reset preserved timestamp
 
                 // ALSO clear autoDetect if it's detecting the same platform via website
                 // This prevents autoDetect from immediately taking over with stale data
@@ -2113,6 +2325,18 @@ function handleBrowserMediaUpdate(message, ws) {
         finalDetails = undefined; // Don't show redundant platform name
     }
 
+    // TIMESTAMP PRESERVATION:
+    // Only reset the timestamp when the platform actually changes.
+    // When the platform stays the same but details change (viewer count, episode, category, channel),
+    // we preserve the original timestamp to avoid the "elapsed time" resetting on Discord.
+    const platformChanged = previousPlatform !== platform;
+    if (platformChanged || !presenceSources.browserExtension.startTimestamp) {
+        presenceSources.browserExtension.startTimestamp = Date.now();
+        console.log(`[Solari Extension] New timestamp set for ${platform}:`, presenceSources.browserExtension.startTimestamp);
+    } else {
+        console.log(`[Solari Extension] Preserving existing timestamp for ${platform}:`, presenceSources.browserExtension.startTimestamp);
+    }
+
     const activity = {
         type: presetToUse.type || 3, // Watching
         details: finalDetails,
@@ -2122,8 +2346,9 @@ function handleBrowserMediaUpdate(message, ws) {
         smallImageKey: data.state === 'paused' ? 'pause' : (presetToUse.smallImageKey || 'play'),
         smallImageText: data.state === 'paused' ? 'Paused' : undefined,
         buttons: buttons.length > 0 ? buttons : undefined,
-        // Carry over extra data for party/timestamps if needed
-        timestampMode: 'normal'
+        // Use custom timestamp to preserve the original start time
+        timestampMode: 'custom',
+        customTimestamp: presenceSources.browserExtension.startTimestamp
     };
 
     // DEBUG: Log constructed activity with buttons
@@ -2734,8 +2959,8 @@ ipcMain.handle('soundboard:get-settings', () => {
 ipcMain.removeHandler('soundboard:pick-file');
 ipcMain.handle('soundboard:pick-file', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-        title: 'Select Audio File',
-        properties: ['openFile'],
+        title: 'Select Audio Files',
+        properties: ['openFile', 'multiSelections'],
         filters: [
             { name: 'Audio Files', extensions: ['mp3', 'wav', 'ogg', 'm4a'] }
         ]
@@ -3709,6 +3934,29 @@ app.whenReady().then(() => {
     initializeDiscordRPC();
     initializeWebSocketServer();
 
+    // Fetch app name from Discord API early so preview shows real name even when RPC is disconnected
+    if (clientId) {
+        const https = require('https');
+        const fetchUrl = `https://discord.com/api/v10/applications/${clientId}/rpc`;
+        const req = https.get(fetchUrl, (resp) => {
+            let data = '';
+            resp.on('data', (chunk) => data += chunk);
+            resp.on('end', () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.name && mainWindow) {
+                        console.log('[Solari] Early app name fetch:', parsed.name);
+                        mainWindow.webContents.send('app-name-loaded', parsed.name);
+                    }
+                } catch (e) {
+                    console.log('[Solari] Early app name fetch failed to parse:', e.message);
+                }
+            });
+        });
+        req.on('error', (e) => console.log('[Solari] Early app name fetch error:', e.message));
+        req.setTimeout(5000, () => { req.destroy(); });
+    }
+
     // Initialize SoundBoard (Safe Mode)
     // Initialize SoundBoard (Lazy Load for faster startup)
     // Initialize SoundBoard immediately to prevent race conditions with Renderer
@@ -3762,6 +4010,13 @@ app.whenReady().then(() => {
         setTimeout(() => {
             console.log('[Solari] Starting auto-detection on startup');
             startAutoDetection();
+
+            // Auto-Update Checks (App & Plugins) — conditioned on user settings
+            setTimeout(() => {
+                if (appSettings.autoCheckAppUpdates) checkAppUpdateOnStartup(getLabels());
+                if (appSettings.autoCheckPluginUpdates) updatePluginsOnStartup();
+            }, 5000);
+
         }, 3000); // Wait 3 seconds for RPC to connect
     }
 

@@ -298,6 +298,7 @@
     "menu": {
         "file": "Arquivo",
         "startWithWindows": "Iniciar com o Windows",
+        "startMinimized": "Iniciar Minimizado",
         "minimizeToTray": "Minimizar para a Bandeja",
         "exit": "Sair",
         "edit": "Editar",
@@ -346,7 +347,10 @@
         "clientIdInvalid": "Por favor, insira um Client ID válido!",
         "exportLogs": "Exportar Logs de Debug",
         "exportPresets": "Exportar Presets",
-        "importPresets": "Importar Presets"
+        "importPresets": "Importar Presets",
+        "autoCheckAppUpdates": "Verificar atualizações do app automaticamente",
+        "autoCheckPluginUpdates": "Verificar atualizações de plugins automaticamente",
+        "runSetupWizard": "Executar Assistente de Configuração"
     },
     "wizard": {
         "welcome": "Bem-vindo ao Solari",

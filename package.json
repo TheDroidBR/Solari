@@ -2,7 +2,7 @@
   "name": "solari",
   "productName": "Solari",
   "version": "1.4.0",
-  "description": "Solari - Advanced Discord Rich Presence with SoundBoard Manager",
+  "description": "Solari - Advanced Discord Rich Presence",
   "main": "src/main/index.js",
   "scripts": {
     "dev": "electron .",
@@ -50,7 +50,7 @@
       "icon": "SolariPhotoTransparente.ico"
     },
     "portable": {
-      "artifactName": "SolariApp.exe"
+      "artifactName": "SolariAPP.exe"
     },
     "asar": true,
     "asarUnpack": [
