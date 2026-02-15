@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Spotify controller for Discord. Album art, progress bar with seek, like/unlike, volume, shuffle, repeat — all from Discord. Integrates with Solari RPC.
- * @version 2.0.1
+ * @version 2.0.2
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
@@ -141,7 +141,7 @@ module.exports = class SpotifySync {
             showShuffleRepeat: true,
             controlsVisibility: 'whenPlaying',
             language: 'pt-BR',
-            serverUrl: 'ws://localhost:6464',
+            serverUrl: 'ws://http://127.0.0.1:8888/callback',
             // Premium Auth
             spotifyClientId: '',
             spotifyAccessToken: '',
@@ -152,13 +152,84 @@ module.exports = class SpotifySync {
         };
         this.lastControlTime = 0;
         this.REDIRECT_URI = 'http://127.0.0.1:8888/callback'; // Fixed URI for Solari
+        this._paramCache = {};
+    }
+
+    // ═══════════════════ INTERNAL MODULE FINDER ═══════════════════
+    getSpotifyModules() {
+        if (this._cachedActionCreators) return this._cachedActionCreators;
+
+        // Try multiple strategies to find the internal Spotify module
+        const strategies = [
+            // Strategy S (SpotifyEnhance): Look for the specific RefreshToken module
+            // This is the most reliable way to get the token refresh function according to other plugins
+            m => m && m.toString().includes('CONNECTION_ACCESS_TOKEN'),
+
+            // Strategy A: Standard (saveTrack + play)
+            m => m && m.saveTrack && m.play,
+            // Strategy B: Sync + play
+            m => m && m.sync && m.play,
+            // Strategy C: Socket handler (setActiveDevice)
+            m => m && m.setActiveDevice && m.play,
+            // Strategy D: Generic controls (play + pause + skipNext)
+            m => m && m.play && m.pause && m.skipNext,
+            // Strategy E: Just getAccessToken (for refresh)
+            m => m && m.getAccessToken
+        ];
+
+        for (const filter of strategies) {
+            const mod = BdApi.Webpack.getModule(filter, { first: true, searchExports: true });
+            if (mod) {
+                // Verify it's not the Lottie player
+                if (mod.loadAnimation || mod.resize) continue;
+
+                // If it's the RefreshToken module (Strategy S), it might return a function directly
+                if (typeof mod === 'function' && mod.toString().includes('CONNECTION_ACCESS_TOKEN')) {
+                    // Create a wrapper to make it look like ActionCreators
+                    this._cachedActionCreators = {
+                        getAccessToken: mod,
+                        isRefreshTokenModule: true
+                    };
+                    return this._cachedActionCreators;
+                }
+
+                this._cachedActionCreators = mod;
+                return mod;
+            }
+        }
+
+        // DEBUG: If all failed, force a scan for ANY module with getAccessToken and log it
+        try {
+            console.warn('[SpotifySync] All strategies failed. Scanning ALL modules for getAccessToken...');
+            const allModules = BdApi.Webpack.getModule(m => m && m.getAccessToken, { first: false, searchExports: true });
+            if (allModules && allModules.length > 0) {
+                console.log(`[SpotifySync] Found ${allModules.length} candidate modules with getAccessToken:`);
+                allModules.forEach((m, i) => {
+                    const keys = Object.keys(m);
+                    console.log(`Module ${i} keys:`, keys.slice(0, 10)); // Log first 10 keys
+                    // Heuristic: If it has 'play' or 'saveTrack', it's probably the one
+                    if (m.play || m.saveTrack || m.setActiveDevice) {
+                        console.log('!!! MATCH FOUND IN FALLBACK SCAN !!! Using this one.');
+                        this._cachedActionCreators = m;
+                    }
+                });
+                if (this._cachedActionCreators) return this._cachedActionCreators;
+
+                // If we found candidates but none matched heuristic, just take the first one that looks vaguely right
+                console.log('[SpotifySync] Taking first candidate as last resort.');
+                this._cachedActionCreators = allModules[0];
+                return allModules[0];
+            }
+        } catch (e) { console.error('[SpotifySync] Scan error:', e); }
+
+        return null;
     }
 
     // ═══════════════════ SETTINGS SCHEMA ═══════════════════
     getSettingsSchema() {
         const premiumStatus = this.hasPremium() ? 'connected' : 'disconnected';
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v2.0.1' },
+            { type: 'custom_header', title: this.t('title'), version: 'v2.0.2' },
             { type: 'status_card', id: 'solariStatus', label: this.t('solari'), status: this.isConnectedToSolari ? 'connected' : 'disconnected' },
 
             {
@@ -338,13 +409,22 @@ module.exports = class SpotifySync {
     }
 
     async refreshPremiumToken() {
-        if (!this.config.spotifyRefreshToken) return false;
+        if (!this.config.spotifyRefreshToken) {
+            console.warn('[SpotifySync] No Refresh Token available.');
+            return false;
+        }
+
+        console.log('[SpotifySync] Refreshing Premium Token...');
         try {
             const body = new URLSearchParams({
-                client_id: this.config.spotifyClientId,
                 grant_type: 'refresh_token',
-                refresh_token: this.config.spotifyRefreshToken
+                refresh_token: this.config.spotifyRefreshToken,
+                client_id: this.config.spotifyClientId
             });
+
+            // PKCE: If we have a verifier, we might need it (though usually only for auth code)
+            // Ideally we should use the same endpoint we used for auth.
+            // For now assuming standard endpoint or the one configured.
 
             const res = await fetch('https://accounts.spotify.com/api/token', {
                 method: 'POST',
@@ -354,10 +434,11 @@ module.exports = class SpotifySync {
             const data = await res.json();
 
             if (data.error) {
+                console.error('[SpotifySync] Premium Refresh Error API:', data);
                 if (data.error === 'invalid_grant' || data.error_description === 'Revoked') {
                     console.error('[SpotifySync] Token revoked/invalid. Clearing Premium config.');
                     this.config.spotifyAccessToken = '';
-                    this.config.spotifyRefreshToken = '';
+                    this.config.spotifyRefreshToken = ''; // DANGER: This kills the connection entirely
                     this.config.spotifyTokenExpiry = 0;
                     this.saveConfig();
                     this.safeShowToast('Premium Token Expired. Please reconnect.', { type: 'error' });
@@ -365,6 +446,7 @@ module.exports = class SpotifySync {
                 throw new Error(data.error);
             }
 
+            console.log('[SpotifySync] Premium Token Refreshed Successfully!');
             this.config.spotifyAccessToken = data.access_token;
             if (data.refresh_token) this.config.spotifyRefreshToken = data.refresh_token; // Sometimes updated
             this.config.spotifyTokenExpiry = Date.now() + (data.expires_in * 1000);
@@ -405,14 +487,13 @@ module.exports = class SpotifySync {
             const ComponentDispatch = BdApi.Webpack.getModule(m => m.dispatchToLastSubscribed && m.emitter, { first: true });
             if (ComponentDispatch) {
                 ComponentDispatch.dispatchToLastSubscribed('INSERT_TEXT', { plainText: text });
+                this.safeShowToast(this.t('shareCopied'), { type: 'success' }); // Show success for chat insert
             } else {
-                // Fallback: copy to clipboard
+                // Fallback: copy to clipboard (which handles its own toast)
                 this.copyToClipboard(text);
-                this.safeShowToast(this.t('shareCopied'), { type: 'info' });
             }
         } catch {
             this.copyToClipboard(text);
-            this.safeShowToast(this.t('shareCopied'), { type: 'info' });
         }
     }
 
@@ -434,10 +515,30 @@ module.exports = class SpotifySync {
 
     // ═══════════════════ LIFECYCLE ═══════════════════
     start() {
-        console.log('[SpotifySync] v2.0.1 Starting...');
+        console.log('[SpotifySync] v2.0.2 Starting (Revised Fix)...');
         this.loadConfig();
+
+        // Force clear any stale internal caches
+        this._artistIds = [];
+        this.lastSpotifyOpenTime = 0;
+
+        // Connect to Solari
         this.connectToServer();
+
+        // 1. Start Detection immediately (reads)
         this.startDetection();
+
+        // 2. Delayed Module Scan (writes/control)
+        // Wait 2 seconds to ensure Discord is fully ready if plugin loaded on startup
+        setTimeout(() => {
+            // Pre-scan for control modules to warm up the cache
+            try {
+                const SpotifyActionCreators = BdApi.Webpack.getModule(m => m && m.saveTrack && m.play, { first: true, searchExports: true });
+                if (SpotifyActionCreators) console.log('[SpotifySync] Control module pre-check: Found');
+                else console.warn('[SpotifySync] Control module pre-check: Not Found (Will retry on action)');
+            } catch (e) { }
+        }, 2000);
+
         if (this.config.showControls) this.injectWidget();
     }
 
@@ -445,8 +546,16 @@ module.exports = class SpotifySync {
         console.log('[SpotifySync] Stopping...');
         this.shouldReconnect = false;
         this.stopDetection();
-        if (this.ws) this.ws.close();
+        if (this.ws) {
+            this.ws.onclose = null; // Prevent reconnection logic from firing
+            this.ws.close();
+        }
         this.removeWidget();
+
+        // Clear any intervals that might be lingering
+        if (this.spotifyStateInterval) clearInterval(this.spotifyStateInterval);
+        if (this.progressInterval) clearInterval(this.progressInterval);
+        if (this.reinjectInterval) clearInterval(this.reinjectInterval);
     }
 
     // ═══════════════════ WEBSOCKET ═══════════════════
@@ -514,28 +623,57 @@ module.exports = class SpotifySync {
             if (this.config.spotifyAccessToken) return this.config.spotifyAccessToken;
         }
 
-        // 2. Discord Token Fallback
+        // 2. Resolve Account ID from Discord Store (needed for refresh)
+        let resolvedToken = null;
         try {
             const store = BdApi.Webpack.getModule(m => m?.getActiveSocketAndDevice);
             if (store) {
                 const sd = store.getActiveSocketAndDevice();
                 if (sd?.socket?.accountId) {
                     this.accountId = sd.socket.accountId;
-                    return sd.socket.accessToken;
+                    resolvedToken = sd.socket.accessToken;
                 }
             }
-            const accountStore = BdApi.Webpack.getModule(m => m?.getAccounts);
-            if (accountStore) {
-                const accounts = accountStore.getAccounts();
-                for (const id in accounts) {
-                    if (accounts[id].type === 'spotify') {
-                        this.accountId = id;
-                        return accounts[id].accessToken;
+            if (!this.accountId) {
+                const accountStore = BdApi.Webpack.getModule(m => m?.getAccounts);
+                if (accountStore) {
+                    const accounts = accountStore.getAccounts();
+                    for (const id in accounts) {
+                        if (accounts[id].type === 'spotify') {
+                            this.accountId = id;
+                            resolvedToken = accounts[id].accessToken;
+                            break;
+                        }
                     }
                 }
             }
-            return null;
-        } catch { return null; }
+        } catch (e) { console.error('[SpotifySync] Error resolving account:', e); }
+
+        // 3. Force Refresh if Requested (401 Recovery)
+        if (ignorePremium && this.accountId) {
+            try {
+                // Use the unified module finder
+                const SpotifyActionCreators = this.getSpotifyModules();
+
+                if (SpotifyActionCreators && SpotifyActionCreators.getAccessToken) {
+                    console.log(`[SpotifySync] Forcing token refresh for account ${this.accountId}...`);
+                    const newToken = await SpotifyActionCreators.getAccessToken(this.accountId);
+
+                    if (newToken) {
+                        const actualToken = (typeof newToken === 'string') ? newToken : newToken.accessToken;
+                        console.log('[SpotifySync] Got new token:', actualToken ? actualToken.substring(0, 10) + '...' : 'null');
+                        if (actualToken) return actualToken;
+                    } else {
+                        console.error('[SpotifySync] SpotifyActionCreators.getAccessToken returned null/undefined');
+                    }
+                } else {
+                    console.error(`[SpotifySync] Could not find getAccessToken. ActionCreators found: ${!!SpotifyActionCreators}`);
+                }
+            } catch (e) { console.error('[SpotifySync] Failed to force refresh token:', e); }
+        }
+
+        // 4. Return cached token if no refresh happened/succeeded
+        return resolvedToken;
     }
 
     getDeviceId() {
@@ -676,19 +814,30 @@ module.exports = class SpotifySync {
         try {
             let res = await makeRequest(token);
 
-            // If 401 (Unauthorized) and we were using Premium, try filtering it out
-            if (res.status === 401 && this.config.spotifyAccessToken && token === this.config.spotifyAccessToken) {
-                console.warn('[SpotifySync] Premium token failed (401). Retrying with Refresh or Fallback...');
-                // Force refresh
-                const refreshed = await this.refreshPremiumToken();
-                if (refreshed) {
-                    token = this.config.spotifyAccessToken;
-                    res = await makeRequest(token);
+            // Universal 401 Handling (Premium OR Discord Token)
+            if (res.status === 401) {
+                console.warn(`[SpotifySync] Token expired (401). Retrying... (Token Type: ${token === this.config.spotifyAccessToken ? 'Premium' : 'Discord'})`);
+
+                let newToken = null;
+
+                // 1. Try Refreshing Premium Token if applicable
+                if (this.config.spotifyAccessToken && token === this.config.spotifyAccessToken) {
+                    const refreshed = await this.refreshPremiumToken();
+                    if (refreshed) newToken = this.config.spotifyAccessToken;
+                }
+
+                // 2. If no new Premium token, try fetching fresh Discord token
+                if (!newToken) {
+                    console.log('[SpotifySync] Fetching fresh Discord token for retry...');
+                    newToken = await this.getAccessToken(true); // ignorePremium=true
+                }
+
+                // 3. Retry Request
+                if (newToken && newToken !== token) {
+                    console.log('[SpotifySync] Retrying request with new token...');
+                    res = await makeRequest(newToken);
                 } else {
-                    // If refresh failed, try Discord token
-                    console.warn('[SpotifySync] Refresh failed. Fallback to Discord token.');
-                    token = await this.getAccessToken(true); // ignorePremium=true
-                    if (token) res = await makeRequest(token);
+                    console.error('[SpotifySync] Could not refresh token for retry.');
                 }
             } else if (res.status === 403 && this.config.spotifyAccessToken && token === this.config.spotifyAccessToken) {
                 // 403 Forbidden might mean scope missing or non-premium account. Fallback.
@@ -727,65 +876,63 @@ module.exports = class SpotifySync {
         // 2. Strategy: Try Discord Local Control first (Most robust, bypasses Web API restrictions)
         try {
             console.log('[SpotifySync] Attempting to find Local Control module...');
-
-            // Strategy A: Standard Actions with searchExports (Crucial for some BD versions)
-            // We look for 'saveTrack' because it's distinct to Spotify, avoiding Lottie/Video players
-            let SpotifyActionCreators = BdApi.Webpack.getModule(m => m && m.saveTrack && m.play, { first: true, searchExports: true });
-
-            // Strategy B: Fallback to 'sync'
-            if (!SpotifyActionCreators) {
-                SpotifyActionCreators = BdApi.Webpack.getModule(m => m && m.sync && m.play, { first: true, searchExports: true });
-            }
-
-            // Strategy C: Last resort - look for the specific function signature of the Spotify socket handler
-            if (!SpotifyActionCreators) {
-                SpotifyActionCreators = BdApi.Webpack.getModule(m => m && m.setActiveDevice && m.play, { first: true, searchExports: true });
-            }
-
-            if (SpotifyActionCreators) {
-                // Verify it's not the Animation/Lottie player
-                if (SpotifyActionCreators.loadAnimation || SpotifyActionCreators.resize) {
-                    console.warn('[SpotifySync] Found module but it looks like Lottie/Animation player. Ignoring.');
-                    SpotifyActionCreators = null; // Force fail to trigger error log below
-                }
-            }
+            const SpotifyActionCreators = this.getSpotifyModules();
 
             if (SpotifyActionCreators) {
                 const avail = Object.keys(SpotifyActionCreators).filter(k => typeof SpotifyActionCreators[k] === 'function');
                 console.log(`[SpotifySync] Local Control found. Available methods:`, avail);
 
+                let localSuccess = false;
                 switch (action) {
                     case 'play':
-                        this._isPlaying = true;
-                        SpotifyActionCreators.play(this.accountId);
-                        return;
-                    case 'pause':
-                        this._isPlaying = false;
-                        SpotifyActionCreators.pause(this.accountId);
-                        return;
-                    case 'playpause':
-                        // Use local knowledge of state to toggle
-                        if (isRealPlaying) {
-                            this._isPlaying = false;
-                            SpotifyActionCreators.pause(this.accountId);
-                        } else {
+                        if (SpotifyActionCreators.play) {
                             this._isPlaying = true;
                             SpotifyActionCreators.play(this.accountId);
+                            localSuccess = true;
                         }
-                        return;
+                        break;
+                    case 'pause':
+                        if (SpotifyActionCreators.pause) {
+                            this._isPlaying = false;
+                            SpotifyActionCreators.pause(this.accountId);
+                            localSuccess = true;
+                        }
+                        break;
+                    case 'playpause':
+                        if (isRealPlaying) {
+                            if (SpotifyActionCreators.pause) {
+                                this._isPlaying = false;
+                                SpotifyActionCreators.pause(this.accountId);
+                                localSuccess = true;
+                            }
+                        } else {
+                            if (SpotifyActionCreators.play) {
+                                this._isPlaying = true;
+                                SpotifyActionCreators.play(this.accountId);
+                                localSuccess = true;
+                            }
+                        }
+                        break;
                     case 'next':
-                        if (SpotifyActionCreators.skipNext) SpotifyActionCreators.skipNext(this.accountId);
-                        else if (SpotifyActionCreators.next) SpotifyActionCreators.next(this.accountId);
-                        else if (SpotifyActionCreators.skipForward) SpotifyActionCreators.skipForward(this.accountId);
+                        if (SpotifyActionCreators.skipNext) { SpotifyActionCreators.skipNext(this.accountId); localSuccess = true; }
+                        else if (SpotifyActionCreators.next) { SpotifyActionCreators.next(this.accountId); localSuccess = true; }
+                        else if (SpotifyActionCreators.skipForward) { SpotifyActionCreators.skipForward(this.accountId); localSuccess = true; }
                         else console.warn('[SpotifySync] No next method found in module');
-                        return;
+                        break;
                     case 'previous':
-                        if (SpotifyActionCreators.skipPrevious) SpotifyActionCreators.skipPrevious(this.accountId);
-                        else if (SpotifyActionCreators.previous) SpotifyActionCreators.previous(this.accountId);
-                        else if (SpotifyActionCreators.back) SpotifyActionCreators.back(this.accountId);
-                        else if (SpotifyActionCreators.skipBack) SpotifyActionCreators.skipBack(this.accountId);
+                        if (SpotifyActionCreators.skipPrevious) { SpotifyActionCreators.skipPrevious(this.accountId); localSuccess = true; }
+                        else if (SpotifyActionCreators.previous) { SpotifyActionCreators.previous(this.accountId); localSuccess = true; }
+                        else if (SpotifyActionCreators.back) { SpotifyActionCreators.back(this.accountId); localSuccess = true; }
+                        else if (SpotifyActionCreators.skipBack) { SpotifyActionCreators.skipBack(this.accountId); localSuccess = true; }
                         else console.warn('[SpotifySync] No previous method found in module');
-                        return;
+                        break;
+                }
+
+                if (localSuccess) {
+                    console.log('[SpotifySync] Local Control executed successfully.');
+                    return;
+                } else {
+                    console.log('[SpotifySync] Local Control failed/skipped. Proceeding to Web API...');
                 }
             } else {
                 console.warn('[SpotifySync] No suitable Local Control module found. Falling back to Web API.');
@@ -1622,7 +1769,6 @@ module.exports = class SpotifySync {
         bind('ss2-share', () => {
             if (this._trackId) {
                 this.sendToChat(`https://open.spotify.com/track/${this._trackId}`);
-                this.safeShowToast('🔗 ' + this.t('shareCopied'), { type: 'success' });
             }
         });
 
@@ -1850,7 +1996,7 @@ module.exports = class SpotifySync {
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px;">
                         <span style="color:#1DB954;">🎵</span> ${this.t('title')}
-                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.0.1</span>
+                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.0.2</span>
                     </h2>
                     <select id="ss2-lang" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:5px 8px;">
                         <option value="en" ${this.config.language === 'en' ? 'selected' : ''}>English</option>
@@ -1893,7 +2039,7 @@ module.exports = class SpotifySync {
                         <div style="background:rgba(255,255,255,0.05);padding:10px;border-radius:6px;border-left:3px solid #1DB954;">
                             <strong style="color:#fff;display:block;margin-bottom:4px;">${this.t('step2')}</strong>
                             <span style="color:rgba(255,255,255,0.6);font-size:0.85em;display:block;margin-bottom:6px;">${this.t('step2Help')}</span>
-                            <input id="ss2-redirect-uri" type="text" value="${this.config.spotifyRedirectUri || 'http://localhost/callback'}" readonly style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);color:#aaa;padding:6px;border-radius:4px;cursor:not-allowed;" />
+                            <input id="ss2-redirect-uri" type="text" value="${this.config.spotifyRedirectUri || 'http://127.0.0.1:8888/callback'}" readonly style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);color:#aaa;padding:6px;border-radius:4px;cursor:not-allowed;" />
                         </div>
 
                         <!-- Step 3 & 4 -->

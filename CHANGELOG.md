@@ -5,12 +5,25 @@
 - **Glassmorphism Redesign**: SpotifySync settings now feature a premium glassmorphic look that matches the Solari aesthetic.
 - **Schema Forwarding**: Improved IPC communication ensures plugin schemas are reliably transmitted to the renderer.
 
-### 🎵 SpotifySync v2.0.0
+### 🎵 SpotifySync v2.0.0 (The Complete Rebirth)
 
-- **Editable Client ID**: Manually edit your Spotify Client ID directly from the settings panel.
-- **Visibility Toggle**: Added a security "eye" button to reveal/mask the Client ID in both Solari and BetterDiscord.
-- **Dynamic Height**: Library and Queue lists now automatically expand the widget to 450px for better navigation.
-- **UI Legibility**: Fixed black/invisible text bugs in specific theme combinations.
+- **Total Architecture Rewrite**: Built from the ground up for stability, speed, and premium features.
+- **Premium Auth System**: Integrated Spotify PKCE authentication, allowing secure access to advanced player controls.
+- **Advanced Player Controls**:
+  - Added **Shuffle & Repeat** state management.
+  - Added **Like/Unlike** functionality directly from Discord.
+  - Added **Real-time Volume Slider** and **Seek Bar** (Progress control).
+- **New List Views**: Comprehensive Library and Queue views with **Auto-Expanding Height** (450px) for better navigation.
+- **Security & Privacy**:
+  - **Editable Client ID**: Manually configure your own Spotify App ID.
+  - **Visibility Toggle**: Reveal/Mask your Client ID with a security "eye" button.
+- **Premium Glassmorphic Design**: 
+  - Redesigned with card-based layouts (Section, Step, and Status Cards).
+  - Matches the Solari core aesthetic with blur effects and smooth transitions.
+- **Stability & Performance**:
+  - Reliable WebSocket sync with Solari APP.
+  - Fixed major UI bugs where text was invisible in specific themes.
+  - Optimized background detection to reduce CPU usage.
 
 ---
 

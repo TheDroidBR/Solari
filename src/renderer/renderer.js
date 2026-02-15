@@ -2283,6 +2283,11 @@ function renderPluginSettings(schema, currentConfig) {
     });
 }
 
+function parseMarkdownLinks(text) {
+    if (!text) return text;
+    return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #1DB954; text-decoration: none; border-bottom: 1px solid #1DB954;">$1</a>');
+}
+
 function createSettingElement(item, config) {
     const wrapper = document.createElement('div');
     wrapper.style.marginBottom = '12px';
@@ -2325,7 +2330,7 @@ function createSettingElement(item, config) {
                         ${item.statusLabel || item.status}
                     </div>
                 </div>
-                <div class="sp-section-desc">${item.description}</div>
+                <div class="sp-section-desc">${parseMarkdownLinks(item.description)}</div>
             `;
 
             if (item.children) {
@@ -2346,7 +2351,7 @@ function createSettingElement(item, config) {
                     <span class="sp-step-num">${item.step}.</span>
                     <span class="sp-step-title">${item.title}</span>
                 </div>
-                <div class="sp-step-text">${item.text}</div>
+                <div class="sp-step-text">${parseMarkdownLinks(item.text)}</div>
             `;
             step.innerHTML = headerHtml;
 
