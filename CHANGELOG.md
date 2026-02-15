@@ -1,3 +1,19 @@
+## [1.4.1] - 2026-02-15
+### 🏗️ Plugin Architecture & UI
+
+- **Rich Plugin UI**: Added support for card-based schemas (Step Cards, Section Cards, Status Cards) in the plugin system.
+- **Glassmorphism Redesign**: SpotifySync settings now feature a premium glassmorphic look that matches the Solari aesthetic.
+- **Schema Forwarding**: Improved IPC communication ensures plugin schemas are reliably transmitted to the renderer.
+
+### 🎵 SpotifySync v2.0.0
+
+- **Editable Client ID**: Manually edit your Spotify Client ID directly from the settings panel.
+- **Visibility Toggle**: Added a security "eye" button to reveal/mask the Client ID in both Solari and BetterDiscord.
+- **Dynamic Height**: Library and Queue lists now automatically expand the widget to 450px for better navigation.
+- **UI Legibility**: Fixed black/invisible text bugs in specific theme combinations.
+
+---
+
 ## [1.4.0] - 2026-02-11
 ### 🌟 The Open Source Update
 
