@@ -2084,15 +2084,9 @@ ipcRenderer.on('spotify-data-loaded', (event, data) => {
         if (spotifySyncToggle) spotifySyncToggle.checked = data.settings.enabled !== false;
         if (spotifyRpcToggle) spotifyRpcToggle.checked = data.settings.showInRichPresence !== false;
 
-        // Load Spotify button values
-        const spotifyBtn1Label = document.getElementById('spotifyButton1Label');
-        const spotifyBtn1Url = document.getElementById('spotifyButton1Url');
-        const spotifyBtn2Label = document.getElementById('spotifyButton2Label');
-        const spotifyBtn2Url = document.getElementById('spotifyButton2Url');
-        if (spotifyBtn1Label) spotifyBtn1Label.value = data.settings.button1Label || '';
-        if (spotifyBtn1Url) spotifyBtn1Url.value = data.settings.button1Url || '';
-        if (spotifyBtn2Label) spotifyBtn2Label.value = data.settings.button2Label || '';
-        if (spotifyBtn2Url) spotifyBtn2Url.value = data.settings.button2Url || '';
+        if (data.settings && data.schema) {
+            renderPluginSettings(data.schema, data.settings);
+        }
     }
     if (data.prioritySettings) {
         if (priorityAutoDetect) priorityAutoDetect.value = data.prioritySettings.autoDetect || 1;
@@ -2244,61 +2238,344 @@ if (saveSpotifyButtonsBtn) {
 }
 
 // SpotifySync Plugin Config Panel Handlers
-const spotifyPluginRpcToggle = document.getElementById('spotifyPluginRpcToggle');
-const saveSpotifyPluginBtn = document.getElementById('saveSpotifyPluginBtn');
-const spotifyPluginNowPlaying = document.getElementById('spotifyPluginNowPlaying');
-const spotifyPluginTrackTitle = document.getElementById('spotifyPluginTrackTitle');
-const spotifyPluginTrackArtist = document.getElementById('spotifyPluginTrackArtist');
 
-if (spotifyPluginRpcToggle) {
-    spotifyPluginRpcToggle.addEventListener('change', () => {
-        ipcRenderer.send('update-spotify-settings', { showInRichPresence: spotifyPluginRpcToggle.checked });
-    });
-}
+// Dynamic Settings Renderer
+function renderPluginSettings(schema, currentConfig) {
+    const container = document.getElementById('spotify-settings-container');
+    if (!container) return;
+    container.innerHTML = ''; // Clear existing
 
-if (saveSpotifyPluginBtn) {
-    saveSpotifyPluginBtn.addEventListener('click', () => {
-        ipcRenderer.send('update-spotify-settings', {
-            showInRichPresence: spotifyPluginRpcToggle?.checked ?? true
-        });
-        showToast('✅', t('presets.saved') || 'Saved!', 'success');
-    });
-}
-
-// Update both now-playing displays when track updates
-function updateAllSpotifyDisplays(track) {
-    // Main section
-    updateSpotifyNowPlaying(track);
-
-    // Plugin config panel
-    if (spotifyPluginNowPlaying) {
-        if (track && track.title) {
-            spotifyPluginNowPlaying.style.display = 'block';
-            if (spotifyPluginTrackTitle) spotifyPluginTrackTitle.textContent = track.title;
-            if (spotifyPluginTrackArtist) spotifyPluginTrackArtist.textContent = track.artist || '';
-        } else {
-            spotifyPluginNowPlaying.style.display = 'none';
-        }
+    // Inject Styles once
+    if (!document.getElementById('spotify-plugin-styles')) {
+        const style = document.createElement('style');
+        style.id = 'spotify-plugin-styles';
+        style.textContent = `
+            .sp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+            .sp-title { font-size: 1.4em; font-weight: 600; background: linear-gradient(90deg, #1DB954, #1ed760); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+            .sp-version { font-size: 0.8em; opacity: 0.6; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; }
+            .sp-status-card { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+            .sp-status-dot { width: 10px; height: 10px; border-radius: 50%; }
+            .sp-section-card { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-top: 20px; }
+            .sp-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+            .sp-section-title { font-size: 1.1em; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; }
+            .sp-section-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; font-weight: bold; }
+            .sp-section-desc { font-size: 0.9em; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+            .sp-step-card { background: rgba(255,255,255,0.03); border-left: 3px solid #1DB954; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+            .sp-step-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+            .sp-step-num { font-weight: bold; color: #1DB954; font-size: 1.1em; }
+            .sp-step-title { font-weight: 600; color: #eee; }
+            .sp-step-text { font-size: 0.9em; color: rgba(255,255,255,0.7); margin-bottom: 10px; line-height: 1.4; }
+            .sp-copy-box { display: flex; gap: 8px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); }
+            .sp-copy-input { background: transparent; border: none; color: #fff; flex: 1; font-family: monospace; font-size: 0.9em; }
+            .sp-copy-input:focus { outline: none; }
+            .sp-btn { border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s; }
+            .sp-btn-primary { background: #1DB954; color: #fff; padding: 12px; width: 100%; font-size: 1em; }
+            .sp-btn-primary:hover { background: #1ed760; }
+            .sp-btn-copy { background: rgba(255,255,255,0.1); color: #fff; padding: 4px 10px; font-size: 0.85em; }
+            .sp-btn-copy:hover { background: rgba(255,255,255,0.2); }
+        `;
+        document.head.appendChild(style);
     }
+
+    schema.forEach(item => {
+        const el = createSettingElement(item, currentConfig);
+        if (el) container.appendChild(el);
+    });
 }
 
-// Override the spotify-track-updated handler to update both displays
-ipcRenderer.removeAllListeners('spotify-track-updated');
-ipcRenderer.on('spotify-track-updated', (event, track) => {
-    updateAllSpotifyDisplays(track);
-});
+function createSettingElement(item, config) {
+    const wrapper = document.createElement('div');
+    wrapper.style.marginBottom = '12px';
 
-// Controls Visibility Radio Buttons Handler
-document.querySelectorAll('input[name="controlsVisibility"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-        const mode = e.target.value; // 'whenOpen' or 'whenPlaying'
-        console.log('[Solari] Controls visibility changed to:', mode);
-        ipcRenderer.send('update-spotify-settings', { controlsVisibility: mode });
-    });
-});
+    switch (item.type) {
+        // --- NEW RICH UI TYPES ---
+        case 'custom_header':
+            const header = document.createElement('div');
+            header.className = 'sp-header';
+            header.innerHTML = `
+                <div class="sp-title">🎵 ${item.title}</div>
+                ${item.version ? `<div class="sp-version">${item.version}</div>` : ''}
+            `;
+            return header;
 
+        case 'status_card':
+            const sc = document.createElement('div');
+            sc.className = 'sp-status-card';
+            const isActive = item.status === 'connected';
+            sc.innerHTML = `
+                <div class="sp-status-dot" style="background: ${isActive ? '#1DB954' : '#ef4444'}"></div>
+                <div style="flex: 1; font-weight: 500; color: ${isActive ? '#1DB954' : '#ef4444'}">
+                    ${item.label}: ${isActive ? 'Conectado' : 'Desconectado'}
+                </div>
+            `;
+            return sc;
 
-// Spotify Detection Method Handler
+        case 'section_card':
+            const sec = document.createElement('div');
+            sec.className = 'sp-section-card';
+
+            const isConnected = item.status === 'connected';
+            const bgBadge = isConnected ? 'rgba(29, 185, 84, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+            const colorBadge = isConnected ? '#1DB954' : '#ef4444';
+
+            sec.innerHTML = `
+                <div class="sp-section-header">
+                    <div class="sp-section-title">💎 ${item.title}</div>
+                    <div class="sp-section-badge" style="background: ${bgBadge}; color: ${colorBadge}">
+                        ${item.statusLabel || item.status}
+                    </div>
+                </div>
+                <div class="sp-section-desc">${item.description}</div>
+            `;
+
+            if (item.children) {
+                item.children.forEach(child => {
+                    const childEl = createSettingElement(child, config);
+                    if (childEl) sec.appendChild(childEl);
+                });
+            }
+            return sec;
+
+        case 'step_card':
+            const step = document.createElement('div');
+            step.className = 'sp-step-card';
+
+            // Build inner content safely
+            const headerHtml = `
+                <div class="sp-step-header">
+                    <span class="sp-step-num">${item.step}.</span>
+                    <span class="sp-step-title">${item.title}</span>
+                </div>
+                <div class="sp-step-text">${item.text}</div>
+            `;
+            step.innerHTML = headerHtml;
+
+            // Optional: Copy Box OR Input Config
+            if (item.copyValue || item.inputConfig) {
+                const box = document.createElement('div');
+                box.className = 'sp-copy-box';
+
+                const inp = document.createElement('input');
+                inp.className = 'sp-copy-input';
+
+                if (item.copyValue) {
+                    inp.value = item.copyValue;
+                    inp.readOnly = true;
+                } else if (item.inputConfig) {
+                    inp.value = item.inputConfig.value;
+                    inp.placeholder = item.inputConfig.placeholder || '';
+                    if (item.inputConfig.secret) inp.type = 'password';
+
+                    // Auto-save
+                    inp.addEventListener('blur', () => {
+                        if (inp.value !== item.inputConfig.value) {
+                            ipcRenderer.send('update-spotify-plugin-settings', { [item.inputConfig.key]: inp.value.trim() });
+                            showToast('💾', 'Client ID Saved', 'success');
+                        }
+                    });
+                }
+
+                box.appendChild(inp);
+
+                // Actions for Input
+                if (item.inputConfig && item.inputConfig.secret) {
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'sp-btn sp-btn-copy';
+                    toggleBtn.innerHTML = '👁️';
+                    toggleBtn.title = 'Toggle Visibility';
+                    toggleBtn.style.background = 'transparent';
+                    toggleBtn.style.fontSize = '1.1em';
+                    toggleBtn.onclick = () => {
+                        inp.type = inp.type === 'password' ? 'text' : 'password';
+                    };
+                    box.appendChild(toggleBtn);
+                }
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'sp-btn sp-btn-copy';
+                copyBtn.textContent = 'Copiar';
+                copyBtn.onclick = () => {
+                    navigator.clipboard.writeText(inp.value);
+                    copyBtn.textContent = 'Copiado!';
+                    setTimeout(() => copyBtn.textContent = 'Copiar', 2000);
+                };
+                box.appendChild(copyBtn);
+
+                step.appendChild(box);
+            }
+
+            // Optional: Action Button
+            if (item.action) {
+                const actBtn = document.createElement('button');
+                actBtn.className = 'sp-btn sp-btn-primary';
+                actBtn.textContent = item.action.label;
+                actBtn.style.marginTop = '8px';
+                actBtn.onclick = () => {
+                    if (item.action.action === 'start_auth') ipcRenderer.send('spotify-login');
+                };
+                step.appendChild(actBtn);
+            }
+
+            // Optional: Input + Action
+            if (item.input) {
+                const wrap = document.createElement('div');
+                wrap.style.marginTop = '8px';
+
+                const inp = document.createElement('input');
+                inp.className = 'input-styled'; // Use main app style
+                inp.style.width = '100%';
+                inp.style.marginBottom = '8px';
+                inp.style.background = 'rgba(0,0,0,0.4)';
+                inp.style.color = '#fff'; // Fix visibility issue
+                inp.style.padding = '8px';
+                inp.style.border = '1px solid rgba(255,255,255,0.1)';
+                inp.style.borderRadius = '4px';
+                inp.placeholder = item.input.placeholder;
+
+                const btn = document.createElement('button');
+                btn.className = 'sp-btn sp-btn-primary';
+                btn.textContent = item.input.btnLabel;
+                btn.onclick = () => {
+                    if (inp.value) {
+                        if (item.input.action === 'finish_auth') ipcRenderer.send('spotify-finish-auth', inp.value.trim());
+                    }
+                };
+
+                wrap.appendChild(inp);
+                wrap.appendChild(btn);
+                step.appendChild(wrap);
+            }
+
+            return step;
+
+        case 'header':
+            // ... Legacy header support ...
+            const h3 = document.createElement('h3');
+            h3.textContent = item.label;
+            h3.style.marginTop = '20px';
+            h3.style.marginBottom = '10px';
+            h3.className = 'sp-section-title'; // reuse new style
+            return h3;
+
+        case 'group':
+            // ... Legacy group support ...
+            const group = document.createElement('div');
+            if (item.label) {
+                const title = document.createElement('div');
+                title.textContent = item.label;
+                title.style.fontSize = '0.9em';
+                title.style.color = 'rgba(255,255,255,0.5)';
+                title.style.marginBottom = '8px';
+                group.appendChild(title);
+            }
+            if (item.children) {
+                item.children.forEach(child => {
+                    const childEl = createSettingElement(child, config);
+                    if (childEl) group.appendChild(childEl);
+                });
+            }
+            return group;
+
+        case 'toggle':
+            const label = document.createElement('label');
+            label.style.display = 'flex';
+            label.style.justifyContent = 'space-between';
+            label.style.alignItems = 'center';
+            label.style.padding = '12px';
+            label.style.background = 'rgba(255, 255, 255, 0.05)';
+            label.style.borderRadius = '10px';
+            label.style.cursor = 'pointer';
+            label.style.marginBottom = '8px'; // Spacing
+
+            const span = document.createElement('span');
+            span.textContent = item.label;
+            span.style.fontSize = '0.9em';
+            span.style.color = '#ddd';
+            span.style.fontWeight = '500';
+
+            const switchLabel = document.createElement('label');
+            switchLabel.className = 'switch';
+            switchLabel.style.transform = 'scale(0.8)';
+
+            const input = document.createElement('input');
+            input.type = 'checkbox';
+            input.checked = config[item.key] !== false; // Default true if undefined
+            input.addEventListener('change', () => {
+                console.log(`[Solari] Auto-save ${item.key}: ${input.checked}`);
+                ipcRenderer.send('update-spotify-plugin-settings', { [item.key]: input.checked });
+            });
+
+            const slider = document.createElement('span');
+            slider.className = 'slider round';
+
+            switchLabel.appendChild(input);
+            switchLabel.appendChild(slider);
+            label.appendChild(span);
+            label.appendChild(switchLabel);
+            return label;
+
+        // ... Keep select support ...
+        case 'select':
+            const selectContainer = document.createElement('div');
+            selectContainer.style.display = 'flex';
+            selectContainer.style.flexDirection = 'column';
+            selectContainer.style.gap = '10px';
+
+            if (item.options) {
+                item.options.forEach(opt => {
+                    const optLabel = document.createElement('label');
+                    optLabel.style.display = 'flex';
+                    optLabel.style.alignItems = 'center';
+                    optLabel.style.gap = '12px';
+                    optLabel.style.padding = '14px 16px';
+                    optLabel.style.background = 'rgba(29, 185, 84, 0.08)';
+                    optLabel.style.border = '1px solid rgba(29, 185, 84, 0.2)';
+                    optLabel.style.borderRadius = '12px';
+                    optLabel.style.cursor = 'pointer';
+
+                    const optInput = document.createElement('input');
+                    optInput.type = 'radio';
+                    optInput.name = item.key;
+                    optInput.value = opt.value;
+                    optInput.checked = config[item.key] === opt.value;
+                    optInput.style.width = '18px';
+                    optInput.style.height = '18px';
+                    optInput.style.accentColor = '#1DB954';
+
+                    optInput.addEventListener('change', () => {
+                        ipcRenderer.send('update-spotify-plugin-settings', { [item.key]: opt.value });
+                    });
+
+                    const txtDiv = document.createElement('div');
+                    const mainTxt = document.createElement('div');
+                    mainTxt.textContent = opt.label;
+                    mainTxt.style.fontWeight = '500';
+                    mainTxt.style.color = '#fff';
+
+                    txtDiv.appendChild(mainTxt);
+
+                    if (opt.hint) {
+                        const hint = document.createElement('div');
+                        hint.textContent = opt.hint;
+                        hint.style.fontSize = '0.8em';
+                        hint.style.color = 'rgba(255,255,255,0.4)';
+                        hint.style.marginTop = '2px';
+                        txtDiv.appendChild(hint);
+                    }
+
+                    optLabel.appendChild(optInput);
+                    optLabel.appendChild(txtDiv);
+                    selectContainer.appendChild(optLabel);
+                });
+            }
+            return selectContainer;
+
+        // Fallback for legacy types if still used anywhere (text, action, input_action)
+        // I'll keep them minimalistic or remove if schema fully replaced
+        // Keeping as fallback for safety
+    }
+    return null;
+}
 const spotifyDetectionMethod = document.getElementById('spotifyDetectionMethod');
 if (spotifyDetectionMethod) {
     spotifyDetectionMethod.addEventListener('change', (e) => {
@@ -2307,89 +2584,40 @@ if (spotifyDetectionMethod) {
     });
 }
 
-// === Spotify API Integration ===
-const spotifyClientIdInput = document.getElementById('spotifyClientIdInput');
-const saveSpotifyClientIdBtn = document.getElementById('saveSpotifyClientIdBtn');
-const spotifyApiControls = document.getElementById('spotifyApiControls');
-const spotifyLoginStatus = document.getElementById('spotifyLoginStatus');
-const spotifyLoginBtn = document.getElementById('spotifyLoginBtn');
-const spotifyLogoutBtn = document.getElementById('spotifyLogoutBtn');
-
-if (saveSpotifyClientIdBtn) {
-    saveSpotifyClientIdBtn.addEventListener('click', () => {
-        const id = spotifyClientIdInput.value.trim();
-        if (id) {
-            ipcRenderer.send('set-spotify-client-id', id);
-            showToast('✅', t('toasts.clientIdSaved'), 'success');
-        } else {
-            showToast('❌', t('toasts.clientIdInvalid'), 'error');
-        }
-    });
-}
-
-if (spotifyLoginBtn) {
-    spotifyLoginBtn.addEventListener('click', () => {
-        ipcRenderer.send('spotify-login');
-    });
-}
-
-if (spotifyLogoutBtn) {
-    spotifyLogoutBtn.addEventListener('click', () => {
-        ipcRenderer.send('spotify-logout');
-    });
-}
-
-function updateSpotifyApiUI(status) {
-    if (!spotifyApiControls) return;
-
-    // Show/Hide controls based on ID presence
-    if (status.clientId) {
-        spotifyApiControls.style.display = 'block';
-        if (spotifyClientIdInput.value !== status.clientId) {
-            spotifyClientIdInput.value = status.clientId;
-        }
-    } else {
-        spotifyApiControls.style.display = 'none';
-        spotifyClientIdInput.value = '';
-    }
-
-    // Update login status
-    if (status.loggedIn) {
-        spotifyLoginStatus.textContent = '🟢 Conectado';
-        spotifyLoginBtn.style.display = 'none';
-        spotifyLogoutBtn.style.display = 'block';
-    } else {
-        spotifyLoginStatus.textContent = '🔴 Desconectado';
-        spotifyLoginBtn.style.display = 'block';
-        spotifyLogoutBtn.style.display = 'none';
-    }
-}
+// === IPC Event Handlers ===
 
 ipcRenderer.on('spotify-status-update', (event, status) => {
-    updateSpotifyApiUI(status);
+    // updateSpotifyApiUI(status); // Removed legacy UI update
 });
 
 // Initial check
 ipcRenderer.invoke('get-spotify-status').then(status => {
-    updateSpotifyApiUI(status);
+    // updateSpotifyApiUI(status); // Removed legacy UI update
 });
 
 // === SpotifySync Plugin Settings ===
-const controlsVisibilityRadios = document.querySelectorAll('input[name="controlsVisibility"]');
+// Static listeners removed. UI is now fully dynamic.
+// See renderPluginSettings()
 
-if (saveSpotifyPluginBtn) {
-    saveSpotifyPluginBtn.addEventListener('click', () => {
-        const selectedVisibility = document.querySelector('input[name="controlsVisibility"]:checked')?.value || 'whenPlaying';
 
-        ipcRenderer.send('update-spotify-plugin-settings', {
-            controlsVisibility: selectedVisibility
+// Auto-Save Handler Helper
+const attachAutoSave = (id, settingKey) => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('change', () => {
+            console.log(`[Solari] Auto-save ${settingKey}: ${el.checked}`);
+            ipcRenderer.send('update-spotify-plugin-settings', { [settingKey]: el.checked });
+            // Optional: Show subtle toast or indicator? Maybe too spammy for toggles.
         });
+    }
+};
 
-        showToast('✅', t('spotify.saved') || 'SpotifySync settings saved!', 'success');
-    });
-}
+// Attach listeners
+attachAutoSave('spotifyPluginRpcToggle', 'showInRichPresence'); // Re-attach properly using helper
 
 // Also send on radio change for instant sync
+// Removed static listener as it's handled by dynamic renderer
+/*
 controlsVisibilityRadios.forEach(radio => {
     radio.addEventListener('change', (e) => {
         ipcRenderer.send('update-spotify-plugin-settings', {
@@ -2397,6 +2625,7 @@ controlsVisibilityRadios.forEach(radio => {
         });
     });
 });
+*/
 
 // === IPC Event Handlers ===
 

@@ -13,7 +13,7 @@
     <header>
       <div class="brand">
         <h1>Solari</h1>
-        <span class="version">v1.4.0</span>
+        <span class="version">v1.4.1</span>
       </div>
       <div class="header-controls">
         <div class="toggle-container">
@@ -640,76 +640,25 @@
               </div>
             </div>
 
-            <!-- Visibility Options as modern cards -->
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              <label
-                style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(29, 185, 84, 0.08); border: 1px solid rgba(29, 185, 84, 0.2); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
-                <input type="radio" name="controlsVisibility" value="whenOpen"
-                  style="width: 18px; height: 18px; accent-color: #1DB954;" />
-                <div>
-                  <div style="font-weight: 500; color: #fff;" data-i18n="spotify.showAlwaysWhenOpen">Sempre mostrar
-                    quando
-                    Spotify aberto</div>
-                  <div style="font-size: 0.8em; color: rgba(255,255,255,0.4); margin-top: 2px;"
-                    data-i18n="spotify.showAlwaysWhenOpenHint">Controles visíveis mesmo
-                    quando pausado</div>
-                  <div style="font-size: 0.75em; color: #f59e0b; margin-top: 4px;">⚠️ <span
-                      data-i18n="spotify.showAlwaysWhenOpenWarning">Limite de 1 hora sem tocar música
-                      (limitação do Discord)</span></div>
-                </div>
-              </label>
-              <label
-                style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(29, 185, 84, 0.08); border: 1px solid rgba(29, 185, 84, 0.2); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
-                <input type="radio" name="controlsVisibility" value="whenPlaying" checked
-                  style="width: 18px; height: 18px; accent-color: #1DB954;" />
-                <div>
-                  <div style="font-weight: 500; color: #fff;" data-i18n="spotify.showOnlyWhenPlaying">Mostrar apenas
-                    quando tocando</div>
-                  <div style="font-size: 0.8em; color: rgba(255,255,255,0.4); margin-top: 2px;"
-                    data-i18n="spotify.showOnlyWhenPlayingHint">Oculta quando a música
-                    está pausada</div>
-                </div>
-              </label>
-            </div>
-
-            <!-- Now Playing Card -->
-            <div id="spotifyPluginNowPlaying"
-              style="margin-top: 16px; padding: 14px; background: linear-gradient(135deg, rgba(29, 185, 84, 0.15) 0%, rgba(29, 185, 84, 0.05) 100%); border-radius: 12px; border: 1px solid rgba(29, 185, 84, 0.3); display: none;">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                <div
-                  style="width: 8px; height: 8px; background: #1DB954; border-radius: 50%; animation: pulse 2s infinite;">
-                </div>
-                <span
-                  style="font-size: 0.75em; color: #1DB954; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;"
-                  data-i18n="spotify.nowPlaying">Tocando Agora</span>
-              </div>
-              <div id="spotifyPluginTrackTitle"
-                style="color: #fff; font-weight: 600; font-size: 1.1em; margin-top: 8px;">
-                -</div>
-              <div id="spotifyPluginTrackArtist" style="color: rgba(255,255,255,0.6); font-size: 0.9em;">-</div>
-            </div>
-
-            <!-- Save Button -->
-            <button id="saveSpotifyPluginBtn" class="btn"
-              style="margin-top: 16px; background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); color: #fff; width: 100%; padding: 12px; font-weight: 600; box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);">
-              💾 <span data-i18n="spotify.save">Salvar</span>
-            </button>
-          </div>
-
-          <!-- Solari Plugin Config (User Info / Toast) -->
-          <div id="configSolari" class="plugin-config-panel" style="display: none;">
-            <h2>⚙️ Solari Plugin</h2>
-            <div class="info-card">
-              <p><strong>Usuário Discord:</strong> <span id="discordUser">Aguardando conexão...</span></p>
-            </div>
-            <div class="form-group" style="margin-top: 15px;">
-              <label for="toastMessage">Enviar Notificação para Discord</label>
-              <input type="text" id="toastMessage" placeholder="Mensagem para o Discord" />
-            </div>
-            <button id="sendToastBtn" class="btn btn-small">Enviar Notificação</button>
+            <!-- Dynamic Settings Container -->
+            <div id="spotify-settings-container"></div>
           </div>
         </div>
-      </div> <!-- end main-grid -->
+
+        <!-- Solari Plugin Config (User Info / Toast) -->
+        <div id="configSolari" class="plugin-config-panel" style="display: none;">
+          <h2>⚙️ Solari Plugin</h2>
+          <div class="info-card">
+            <p><strong>Usuário Discord:</strong> <span id="discordUser">Aguardando conexão...</span></p>
+          </div>
+          <div class="form-group" style="margin-top: 15px;">
+            <label for="toastMessage">Enviar Notificação para Discord</label>
+            <input type="text" id="toastMessage" placeholder="Mensagem para o Discord" />
+          </div>
+          <button id="sendToastBtn" class="btn btn-small">Enviar Notificação</button>
+        </div>
+      </div>
+  </div> <!-- end main-grid -->
   </div> <!-- end rpc-tab -->
 
 
@@ -735,7 +684,7 @@
   <div id="aboutModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px; text-align: center;">
       <h2 style="margin-bottom: 5px;">Solari RPC</h2>
-      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.4.0</p>
+      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.4.1</p>
 
       <p style="margin-bottom: 15px;">
         <span data-i18n="about.description">Premium Discord Rich Presence Manager</span><br>

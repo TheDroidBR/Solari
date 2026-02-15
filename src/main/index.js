@@ -409,15 +409,95 @@ ipcMain.handle('get-current-language', () => {
     return appSettings.language || 'en';
 });
 
-// IPC handler for Spotify status (used by renderer to check initial state)
+// IPC handler for Spotify status
 ipcMain.handle('get-spotify-status', () => {
-    // Return current Spotify connection status
-    // For now, just return disconnected as SpotifySync plugin handles the actual connection
+    // Return current local state + check plugin if possible?
+    // Actually, renderer listens for 'spotify-data-loaded' which comes from plugin.
+    // But this handler is used for initial sync.
     return {
-        connected: false,
+        connected: !!(spotifyTokens.accessToken && spotifyTokens.refreshToken),
         accessToken: spotifyTokens.accessToken,
-        tokenExpiry: spotifyTokens.tokenExpiry
+        clientId: spotifyClientId || clientId // Use specific or global
     };
+});
+
+// IPC: Set Spotify Client ID
+ipcMain.on('set-spotify-client-id', (event, id) => {
+    spotifyClientId = id;
+    saveData();
+    console.log('[Solari] Spotify Client ID updated:', id);
+
+    // Broadcast to plugins
+    if (wss) {
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    type: 'update_spotify_settings',
+                    settings: { spotifyClientId: id }
+                }));
+            }
+        });
+    }
+});
+
+// IPC: Spotify Login (Trigger Auth in Plugin)
+ipcMain.on('spotify-login', () => {
+    console.log('[Solari] Triggering Spotify Login in Plugin...');
+    if (wss) {
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    type: 'start_spotify_auth'
+                }));
+            }
+        });
+    }
+});
+
+// IPC: Spotify Finish Auth
+ipcMain.on('spotify-finish-auth', (event, codeOrUrl) => {
+    console.log('[Solari] Finishing Spotify Auth in Plugin...');
+    if (wss) {
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    type: 'finish_spotify_auth',
+                    code: codeOrUrl
+                }));
+            }
+        });
+    }
+});
+
+// IPC: Spotify Logout
+ipcMain.on('spotify-logout', () => {
+    console.log('[Solari] Spotify Logout...');
+    spotifyTokens = { accessToken: null, refreshToken: null, tokenExpiry: 0 };
+    saveData(); // You might want to persist tokens? Usually no for security/freshness, but refresh token yes.
+
+    // Tell plugin to clear tokens
+    if (wss) {
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    type: 'update_spotify_settings',
+                    settings: {
+                        spotifyAccessToken: '',
+                        spotifyRefreshToken: '',
+                        spotifyTokenExpiry: 0
+                    }
+                }));
+            }
+        });
+    }
+
+    // Notify renderer
+    if (mainWindow) {
+        mainWindow.webContents.send('spotify-status-update', {
+            loggedIn: false,
+            clientId: spotifyClientId
+        });
+    }
 });
 
 // ===== IDENTITIES (App Profiles) IPC HANDLERS =====
@@ -3220,6 +3300,33 @@ function initializeWebSocketServer() {
                         connectedPlugins.set(wsId, pluginInfo);
                         broadcastPluginList();
                         break;
+
+                    case 'spotify_config':
+                    case 'spotify-config-updated': // Handle both types
+                        // Forward config from plugin to renderer
+                        if (mainWindow) {
+                            // Update Settings UI
+                            mainWindow.webContents.send('spotify-data-loaded', { settings: data.config, schema: data.schema });
+
+                            // Signal plugin is connected (Important for UI Green Dot)
+                            mainWindow.webContents.send('spotify-config-updated', data.config);
+
+                            // Update Auth UI
+                            mainWindow.webContents.send('spotify-status-update', {
+                                loggedIn: !!(data.config.spotifyAccessToken && data.config.spotifyRefreshToken),
+                                clientId: data.config.spotifyClientId
+                            });
+                        }
+
+                        // Update Main Process State
+                        if (data.config && data.config.spotifyClientId) spotifyClientId = data.config.spotifyClientId;
+                        if (data.config && data.config.spotifyAccessToken) {
+                            spotifyTokens.accessToken = data.config.spotifyAccessToken;
+                            spotifyTokens.refreshToken = data.config.spotifyRefreshToken;
+                            spotifyTokens.tokenExpiry = data.config.spotifyTokenExpiry;
+                        }
+                        break;
+
                     case 'setActivity':
                         const plugin = connectedPlugins.get(wsId);
                         if (plugin && blockedPlugins.has(plugin.name)) return;

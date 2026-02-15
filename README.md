@@ -88,7 +88,7 @@ The code is fully transparent and available on GitHub under the GPL v2.0 license
 
 Solari collects **minimal, anonymous telemetry** to help us understand how many users are active:
 
-- ✅ App version (e.g., "1.4.0")
+- ✅ App version (e.g., "1.4.1")
 - ✅ Random ID (not tied to your identity)
 - ❌ No IP address, Discord info, or personal data
 
