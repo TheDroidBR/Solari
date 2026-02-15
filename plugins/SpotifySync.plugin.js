@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Spotify controller for Discord. Album art, progress bar with seek, like/unlike, volume, shuffle, repeat — all from Discord. Integrates with Solari RPC.
- * @version 2.0.0
+ * @version 2.0.1
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
@@ -31,7 +31,7 @@ module.exports = class SpotifySync {
             // Premium Auth
             premiumTitle: 'Premium Connection',
             premiumHelp: 'Connect your Spotify account to enable Like, Seek, Volume, and Playlist management. This requires a one-time setup.',
-            step1: '1. Create App', step1Help: 'Go to developer.spotify.com, create an app, and copy the Client ID.',
+            step1: '1. Create App', step1Help: 'Go to <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1DB954;text-decoration:none;border-bottom:1px solid #1DB954;">developer.spotify.com</a>, create an app, and copy the Client ID.',
             step2: '2. Config App', step2Help: 'In your Spotify App settings, add this exact Redirect URI:',
             step3: '3. Authorize', step3Help: 'Click the button below to open the Spotify login page.',
             step4: '4. Finish', step4Help: 'After logging in, you will see a "Connection Refused" error page. Copy the URL from your browser address bar and paste it below.',
@@ -60,7 +60,7 @@ module.exports = class SpotifySync {
             // Premium Auth
             premiumTitle: 'Conexão Premium',
             premiumHelp: 'Conecte sua conta Spotify para habilitar Curtir, Volume, Seek e Playlists. Configuração única necessária.',
-            step1: '1. Criar App', step1Help: 'Vá em developer.spotify.com, crie um app e copie o Client ID.',
+            step1: '1. Criar App', step1Help: 'Vá em <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1DB954;text-decoration:none;border-bottom:1px solid #1DB954;">developer.spotify.com</a>, crie um app e copie o Client ID.',
             step2: '2. Configurar App', step2Help: 'Nas configurações do seu App no Spotify, adicione exatamente esta Redirect URI:',
             step3: '3. Autorizar', step3Help: 'Clique no botão abaixo para abrir o login do Spotify.',
             step4: '4. Finalizar', step4Help: 'Após logar, você verá uma página de "Conexão Recusada". Copie a URL inteira do navegador e cole abaixo.',
@@ -89,7 +89,7 @@ module.exports = class SpotifySync {
             // Premium Auth
             premiumTitle: 'Conexión Premium',
             premiumHelp: 'Conecta tu cuenta Spotify para habilitar Me Gusta, Volumen, Seek y Listas. Requiere configuración única.',
-            step1: '1. Crear App', step1Help: 'Ve a developer.spotify.com, crea una app y copia el Client ID.',
+            step1: '1. Crear App', step1Help: 'Ve a <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1DB954;text-decoration:none;border-bottom:1px solid #1DB954;">developer.spotify.com</a>, crea una app y copia el Client ID.',
             step2: '2. Configurar App', step2Help: 'En la configuración de tu App en Spotify, añade esta Redirect URI exacta:',
             step3: '3. Autorizar', step3Help: 'Haz clic abajo para abrir el login de Spotify.',
             step4: '4. Finalizar', step4Help: 'Tras loguearte, verás una página de error. Copia la URL completa del navegador y pégala abajo.',
@@ -158,7 +158,7 @@ module.exports = class SpotifySync {
     getSettingsSchema() {
         const premiumStatus = this.hasPremium() ? 'connected' : 'disconnected';
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v2.0.0' },
+            { type: 'custom_header', title: this.t('title'), version: 'v2.0.1' },
             { type: 'status_card', id: 'solariStatus', label: this.t('solari'), status: this.isConnectedToSolari ? 'connected' : 'disconnected' },
 
             {
@@ -434,7 +434,7 @@ module.exports = class SpotifySync {
 
     // ═══════════════════ LIFECYCLE ═══════════════════
     start() {
-        console.log('[SpotifySync] v2.0.0 Starting...');
+        console.log('[SpotifySync] v2.0.1 Starting...');
         this.loadConfig();
         this.connectToServer();
         this.startDetection();
@@ -726,39 +726,70 @@ module.exports = class SpotifySync {
 
         // 2. Strategy: Try Discord Local Control first (Most robust, bypasses Web API restrictions)
         try {
-            let SpotifyActionCreators = BdApi.Webpack.getModule(m => m.pause && m.play && (m.skipNext || m.skipPrevious), { first: true });
+            console.log('[SpotifySync] Attempting to find Local Control module...');
+
+            // Strategy A: Standard Actions with searchExports (Crucial for some BD versions)
+            // We look for 'saveTrack' because it's distinct to Spotify, avoiding Lottie/Video players
+            let SpotifyActionCreators = BdApi.Webpack.getModule(m => m && m.saveTrack && m.play, { first: true, searchExports: true });
+
+            // Strategy B: Fallback to 'sync'
             if (!SpotifyActionCreators) {
-                // Try finding by just pause/play if more restrictive search fails
-                SpotifyActionCreators = BdApi.Webpack.getModule(m => m.pause && m.play, { first: true });
+                SpotifyActionCreators = BdApi.Webpack.getModule(m => m && m.sync && m.play, { first: true, searchExports: true });
+            }
+
+            // Strategy C: Last resort - look for the specific function signature of the Spotify socket handler
+            if (!SpotifyActionCreators) {
+                SpotifyActionCreators = BdApi.Webpack.getModule(m => m && m.setActiveDevice && m.play, { first: true, searchExports: true });
             }
 
             if (SpotifyActionCreators) {
-                console.log(`[SpotifySync] Control module found. Action: ${action}, RealState: ${isRealPlaying ? 'Playing' : 'Paused'}`);
+                // Verify it's not the Animation/Lottie player
+                if (SpotifyActionCreators.loadAnimation || SpotifyActionCreators.resize) {
+                    console.warn('[SpotifySync] Found module but it looks like Lottie/Animation player. Ignoring.');
+                    SpotifyActionCreators = null; // Force fail to trigger error log below
+                }
+            }
+
+            if (SpotifyActionCreators) {
+                const avail = Object.keys(SpotifyActionCreators).filter(k => typeof SpotifyActionCreators[k] === 'function');
+                console.log(`[SpotifySync] Local Control found. Available methods:`, avail);
+
                 switch (action) {
                     case 'play':
                         this._isPlaying = true;
-                        SpotifyActionCreators.play();
+                        SpotifyActionCreators.play(this.accountId);
                         return;
                     case 'pause':
                         this._isPlaying = false;
-                        SpotifyActionCreators.pause();
+                        SpotifyActionCreators.pause(this.accountId);
                         return;
                     case 'playpause':
+                        // Use local knowledge of state to toggle
                         if (isRealPlaying) {
                             this._isPlaying = false;
-                            SpotifyActionCreators.pause();
+                            SpotifyActionCreators.pause(this.accountId);
                         } else {
                             this._isPlaying = true;
-                            SpotifyActionCreators.play();
+                            SpotifyActionCreators.play(this.accountId);
                         }
                         return;
                     case 'next':
-                        SpotifyActionCreators.skipNext?.();
+                        if (SpotifyActionCreators.skipNext) SpotifyActionCreators.skipNext(this.accountId);
+                        else if (SpotifyActionCreators.next) SpotifyActionCreators.next(this.accountId);
+                        else if (SpotifyActionCreators.skipForward) SpotifyActionCreators.skipForward(this.accountId);
+                        else console.warn('[SpotifySync] No next method found in module');
                         return;
                     case 'previous':
-                        SpotifyActionCreators.skipPrevious?.();
+                        if (SpotifyActionCreators.skipPrevious) SpotifyActionCreators.skipPrevious(this.accountId);
+                        else if (SpotifyActionCreators.previous) SpotifyActionCreators.previous(this.accountId);
+                        else if (SpotifyActionCreators.back) SpotifyActionCreators.back(this.accountId);
+                        else if (SpotifyActionCreators.skipBack) SpotifyActionCreators.skipBack(this.accountId);
+                        else console.warn('[SpotifySync] No previous method found in module');
                         return;
                 }
+            } else {
+                console.warn('[SpotifySync] No suitable Local Control module found. Falling back to Web API.');
+                // Removed toast to prevent user confusion since Web API fallback works
             }
         } catch (e) { console.error('[SpotifySync] Local control error:', e); }
 
@@ -859,6 +890,9 @@ module.exports = class SpotifySync {
 
     async checkIfLiked(id) {
         if (!id || this._likeCheckPending) return;
+        // Optimization: Don't check if no premium (Discord token 403s on libraryScope)
+        if (!this.hasPremium()) return;
+
         this._likeCheckPending = true;
         const token = await this.getAccessToken();
         if (!token) { this._likeCheckPending = false; return; }
@@ -867,7 +901,7 @@ module.exports = class SpotifySync {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) { const arr = await res.json(); this._isLiked = arr?.[0] === true; }
-        } catch (e) { console.error('[SpotifySync] Like check error:', e); }
+        } catch (e) { /* ignore silent fail */ }
         this._likeCheckPending = false;
         this.updateLikeButton();
     }
@@ -1057,9 +1091,20 @@ module.exports = class SpotifySync {
     }
 
     async fetchFullPlayerState() {
+        // Backoff check: if we had a recent API error, skip to prevent loop
+        if (this._apiErrorTime && Date.now() - this._apiErrorTime < 5000) return;
+
         if (Date.now() - this._lastFullStateTime < 2000) return; // Debounce 2s
         this._lastFullStateTime = Date.now();
+
         const data = await this.spotifyApi('', 'GET'); // /me/player
+
+        // If data is null (meaning error occurred), record error time
+        if (data === null) {
+            this._apiErrorTime = Date.now();
+            return;
+        }
+
         if (data && typeof data === 'object') {
             this._shuffleState = data.shuffle_state ?? false;
             this._repeatState = data.repeat_state ?? 'off';
@@ -1805,7 +1850,7 @@ module.exports = class SpotifySync {
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px;">
                         <span style="color:#1DB954;">🎵</span> ${this.t('title')}
-                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.0.0</span>
+                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.0.1</span>
                     </h2>
                     <select id="ss2-lang" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:5px 8px;">
                         <option value="en" ${this.config.language === 'en' ? 'selected' : ''}>English</option>
