@@ -33,6 +33,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.sbInitialized = true;
             }
         }
+
+        // Special handling for Plugins init
+        if (targetId === 'plugins-tab') {
+            if (typeof PluginsTabManager !== 'undefined') {
+                PluginsTabManager.init();
+            }
+        }
     }
 
     // Attach listeners (cloning to clear old handlers)

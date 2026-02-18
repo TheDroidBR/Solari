@@ -53,7 +53,60 @@
     },
     "tabs": {
         "rpc": "Rich Presence",
-        "soundboard": "SoundBoard"
+        "soundboard": "SoundBoard",
+        "plugins": "Plugins"
+    },
+    "pluginStore": {
+        "title": "Official Plugins",
+        "subtitle": "Free plugins to extend Solari with BetterDiscord",
+        "loading": "Loading plugins...",
+        "fetchError": "Error loading plugins. Check your connection.",
+        "retry": "Try Again",
+        "install": "Install",
+        "installed": "Installed",
+        "installing": "Downloading...",
+        "activateNotice": "Activate the plugin in BetterDiscord settings!",
+        "bdWarningTitle": "BetterDiscord not detected",
+        "bdWarningDesc": "To use Solari plugins, you need BetterDiscord installed on Discord.",
+        "bdDownload": "Download BetterDiscord",
+        "bdBrokenTitle": "BetterDiscord broken",
+        "bdBrokenDesc": "A Discord update removed the BetterDiscord injection. Reinstall to restore plugins.",
+        "bdReinstall": "Reinstall",
+        "updateAll": "Update All",
+        "bdStatusInstalled": "Installed",
+        "bdStatusBroken": "Broken",
+        "bdStatusMissing": "Not Installed",
+        "bdStatusChecking": "Checking...",
+        "update": "Update"
+    },
+    "plugins": {
+        "title": "🔌 Plugins",
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "trash": "Trash (Blocked)",
+        "noPlugin": "No plugin connected...",
+        "configure": "Configure",
+        "moveToTrash": "Move to Trash",
+        "emptyTrash": "Trash empty...",
+        "restore": "Restore",
+        "smartafk": {
+            "title": "SmartAFK Detector",
+            "description": "Automatically detects inactivity and updates your Discord status. Syncs with Solari via WebSocket.",
+            "features": [
+                "Auto-detect inactivity",
+                "Customizable timeout",
+                "Sync with Solari app via WebSocket"
+            ]
+        },
+        "spotifysync": {
+            "title": "SpotifySync",
+            "description": "Sync Spotify with Discord and control playback directly from Discord.",
+            "features": [
+                "Play/Pause/Next/Previous Controls",
+                "Volume, Seek, Shuffle and Repeat",
+                "Library and Music Queue"
+            ]
+        }
     },
     "server": {
         "title": "Server Status",
@@ -229,17 +282,6 @@
         "statusChangedTo": "Status changed to:",
         "customStatusChangedTo": "Custom status changed to:",
         "levelUp": "Moved to Level"
-    },
-    "plugins": {
-        "title": "🔌 Plugins",
-        "connected": "Connected",
-        "disconnected": "Disconnected",
-        "trash": "Trash (Blocked)",
-        "noPlugin": "No plugin connected...",
-        "configure": "Configure",
-        "moveToTrash": "Move to Trash",
-        "emptyTrash": "Trash empty...",
-        "restore": "Restore"
     },
     "dialogs": {
         "confirm": "Confirm",
