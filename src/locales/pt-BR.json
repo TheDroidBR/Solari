@@ -5,13 +5,34 @@
         "starting": "Iniciando...",
         "connected": "Conectado",
         "disconnected": "Desconectado",
+        "connecting": "Conectando...",
+        "reconnecting": "Reconectando...",
         "themeDefault": "Tema Padrão",
         "themeDark": "Tema Escuro",
         "themeLight": "Tema Claro"
     },
     "tabs": {
         "rpc": "Rich Presence",
+        "plugins": "Plugins",
         "soundboard": "SoundBoard"
+    },
+    "pluginStore": {
+        "title": "Plugins Oficiais",
+        "subtitle": "Plugins gratuitos para estender o Solari com BetterDiscord",
+        "bdWarningTitle": "BetterDiscord não detectado",
+        "bdWarningDesc": "Para usar os plugins do Solari, você precisa do BetterDiscord instalado no Discord.",
+        "bdDownload": "Baixar BetterDiscord",
+        "loading": "Carregando plugins...",
+        "fetchError": "Erro ao carregar plugins. Verifique sua conexão.",
+        "retry": "Tentar Novamente",
+        "install": "Instalar",
+        "installed": "Instalado",
+        "installing": "Baixando...",
+        "activateNotice": "Ative o plugin nas configurações do BetterDiscord!",
+        "bdBrokenTitle": "BetterDiscord quebrado",
+        "bdBrokenDesc": "Uma atualização do Discord removeu a injeção do BetterDiscord. Reinstale para restaurar os plugins.",
+        "bdReinstall": "Reinstalar",
+        "trash": "Lixeira"
     },
     "server": {
         "title": "Status do Servidor",

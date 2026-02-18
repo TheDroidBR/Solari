@@ -1,3 +1,53 @@
+## [1.5.0] - 2026-02-18
+### 🚀 The Plugin & Splash Update
+
+Solari now features a **Real-Time Plugin Manager**, a sleek **Splash Screen**, and speaks a new language!
+
+---
+
+### 🔌 The Ultimate Plugins Experience
+The new **Plugins Tab** is your command center for extending Solari.
+- **✨ Real-Time Magic**: The UI updates *instantly* when you install, delete, or update a plugin file manually. No refresh needed!
+- **⚡ Background Auto-Checks**: Solari quietly checks for plugin updates every 5 minutes in the background. If an update is found, the button changes to "Update" automatically.
+- **📦 Smart Versioning**: We now use semantic versioning (comparing `v1.0.0` vs `v1.1.0`) to ensure you only get notified for *real* updates, ignoring simple formatting changes.
+- **🛠️ BetterDiscord Integration**: Automatically checks if BetterDiscord is installed and working correctly. If an update breaks it, Solari lets you know immediately.
+- **One-Click Management**: Install, Update, or Reinstall plugins with a single click.
+
+### 🌍 Global Languages
+- **🇩🇪 German Support**: Willkommen! Solari is now fully translated into German (Deutsch).
+- **🇪🇸 Spanish Polish**: Added missing translations for Spanish users.
+- **🇧🇷 Portuguese & 🇺🇸 English**: Fully supported as always.
+
+### ✨ Splash & Core Features
+- **Splash Screen**: A brand-new startup splash screen with the Solari logo, animated status indicators, download progress bar, and version display. Inspired by Discord's boot flow.
+- **Update System Overhaul**: Completely rewritten auto-update system. App and plugin updates are now checked during the splash phase instead of after the main window loads.
+  - Splash shows real-time download progress (percentage, MB downloaded/total).
+  - Respects `Auto Check App Updates` and `Auto Check Plugin Updates` settings.
+  - Offline/error scenarios display a brief error message and proceed to the main window.
+- **Changelog Modal**: When launching a new version for the first time, a glassmorphic modal displays the release notes fetched from GitHub. Shown only once per version.
+- **Plugin Update Toasts**: When plugins are updated during startup, a slide-in toast notification appears in the main window showing the plugin name and version change (e.g., `🔌 SpotifySync updated: 2.0.1 → 2.0.2`).
+- **Toast Notification System**: Reusable `showSolariToast()` function with 4 types (success, info, warning, error), slide-in/out animations, and stacking support.
+
+---
+
+### 🛠️ Improvements
+
+- **Version-Based Plugin Updates**: Plugin updates now compare `@version` metadata from the BetterDiscord header instead of raw file content. Eliminates false-positive updates caused by Windows line-ending differences (CRLF vs LF).
+- **Hidden Start Support**: When starting with `--hidden` flag (auto-start minimized to tray), the splash screen is completely skipped.
+- **Boot Flow**: Main window now starts hidden and is shown only after fully loading, preventing the blank white window flash.
+
+---
+
+### 🐛 Bug Fixes
+
+- **Fixed**: Changelog modal appearing on every launch instead of only once per version. Root cause: `saveData()` was overwriting `lastSeenVersion` because it wasn't included in the save object.
+- **Fixed**: Plugins being re-downloaded on every startup even when already up-to-date. Root cause: raw content comparison failed due to `\r\n` (Windows) vs `\n` (download) line endings.
+- **Fixed**: Wrong plugin filename in update checker (`SmartAFK.plugin.js` → `SmartAFKDetector.plugin.js`).
+- **Fixed**: `updatedPlugins` variable scoping error causing crash on startup (`ReferenceError: updatedPlugins is not defined`).
+- **Fixed**: UI showing "Reconectando..." (Reconnecting) infinitely when Solari starts and no preset is applied. Root cause: RPC status events could be lost during page load due to a race condition. Added a status re-sync after window loads and improved initial status text to "Conectando..." instead of "Reconectando...".
+
+---
+
 ## [1.4.1] - 2026-02-15
 ### 🏗️ Plugin Architecture & UI
 

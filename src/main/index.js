@@ -82,6 +82,7 @@ let autoDetectEnabled = false;
 let autoDetectMappings = [];
 let websiteMappings = [];
 let setupCompleted = false; // Track if wizard has run
+let lastSeenVersion = '0.0.0'; // Track last seen version for changelog
 let useExtensionForWeb = true; // true = use extension, false = use autoDetect websites
 let websiteCheckFailCount = 0; // Debounce counter for website detection failures
 
@@ -139,6 +140,8 @@ let prioritySettings = {
     defaultFallback: 3  // Default/fallback (lowest priority)
 };
 
+let pluginWatcher = null; // Watcher for BetterDiscord plugins folder
+
 let currentPrioritySource = null; // Track what's currently controlling RPC
 let lastNotifiedPresetName = null; // Track last preset name that triggered a notification
 
@@ -188,6 +191,7 @@ async function sendTrackerPing() {
         const uid = getTrackingUserId();
         const url = `${TRACKER_URL}?action=ping&version=${encodeURIComponent(version)}&uid=${encodeURIComponent(uid)}`;
 
+        // console.log('[Solari Tracker] URL:', url); // DEBUG: Show full URL
         console.log('[Solari Tracker] Sending ping via browser...');
 
         // Create invisible window ONLY if it doesn't exist
@@ -197,12 +201,13 @@ async function sendTrackerPing() {
                 height: 1,
                 show: false,
                 skipTaskbar: true,
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 webPreferences: {
                     nodeIntegration: false,
                     contextIsolation: true,
-                    javascript: true, // Enable JS to pass anti-bot
-                    offscreen: true, // Use offscreen rendering for performance
-                    backgroundThrottling: true // Throttle when hidden
+                    javascript: true,
+                    offscreen: false,
+                    backgroundThrottling: true
                 }
             });
 
@@ -327,6 +332,7 @@ function loadData() {
             if (data.prioritySettings) prioritySettings = { ...prioritySettings, ...data.prioritySettings };
 
             if (data.setupCompleted !== undefined) setupCompleted = data.setupCompleted;
+            if (data.lastSeenVersion) lastSeenVersion = data.lastSeenVersion;
 
             if (data.ecoMode !== undefined) global.ecoMode = data.ecoMode;
 
@@ -397,7 +403,8 @@ function saveData() {
             soundBoardData: soundBoard ? soundBoard.toJSON() : null,
             trackingUserId: trackingUserId, // Persist tracking ID
             ecoMode: global.ecoMode || false,
-            setupCompleted: setupCompleted
+            setupCompleted: setupCompleted,
+            lastSeenVersion: lastSeenVersion
         }));
     } catch (e) {
         console.error('Failed to save data', e);
@@ -777,92 +784,311 @@ async function checkForUpdates(labels) {
     req.end();
 }
 
-// ===== AUTO UPDATE SYSTEM =====
+// ===== SPLASH SCREEN & AUTO UPDATE SYSTEM =====
 
-async function checkAppUpdateOnStartup(labels) {
-    if (process.env.NODE_ENV === 'development') return;
+let splashWindow = null;
 
-    const https = require('https');
-    const pkg = require('../../package.json');
-    const currentVersion = pkg.version;
-
-    console.log('[Solari] Checking for startup updates...');
-
-    const options = {
-        hostname: 'api.github.com',
-        path: '/repos/TheDroidBR/Solari/releases/latest',
-        method: 'GET',
-        headers: {
-            'User-Agent': 'Solari-AutoUpdater',
-            'Accept': 'application/vnd.github.v3+json'
+function createSplashWindow() {
+    splashWindow = new BrowserWindow({
+        width: 300,
+        height: 400,
+        frame: false,
+        transparent: false,
+        resizable: false,
+        alwaysOnTop: true,
+        skipTaskbar: false,
+        center: true,
+        icon: ICON_PATH,
+        backgroundColor: '#0f0c29',
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
         }
-    };
-
-    const req = https.request(options, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', async () => {
-            try {
-                const release = JSON.parse(data);
-                const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
-
-                // Look for .exe asset
-                const exeAsset = release.assets?.find(a => a.name.endsWith('.exe'));
-
-                if (compareVersions(latestVersion, currentVersion) > 0 && exeAsset) {
-                    console.log('[Solari] Update available:', latestVersion);
-
-                    const { response } = await dialog.showMessageBox(mainWindow, {
-                        type: 'question',
-                        title: labels.updateAvailable || 'Update Available',
-                        message: `Solari v${latestVersion} is available!`,
-                        detail: 'An automatic update is ready. The app needs to restart to apply it.\n\nDo you want to update now?',
-                        buttons: ['Restart & Update', 'Later'],
-                        defaultId: 0,
-                        cancelId: 1
-                    });
-
-                    if (response === 0) {
-                        downloadAndInstallUpdate(exeAsset.browser_download_url, exeAsset.name);
-                    }
-                }
-            } catch (e) {
-                console.error('[Solari] Startup update check failed:', e);
-            }
-        });
     });
-    req.on('error', e => console.error('[Solari] Update request error:', e));
-    req.end();
+    splashWindow.loadFile('src/renderer/splash.html');
+    splashWindow.on('closed', () => { splashWindow = null; });
+    return splashWindow;
 }
 
-function downloadAndInstallUpdate(url, fileName) {
-    const { app } = require('electron');
-    const https = require('https');
-    const tempPath = path.join(app.getPath('temp'), fileName); // e.g. SolariAPP.exe
+function sendSplashStatus(state, message) {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.webContents.send('update-status', { state, message });
+    }
+}
 
-    // Notify user
-    sendToast('Downloading Update', 'Please wait...', 'info');
+function sendSplashProgress(percent, downloaded, total) {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.webContents.send('download-progress', { percent, downloaded, total });
+    }
+}
 
-    const file = fs.createWriteStream(tempPath);
-    https.get(url, (response) => {
-        // Handle redirects
-        if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-            downloadAndInstallUpdate(response.headers.location, fileName);
+/**
+ * Check for app updates during splash. Returns true if an update is being installed (app will restart).
+ */
+function checkUpdateViaSplash() {
+    return new Promise((resolve) => {
+        if (process.env.NODE_ENV === 'development') {
+            resolve(false);
             return;
         }
 
-        response.pipe(file);
+        sendSplashStatus('checking', 'Checking for updates...');
 
-        file.on('finish', () => {
-            file.close(() => {
-                console.log('[Solari] Update downloaded to:', tempPath);
-                installUpdateAndRestart(tempPath);
+        const https = require('https');
+        const pkg = require('../../package.json');
+        const currentVersion = pkg.version;
+
+        console.log('[Solari Updater] Checking for updates... Current:', currentVersion);
+
+        const options = {
+            hostname: 'api.github.com',
+            path: CONSTANTS.GITHUB_RELEASES_PATH,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Solari-AutoUpdater',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const release = JSON.parse(data);
+                    const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
+                    const exeAsset = release.assets?.find(a => a.name.endsWith('.exe'));
+
+                    if (compareVersions(latestVersion, currentVersion) > 0 && exeAsset) {
+                        console.log('[Solari Updater] Update available:', latestVersion);
+                        sendSplashStatus('downloading', `Downloading v${latestVersion}...`);
+
+                        downloadUpdateWithProgress(exeAsset.browser_download_url, exeAsset.name, exeAsset.size)
+                            .then(() => resolve(true))
+                            .catch((err) => {
+                                console.error('[Solari Updater] Download failed:', err);
+                                sendSplashStatus('error', 'Download failed. Starting anyway...');
+                                setTimeout(() => resolve(false), 2000);
+                            });
+                    } else {
+                        console.log('[Solari Updater] No update available. Latest:', latestVersion);
+                        resolve(false);
+                    }
+                } catch (e) {
+                    console.error('[Solari Updater] Parse error:', e);
+                    sendSplashStatus('error', 'Update check failed. Starting anyway...');
+                    setTimeout(() => resolve(false), 2000);
+                }
             });
         });
-    }).on('error', (err) => {
-        fs.unlink(tempPath, () => { });
-        sendToast('Update Failed', err.message, 'error');
+
+        req.on('error', (err) => {
+            console.error('[Solari Updater] Request error:', err);
+            sendSplashStatus('error', 'Could not connect. Starting anyway...');
+            setTimeout(() => resolve(false), 2000);
+        });
+
+        req.setTimeout(8000, () => {
+            req.destroy();
+            sendSplashStatus('error', 'Connection timed out. Starting anyway...');
+            setTimeout(() => resolve(false), 2000);
+        });
+
+        req.end();
     });
+}
+
+/**
+ * Download update with progress reporting to splash screen.
+ */
+function downloadUpdateWithProgress(url, fileName, expectedSize) {
+    return new Promise((resolve, reject) => {
+        const https = require('https');
+        const tempPath = path.join(app.getPath('temp'), fileName);
+        const file = fs.createWriteStream(tempPath);
+
+        const request = (targetUrl) => {
+            https.get(targetUrl, (response) => {
+                // Handle redirects
+                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                    request(response.headers.location);
+                    return;
+                }
+
+                const totalSize = parseInt(response.headers['content-length']) || expectedSize || 0;
+                let downloaded = 0;
+
+                response.on('data', (chunk) => {
+                    downloaded += chunk.length;
+                    if (totalSize > 0) {
+                        const percent = (downloaded / totalSize) * 100;
+                        sendSplashProgress(percent, downloaded, totalSize);
+                    }
+                });
+
+                response.pipe(file);
+
+                file.on('finish', () => {
+                    file.close(() => {
+                        console.log('[Solari Updater] Download complete:', tempPath);
+                        sendSplashStatus('installing', 'Installing update...');
+                        setTimeout(() => {
+                            installUpdateAndRestart(tempPath);
+                            resolve(true);
+                        }, 500);
+                    });
+                });
+            }).on('error', (err) => {
+                fs.unlink(tempPath, () => { });
+                reject(err);
+            });
+        };
+
+        request(url);
+    });
+}
+
+/**
+ * Extract @version from BetterDiscord plugin metadata header.
+ * Returns version string (e.g. '2.0.2') or null if not found.
+ */
+function extractPluginVersion(content) {
+    const match = content.match(/@version\s+(\S+)/);
+    return match ? match[1] : null;
+}
+
+/**
+ * Update plugins during splash screen.
+ * Compares @version metadata instead of raw content to avoid
+ * false positives from line-ending differences (CRLF vs LF).
+ */
+function updatePluginsViaSplash() {
+    return new Promise((resolve) => {
+        const updatedPlugins = [];
+        sendSplashStatus('updating-plugins', 'Checking plugin updates...');
+
+        const pluginsPath = getBDPluginsPath();
+        if (!pluginsPath || !fs.existsSync(pluginsPath)) {
+            resolve(updatedPlugins);
+            return;
+        }
+
+        const plugins = [
+            { name: 'SpotifySync.plugin.js', url: 'https://solarirpc.com/downloads/SpotifySync.plugin.js' },
+            { name: 'SmartAFKDetector.plugin.js', url: 'https://solarirpc.com/downloads/SmartAFKDetector.plugin.js' }
+        ];
+
+        let remaining = 0;
+        let updatedCount = 0;
+
+        // Count installed plugins
+        for (const plugin of plugins) {
+            if (fs.existsSync(path.join(pluginsPath, plugin.name))) {
+                remaining++;
+            }
+        }
+
+        if (remaining === 0) {
+            resolve(updatedPlugins);
+            return;
+        }
+
+        for (const plugin of plugins) {
+            const filePath = path.join(pluginsPath, plugin.name);
+            if (!fs.existsSync(filePath)) continue;
+
+            downloadPluginToString(plugin.url).then(remoteContent => {
+                if (remoteContent) {
+                    try {
+                        const localContent = fs.readFileSync(filePath, 'utf8');
+                        const localVersion = extractPluginVersion(localContent);
+                        const remoteVersion = extractPluginVersion(remoteContent);
+
+                        console.log(`[Solari Updater] ${plugin.name}: local=${localVersion}, remote=${remoteVersion}`);
+
+                        if (remoteVersion && localVersion !== remoteVersion) {
+                            fs.writeFileSync(filePath, remoteContent, 'utf8');
+                            updatedCount++;
+                            updatedPlugins.push({ name: plugin.name, from: localVersion, to: remoteVersion });
+                            console.log(`[Solari Updater] Plugin updated: ${plugin.name} (${localVersion} -> ${remoteVersion})`);
+                        }
+                    } catch (e) {
+                        console.error(`[Solari Updater] Plugin update error (${plugin.name}):`, e);
+                    }
+                }
+
+                remaining--;
+                if (remaining <= 0) {
+                    if (updatedCount > 0) {
+                        sendSplashStatus('updating-plugins', `${updatedCount} plugin(s) updated!`);
+                    }
+                    resolve(updatedPlugins);
+                }
+            }).catch(() => {
+                remaining--;
+                if (remaining <= 0) resolve(updatedPlugins);
+            });
+        }
+    });
+}
+
+/**
+ * Show changelog if this is the first launch of a new version.
+ * Uses the in-memory `lastSeenVersion` variable (loaded by loadData, saved by saveData).
+ */
+function showChangelogIfNew() {
+    try {
+        const pkg = require('../../package.json');
+        const currentVersion = pkg.version;
+
+        if (currentVersion === lastSeenVersion) {
+            console.log('[Solari] Same version as last launch, skipping changelog.');
+            return;
+        }
+
+        console.log(`[Solari] New version detected! ${lastSeenVersion} -> ${currentVersion}`);
+
+        // Update in-memory variable and persist via saveData()
+        lastSeenVersion = currentVersion;
+        saveData();
+
+        // Fetch changelog from GitHub
+        const https = require('https');
+        const options = {
+            hostname: 'api.github.com',
+            path: `/repos/TheDroidBR/Solari/releases/tags/v${currentVersion}`,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Solari-AutoUpdater',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const release = JSON.parse(data);
+                    if (release.body && mainWindow && !mainWindow.isDestroyed()) {
+                        console.log('[Solari] Sending changelog to renderer...');
+                        mainWindow.webContents.send('show-changelog', {
+                            version: currentVersion,
+                            body: release.body,
+                            name: release.name || `v${currentVersion}`
+                        });
+                    }
+                } catch (e) {
+                    console.error('[Solari] Changelog parse error:', e);
+                }
+            });
+        });
+        req.on('error', (e) => console.error('[Solari] Changelog fetch error:', e));
+        req.setTimeout(5000, () => req.destroy());
+        req.end();
+    } catch (e) {
+        console.error('[Solari] showChangelogIfNew error:', e);
+    }
 }
 
 
@@ -1368,23 +1594,15 @@ function createWindow() {
     // Log process args for debugging auto-launch detection
     console.log('[Solari] process.argv:', JSON.stringify(process.argv));
 
-    // Only start hidden if launched by Windows auto-start with --hidden flag
-    // Manual launches (double-clicking exe) won't have this flag
-    const launchedWithHidden = process.argv.includes('--hidden');
-    const shouldStartHidden = appSettings.startMinimized && appSettings.startWithWindows && launchedWithHidden;
-
+    // Always start hidden - splash screen or did-finish-load will show the window
     mainWindow = new BrowserWindow({
         width: 1200, height: 950, minWidth: 1100, title: "Solari",
         icon: ICON_PATH,
         backgroundColor: '#0f0c29',
-        show: !shouldStartHidden,
+        show: false,
         webPreferences: { nodeIntegration: true, contextIsolation: false }
     });
     mainWindow.loadFile('src/renderer/index.html');
-
-    if (shouldStartHidden) {
-        console.log('[Solari] Starting minimized to tray (auto-launch detected)');
-    }
 
     mainWindow.on('close', (event) => {
         if (!isQuitting && appSettings.closeToTray) {
@@ -2905,6 +3123,90 @@ function getBDPluginsPath() {
     return path.join(app.getPath('appData'), 'BetterDiscord', 'plugins');
 }
 
+function setupPluginWatcher() {
+    if (pluginWatcher) return;
+    try {
+        const pluginsPath = getBDPluginsPath();
+
+        // Ensure folder exists to avoid error
+        if (!fs.existsSync(pluginsPath)) return;
+
+        let debounceTimer = null;
+        pluginWatcher = fs.watch(pluginsPath, (eventType, filename) => {
+            if (filename && (filename.endsWith('.js') || filename.endsWith('.json'))) {
+                // Debounce to avoid multiple events for single file change
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        console.log('[Solari] Local plugin change detected:', filename);
+                        mainWindow.webContents.send('plugins:local-change');
+                    }
+                }, 200);
+            }
+        });
+        console.log('[Solari] Plugin watcher started on:', pluginsPath);
+    } catch (e) {
+        // Folder might not exist yet if BD is not installed
+        // console.error('[Solari] Failed to setup plugin watcher:', e.message);
+    }
+}
+
+ipcMain.handle('plugin:check-bd', async () => {
+    try {
+        const bdPath = path.join(app.getPath('appData'), 'BetterDiscord');
+        const bdExists = fs.existsSync(bdPath);
+
+        if (!bdExists) return { status: 'not_installed' };
+
+        // Detectar BD quebrado (atualização do Discord sobrescreve a injeção)
+        // BD injeta via %localappdata%/Discord/app-*/modules/discord_desktop_core-*/discord_desktop_core/index.js
+        const localAppData = process.env.LOCALAPPDATA;
+        if (localAppData) {
+            const discordBase = path.join(localAppData, 'Discord');
+            if (fs.existsSync(discordBase)) {
+                try {
+                    const appDirs = fs.readdirSync(discordBase)
+                        .filter(d => d.startsWith('app-'))
+                        .sort()
+                        .reverse(); // Mais recente primeiro
+
+                    if (appDirs.length > 0) {
+                        const modulesDir = path.join(discordBase, appDirs[0], 'modules');
+                        if (fs.existsSync(modulesDir)) {
+                            const coreDirs = fs.readdirSync(modulesDir)
+                                .filter(d => d.startsWith('discord_desktop_core'));
+
+                            let injectionFound = false;
+                            for (const cd of coreDirs) {
+                                const indexJs = path.join(modulesDir, cd, 'discord_desktop_core', 'index.js');
+                                if (fs.existsSync(indexJs)) {
+                                    const content = fs.readFileSync(indexJs, 'utf8');
+                                    if (content.toLowerCase().includes('betterdiscord')) {
+                                        injectionFound = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!injectionFound && coreDirs.length > 0) {
+                                console.log('[Solari] BetterDiscord detectado como QUEBRADO (injeção ausente após atualização do Discord)');
+                                return { status: 'broken' };
+                            }
+                        }
+                    }
+                } catch (scanErr) {
+                    console.warn('[Solari] Erro ao verificar injeção BD:', scanErr);
+                }
+            }
+        }
+
+        return { status: 'ok' };
+    } catch (e) {
+        console.error('[Solari] Error checking BetterDiscord:', e);
+        return { status: 'not_installed' };
+    }
+});
+
 ipcMain.handle('plugin:check-installed', async (event, fileName) => {
     try {
         const pluginsPath = getBDPluginsPath();
@@ -2918,6 +3220,7 @@ ipcMain.handle('plugin:check-installed', async (event, fileName) => {
 
 ipcMain.handle('plugin:download', async (event, { url, fileName }) => {
     const https = require('https');
+    const http = require('http');
     const pluginsPath = getBDPluginsPath();
     const filePath = path.join(pluginsPath, fileName);
 
@@ -2934,29 +3237,115 @@ ipcMain.handle('plugin:download', async (event, { url, fileName }) => {
         }
     }
 
-    return new Promise((resolve) => {
-        const file = fs.createWriteStream(filePath);
-        https.get(url, (response) => {
-            if (response.statusCode !== 200) {
-                fs.unlink(filePath, () => { }); // Delete partial
-                resolve({ success: false, error: `HTTP Status ${response.statusCode}` });
-                return;
+    // Download with redirect following and META validation
+    const downloadWithRedirects = (downloadUrl, maxRedirects = 5) => {
+        return new Promise((resolve) => {
+            if (maxRedirects <= 0) {
+                return resolve({ success: false, error: 'Too many redirects' });
             }
 
-            response.pipe(file);
+            const protocol = downloadUrl.startsWith('https') ? https : http;
 
-            file.on('finish', () => {
-                file.close(() => {
-                    console.log('[Solari] Plugin downloaded successfully');
-                    resolve({ success: true });
+            protocol.get(downloadUrl, (response) => {
+                // Follow redirects
+                if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
+                    const redirectUrl = response.headers.location;
+                    if (!redirectUrl) {
+                        return resolve({ success: false, error: 'Redirect with no location header' });
+                    }
+                    console.log(`[Solari] Following redirect to: ${redirectUrl}`);
+                    // Consume the response to free the socket
+                    response.resume();
+                    return resolve(downloadWithRedirects(redirectUrl, maxRedirects - 1));
+                }
+
+                if (response.statusCode !== 200) {
+                    response.resume();
+                    return resolve({ success: false, error: `HTTP Status ${response.statusCode}` });
+                }
+
+                // Collect data in memory first (for validation)
+                const chunks = [];
+                response.on('data', (chunk) => chunks.push(chunk));
+                response.on('end', () => {
+                    const buffer = Buffer.concat(chunks);
+                    const content = buffer.toString('utf8');
+
+                    // Validate BetterDiscord META block
+                    const trimmed = content.trimStart();
+                    if (!trimmed.startsWith('/**')) {
+                        console.error('[Solari] Downloaded content does NOT start with META block (/**). First 200 chars:', trimmed.substring(0, 200));
+                        return resolve({
+                            success: false,
+                            error: 'Downloaded file is invalid (missing BetterDiscord META header). The server may have returned an error page.'
+                        });
+                    }
+
+                    // Check that @name exists in the META block
+                    const metaEnd = trimmed.indexOf('*/');
+                    if (metaEnd === -1 || !trimmed.substring(0, metaEnd).includes('@name')) {
+                        console.error('[Solari] META block found but @name is missing');
+                        return resolve({
+                            success: false,
+                            error: 'Downloaded file has incomplete META header (missing @name).'
+                        });
+                    }
+
+                    // Write validated content to disk
+                    try {
+                        fs.writeFileSync(filePath, buffer);
+                        console.log('[Solari] Plugin downloaded and validated successfully');
+                        resolve({ success: true });
+                    } catch (writeErr) {
+                        console.error('[Solari] Write error:', writeErr);
+                        resolve({ success: false, error: 'Failed to write plugin file: ' + writeErr.message });
+                    }
                 });
+                response.on('error', (err) => {
+                    console.error('[Solari] Response stream error:', err);
+                    resolve({ success: false, error: err.message });
+                });
+            }).on('error', (err) => {
+                console.error('[Solari] Download error:', err);
+                resolve({ success: false, error: err.message });
             });
-        }).on('error', (err) => {
-            fs.unlink(filePath, () => { }); // Delete partial
-            console.error('[Solari] Download error:', err);
-            resolve({ success: false, error: err.message });
         });
-    });
+    };
+
+    return downloadWithRedirects(url);
+});
+
+// Get installed plugin version by reading META header
+ipcMain.handle('plugin:get-version', async (event, fileName) => {
+    try {
+        const pluginsPath = getBDPluginsPath();
+        const filePath = path.join(pluginsPath, fileName);
+        if (!fs.existsSync(filePath)) return null;
+
+        const content = fs.readFileSync(filePath, 'utf8');
+        const match = content.match(/@version\s+(\S+)/);
+        return match ? match[1] : null;
+    } catch (e) {
+        console.error('[Solari] Error reading plugin version:', e);
+        return null;
+    }
+});
+
+// Delete a plugin file from BD plugins folder
+ipcMain.handle('plugin:delete', async (event, fileName) => {
+    try {
+        const pluginsPath = getBDPluginsPath();
+        const filePath = path.join(pluginsPath, fileName);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`[Solari] Plugin deleted: ${fileName}`);
+            return { success: true };
+        }
+        return { success: false, error: 'File not found' };
+    } catch (e) {
+        console.error('[Solari] Error deleting plugin:', e);
+        return { success: false, error: e.message };
+    }
 });
 
 // ===== SOUNDBOARD IPC HANDLERS =====
@@ -4033,11 +4422,80 @@ function checkAdminStatus() {
 }
 
 // App Ready
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+    // Phase 1: Load settings first (needed to check auto-update toggles)
     loadData();
+
+    // Check if starting hidden (auto-start with --hidden flag)
+    const launchedWithHidden = process.argv.includes('--hidden');
+    const shouldStartHidden = appSettings.startMinimized && appSettings.startWithWindows && launchedWithHidden;
+
+    let updatedPlugins = [];
+
+    if (shouldStartHidden) {
+        // Skip splash entirely for auto-start hidden mode
+        console.log('[Solari] Starting minimized to tray (auto-launch detected), skipping splash');
+    } else {
+        // Phase 2: Show splash screen
+        createSplashWindow();
+
+        // Phase 3: Check for app updates (if enabled)
+        if (appSettings.autoCheckAppUpdates) {
+            const willRestart = await checkUpdateViaSplash();
+            if (willRestart) return; // App will restart via updater.js
+        }
+
+        // Phase 4: Check for plugin updates (if enabled)
+        if (appSettings.autoCheckPluginUpdates) {
+            updatedPlugins = await updatePluginsViaSplash() || [];
+        }
+
+        // Phase 5: Transition to loading
+        sendSplashStatus('loading', 'Starting Solari...');
+    }
+
+    // Phase 6: Initialize the app
     createMenu();
     createTray();
     createWindow();
+    setupPluginWatcher();
+
+    // Show main window when it finishes loading (and close splash)
+    mainWindow.webContents.on('did-finish-load', () => {
+        if (!shouldStartHidden) {
+            mainWindow.show();
+        } else {
+            console.log('[Solari] Window loaded but staying hidden (auto-start)');
+        }
+
+        // Close splash if it exists
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.close();
+        }
+
+        // Show changelog if this is a new version
+        setTimeout(() => showChangelogIfNew(), 1500);
+
+        // Re-send current RPC status to catch any missed events during page load
+        setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('rpc-status', {
+                    connected: rpcConnected,
+                    reconnecting: !rpcConnected
+                });
+            }
+        }, 500);
+
+        // Show toast for updated plugins
+        if (updatedPlugins && updatedPlugins.length > 0) {
+            setTimeout(() => {
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('plugins-updated', updatedPlugins);
+                }
+            }, 2500);
+        }
+    });
+
     initializeDiscordRPC();
     initializeWebSocketServer();
 
@@ -4064,8 +4522,6 @@ app.whenReady().then(() => {
         req.setTimeout(5000, () => { req.destroy(); });
     }
 
-    // Initialize SoundBoard (Safe Mode)
-    // Initialize SoundBoard (Lazy Load for faster startup)
     // Initialize SoundBoard immediately to prevent race conditions with Renderer
     try {
         console.log('[Solari] Initializing SoundSystem...');
@@ -4117,13 +4573,6 @@ app.whenReady().then(() => {
         setTimeout(() => {
             console.log('[Solari] Starting auto-detection on startup');
             startAutoDetection();
-
-            // Auto-Update Checks (App & Plugins) — conditioned on user settings
-            setTimeout(() => {
-                if (appSettings.autoCheckAppUpdates) checkAppUpdateOnStartup(getLabels());
-                if (appSettings.autoCheckPluginUpdates) updatePluginsOnStartup();
-            }, 5000);
-
         }, 3000); // Wait 3 seconds for RPC to connect
     }
 

@@ -53,7 +53,31 @@
     },
     "tabs": {
         "rpc": "Rich Presence",
-        "soundboard": "SoundBoard"
+        "soundboard": "SoundBoard",
+        "plugins": "Plugins"
+    },
+    "pluginStore": {
+        "title": "Plugins Oficiales",
+        "subtitle": "Plugins gratuitos para extender Solari con BetterDiscord",
+        "loading": "Cargando plugins...",
+        "fetchError": "Error al cargar plugins. Verifica tu conexión.",
+        "retry": "Reintentar",
+        "install": "Instalar",
+        "installed": "Instalado",
+        "installing": "Descargando...",
+        "activateNotice": "¡Activa el plugin en la configuración de BetterDiscord!",
+        "bdWarningTitle": "BetterDiscord no detectado",
+        "bdWarningDesc": "Para usar plugins de Solari, necesitas BetterDiscord instalado en Discord.",
+        "bdDownload": "Descargar BetterDiscord",
+        "bdBrokenTitle": "BetterDiscord roto",
+        "bdBrokenDesc": "Una actualización de Discord eliminó la inyección de BetterDiscord. Reinstala para restaurar plugins.",
+        "bdReinstall": "Reinstalar",
+        "updateAll": "Actualizar Todos",
+        "bdStatusInstalled": "Instalado",
+        "bdStatusBroken": "Roto",
+        "bdStatusMissing": "No Instalado",
+        "bdStatusChecking": "Comprobando...",
+        "update": "Actualizar"
     },
     "server": {
         "title": "Estado del Servidor",
@@ -239,7 +263,25 @@
         "configure": "Configurar",
         "moveToTrash": "Mover a Papelera",
         "emptyTrash": "Papelera vacía...",
-        "restore": "Restaurar"
+        "restore": "Restaurar",
+        "smartafk": {
+            "title": "Detector SmartAFK",
+            "description": "Detecta inactividad automáticamente y actualiza tu estado de Discord. Sincroniza con Solari vía WebSocket.",
+            "features": [
+                "Auto-detectar inactividad",
+                "Tiempo de espera personalizable",
+                "Sync con app Solari vía WebSocket"
+            ]
+        },
+        "spotifysync": {
+            "title": "SpotifySync",
+            "description": "Sincroniza Spotify con Discord y controla la reproducción directamente desde Discord.",
+            "features": [
+                "Controles Play/Pause/Siguiente/Anterior",
+                "Volumen, Seek, Shuffle y Repeat",
+                "Biblioteca y Cola de música"
+            ]
+        }
     },
     "dialogs": {
         "confirm": "Confirmar",

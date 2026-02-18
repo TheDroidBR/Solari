@@ -594,7 +594,7 @@ ipcRenderer.on('data-loaded', async (event, data) => {
         } else {
             statusIndicator.style.background = '#f59e0b'; // Orange (reconnecting)
             statusIndicator.style.boxShadow = '0 0 8px #f59e0b';
-            statusText.textContent = 'Reconectando...';
+            statusText.textContent = t('app.connecting') !== 'app.connecting' ? t('app.connecting') : 'Conectando...';
             statusText.style.color = '#f59e0b';
         }
     }
@@ -628,7 +628,7 @@ ipcRenderer.on('rpc-status', (event, data) => {
         isRpcActuallyConnected = false;
         statusIndicator.style.background = '#f59e0b'; // Orange
         statusIndicator.style.boxShadow = '0 0 8px #f59e0b';
-        statusText.textContent = 'Reconectando...';
+        statusText.textContent = t('app.reconnecting') !== 'app.reconnecting' ? t('app.reconnecting') : 'Reconectando...';
         statusText.style.color = '#f59e0b';
     } else {
         isRpcActuallyConnected = false;
@@ -1808,7 +1808,7 @@ function updateUILanguage() {
         statusText.textContent = t('app.connected');
         statusText.style.color = '#10b981'; // Green
     } else if (statusToggle.checked && !isRpcActuallyConnected) {
-        statusText.textContent = 'Reconectando...';
+        statusText.textContent = t('app.connecting') !== 'app.connecting' ? t('app.connecting') : 'Conectando...';
         statusText.style.color = '#f59e0b'; // Orange
     } else {
         statusText.textContent = t('app.disconnected');
@@ -1988,6 +1988,12 @@ function updateUILanguage() {
     // Refresh plugin connection status with correct translations
     updateSpotifyConnectionStatus(spotifyConnected);
     updateSmartAFKConnectionStatus(smartAfkConnected);
+
+    // Update Plugins Tab (BD Status and Cards)
+    if (typeof PluginsTabManager !== 'undefined') {
+        PluginsTabManager.checkBD();
+        PluginsTabManager.loadPlugins(false, true);
+    }
 
     console.log('[Solari] UI language updated to:', getCurrentLang());
 }
@@ -2597,8 +2603,554 @@ ipcRenderer.on('spotify-status-update', (event, status) => {
 
 // Initial check
 ipcRenderer.invoke('get-spotify-status').then(status => {
-    // updateSpotifyApiUI(status); // Removed legacy UI update
+    // updateSpotifyApiUI(status);
 });
+
+
+// =========================================
+// PLUGINS TAB MANAGER
+// =========================================
+
+const PluginsTabManager = {
+    initialized: false,
+    metaData: null,
+
+    // Dados estáticos de features por plugin
+    pluginInfo: {
+        smartafk: {
+            displayName: 'SmartAFK Detector',
+            icon: '😴',
+            requires: 'BetterDiscord',
+            features: [
+                'Auto-detecção de inatividade',
+                'Timeout customizável',
+                'Sync com o app Solari via WebSocket'
+            ]
+        },
+        spotifysync: {
+            displayName: 'SpotifySync',
+            icon: '🎵',
+            requires: 'BetterDiscord + Spotify',
+            features: [
+                'Controles Play/Pause/Next/Previous',
+                'Volume, Seek, Shuffle e Repeat',
+                'Biblioteca e Fila de músicas'
+            ]
+        }
+    },
+
+    async init() {
+        if (this.initialized) return;
+
+        const refreshBtn = document.getElementById('plugins-refresh-btn');
+        if (refreshBtn) refreshBtn.addEventListener('click', () => this.loadPlugins(true));
+
+        const retryBtn = document.getElementById('plugins-retry-btn');
+        if (retryBtn) retryBtn.addEventListener('click', () => this.loadPlugins(true));
+
+        const updateAllBtn = document.getElementById('plugins-update-all-btn');
+        if (updateAllBtn) updateAllBtn.addEventListener('click', () => this.handleUpdateAll());
+
+        this.initialized = true;
+        this.checkBD();
+        await this.loadPlugins();
+        this.startAutoRefresh();
+    },
+
+    startAutoRefresh() {
+        // Poll remote every 5 minutes
+        setInterval(() => this.loadPlugins(false, true), 300000);
+
+        // Listen for local file changes (Installer/Deleter)
+        ipcRenderer.on('plugins:local-change', () => {
+            console.log('[Plugins] Local change detected, refreshing...');
+            this.loadPlugins(false, true);
+        });
+    },
+
+    async checkBD() {
+        const indicator = document.getElementById('bd-status-indicator');
+        const dot = indicator ? indicator.querySelector('.bd-status-dot') : null;
+        const text = indicator ? indicator.querySelector('.bd-status-text') : null;
+
+        try {
+            const result = await ipcRenderer.invoke('plugin:check-bd');
+            const notInstalledBanner = document.getElementById('bd-warning-not-installed');
+            const brokenBanner = document.getElementById('bd-warning-broken');
+
+            if (notInstalledBanner) notInstalledBanner.style.display = 'none';
+            if (brokenBanner) brokenBanner.style.display = 'none';
+
+            if (indicator) {
+                indicator.className = 'bd-status-badge';
+            }
+
+            if (result && result.status === 'not_installed') {
+                if (notInstalledBanner) notInstalledBanner.style.display = 'flex';
+                if (indicator) {
+                    indicator.classList.add('bd-status-missing');
+                    indicator.title = 'BetterDiscord not installed';
+                    if (text) text.textContent = t('pluginStore.bdStatusMissing') || 'Not Installed';
+                }
+            } else if (result && result.status === 'broken') {
+                if (brokenBanner) brokenBanner.style.display = 'flex';
+                if (indicator) {
+                    indicator.classList.add('bd-status-broken');
+                    indicator.title = 'BetterDiscord broken';
+                    if (text) text.textContent = t('pluginStore.bdStatusBroken') || 'Broken';
+                }
+            } else {
+                if (indicator) {
+                    indicator.classList.add('bd-status-ok');
+                    indicator.title = 'BetterDiscord installed';
+                    if (text) text.textContent = t('pluginStore.bdStatusInstalled') || 'Installed';
+                }
+            }
+        } catch (e) {
+            console.error('[Plugins] Error checking BD:', e);
+            if (indicator) {
+                indicator.className = 'bd-status-badge bd-status-missing';
+                if (text) text.textContent = 'Erro';
+            }
+        }
+    },
+
+    async loadPlugins(forceRefresh = false, isBackground = false) {
+        const loadingEl = document.getElementById('plugins-loading');
+        const gridEl = document.getElementById('plugins-grid');
+        const errorEl = document.getElementById('plugins-error');
+
+        if (!loadingEl || !gridEl) return;
+
+        if (!isBackground) {
+            loadingEl.style.display = 'flex';
+            gridEl.style.display = 'none';
+            if (errorEl) errorEl.style.display = 'none';
+        }
+
+        const fallbackData = {
+            "smartafk": {
+                "version": "1.1.2",
+                "author": "TheDroid",
+                "description": "Detecta inatividade automaticamente e atualiza seu status no Discord. Sincroniza com o Solari via WebSocket.",
+                "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SmartAFKDetector.plugin.js",
+                "fileName": "SmartAFKDetector.plugin.js",
+                "changelog": "### v1.1.2 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop (\\\"zombie connection\\\") when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.1.1 (2026-01-20)\n- \ud83d\udc1b **Fixed:** Custom status sync with Discord servers when cleared\n- \ud83d\udc1b **Fixed:** Status persistence on other devices fixed\n- \u26a1 **Improved:** Reliability with new retry mechanism\n\n### v1.1.0 (2024-12-24)\n- \ud83d\udc1b **Fixed:** Status no longer gets stuck on 'Idle' when opening Discord on mobile/browser\n- \u26a1 **New:** Patches Discord's native idle timeout instead of manually setting status\n- \u26a1 Discord now handles idle detection natively, syncing correctly across devices\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Auto-detect mouse/keyboard inactivity\n- \u2705 Customizable timeout settings\n- \u2705 Syncs with Solari app via WebSocket"
+            },
+            "spotifysync": {
+                "version": "2.0.2",
+                "author": "TheDroid",
+                "description": "Sync Spotify with Discord Rich Presence and Controls.",
+                "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js",
+                "fileName": "SpotifySync.plugin.js",
+                "changelog": "### v2.0.2 (2026-02-15)\n- \ud83d\ude80 **Critical Fix:** Solved persistent \\\"Token Expirado (401)\\\" errors by scanning for CONNECTION_ACCESS_TOKEN.\n- \ud83d\udc1b **Fix:** Library button now opens playlist view correctly.\n- \u26a1 **Improvement:** Smarter local module detection.\n- \ud83d\udc1e **Fix:** Removed triple-notification on Share.\n- \ud83d\udee0\ufe0f **Fix:** Added startup delay for better reliability.\n\n### v2.0.1 (2026-02-15) - The Ghost Fix \ud83d\udc7b\n- \ud83d\ude80 **Fix:** Resolved misleading \\\"Local Control failed\\\" error toast when Web API fallback is successful.\n- \ud83d\udc1b **Fix:** Fixed Next, Previous, and Pause controls by correctly passing accountId to local modules.\n- \ud83d\udd0d **Improvement:** Enhanced local module search strategy.\n- \ud83d\udd17 **Improvement:** Made the developer.spotify.com link clickable in the settings panel.\n- \ud83d\udee0\ufe0f **Dev:** Added version check log for easier troubleshooting.\n\n### v2.0.0 (The Complete Rebirth)\n- \ud83d\ude80 **Total Architecture Rewrite**: Built from the ground up for stability, speed, and premium features.\n- \ud83d\udd10 **Premium Auth System**: Integrated Spotify PKCE authentication for secure access to advanced player controls.\n- \ud83c\udfae **Advanced Player Controls**: Added Shuffle, Repeat, Like/Unlike, real-time Volume Slider, and Seek Bar.\n- \ud83d\udccf **New List Views**: Library and Queue views with Auto-Expanding Height (450px).\n- \ud83d\udee1\ufe0f **Security & Privacy**: Added Editable Client ID field with a visibility toggle.\n- \u2728 **Premium Glassmorphic Design**: Redesigned with card-based layouts and blur effects.\n- \u26a1 **Performance & Sync**: Reliable WebSocket communication with Solari APP.\n\n### v1.0.1 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Play/Pause controls\n- \u2705 Next/Previous track buttons\n- \u2705 Now Playing display in Discord"
+            }
+        };
+
+        try {
+            let data;
+            // If background update, try to use cache first to avoid flickering if possible, or just fetch.
+            // Actually, we want to check for UPDATES, so we should fetch default.
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                // Background updates can use cached version for 1 hour? No, we want real-time.
+                // But we don't want to spam. The polling is 5 min.
+                // Force refresh uses Date.now(). Regular uses 1h cache.
+                // For background polling, we might want to respect cache to avoid spamming the server, 
+                // OR if it's "local-change" event, we might just want to re-render.
+
+                // If it's a background update from FILE CHANGE, we probably don't need to refetch remote data effectively,
+                // we just need to re-render to check installed status.
+                // But here we are reloading everything.
+
+                // Let's use the standard fetch logic.
+                const url = `https://solarirpc.com/plugins-meta.json?t=${forceRefresh ? Date.now() : Math.floor(Date.now() / 3600000)}`;
+                // If we already have metaData and it's a file change (isBackground), maybe skip fetch?
+                // But user might have updated a plugin, so we need to re-compare versions. Versions are in metaData.
+
+                // Optimization: If metaData exists and it's less than 1 hour old, use it?
+                // The URL logic already handles cache busting every hour.
+
+                const response = await fetch(url, { signal: controller.signal, cache: forceRefresh ? 'no-store' : 'default' });
+                clearTimeout(timeoutId);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                data = await response.json();
+            } catch (fetchErr) {
+                if (!isBackground) console.warn('[Plugins] Fetch falhou, usando fallback:', fetchErr.message);
+                if (this.metaData) {
+                    data = this.metaData; // Keep existing data if fetch fails in background
+                } else {
+                    data = fallbackData;
+                }
+            }
+            this.metaData = data;
+            await this.renderPlugins(data);
+
+            // Show Update All button
+            const updateAllBtn = document.getElementById('plugins-update-all-btn');
+            if (updateAllBtn && Object.keys(data).length > 0) {
+                updateAllBtn.style.display = 'flex';
+            }
+        } catch (err) {
+            console.error('[Plugins] Erro crítico em loadPlugins:', err);
+            if (errorEl && !isBackground) errorEl.style.display = 'flex';
+        } finally {
+            if (!isBackground) {
+                loadingEl.style.display = 'none';
+                if (!errorEl || errorEl.style.display !== 'flex') {
+                    gridEl.style.display = 'grid';
+                }
+            }
+        }
+    },
+
+    async renderPlugins(data) {
+        const gridEl = document.getElementById('plugins-grid');
+        gridEl.innerHTML = '';
+
+        const downloadSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+        const checkSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+        // Semver comparison helper
+        const isNewer = (remote, installed) => {
+            const r = remote.split('.').map(Number);
+            const i = installed.split('.').map(Number);
+            for (let idx = 0; idx < Math.max(r.length, i.length); idx++) {
+                const rv = r[idx] || 0;
+                const iv = i[idx] || 0;
+                if (rv > iv) return true;
+                if (rv < iv) return false;
+            }
+            return false;
+        };
+
+        for (const [key, plugin] of Object.entries(data)) {
+            // Get translations
+            const displayName = t(`plugins.${key}.title`) || this.pluginInfo[key]?.displayName || key;
+            const description = t(`plugins.${key}.description`) || plugin.description;
+            // For features, try to get from translation array, fallback to default info
+            let features = t(`plugins.${key}.features`);
+            if (!Array.isArray(features)) {
+                features = this.pluginInfo[key]?.features || [];
+            }
+
+            const info = this.pluginInfo[key] || { icon: '🔌', requires: 'BetterDiscord' };
+            const card = document.createElement('div');
+            card.className = 'plugin-store-card';
+
+            let isInstalled = false;
+            let installedVersion = null;
+            try {
+                installedVersion = await ipcRenderer.invoke('plugin:get-version', plugin.fileName);
+                isInstalled = !!installedVersion;
+            } catch (e) { /* ok */ }
+
+            // Version display logic
+            let versionDisplay = `v${plugin.version}`;
+            let versionClass = 'plugin-version-badge';
+
+            if (isInstalled && isNewer(plugin.version, installedVersion)) {
+                versionDisplay = `v${installedVersion} ➜ v${plugin.version}`;
+                versionClass += ' update-available';
+            } else if (isInstalled) {
+                versionDisplay = `v${installedVersion}`;
+                versionClass += ' installed';
+            }
+
+            const featuresHtml = features.map(f => `<li>${f}</li>`).join('');
+            const installLabel = t('pluginStore.install') || 'Instalar';
+            const installedLabel = t('pluginStore.installed') || 'Instalado';
+            const updateLabel = t('pluginStore.update') || 'Update'; // Fallback if key missing
+
+            let buttonLabel = downloadSvg + ' ' + installLabel;
+            let buttonClass = 'btn-plugin-install';
+
+            if (isInstalled) {
+                if (isNewer(plugin.version, installedVersion)) {
+                    buttonLabel = downloadSvg + ' ' + updateLabel;
+                    buttonClass += ' update';
+                } else {
+                    buttonLabel = checkSvg + ' ' + installedLabel;
+                    buttonClass += ' installed';
+                }
+            }
+
+            const deleteSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+
+            card.innerHTML = `
+                <div class="plugin-card-header">
+                    <div class="plugin-icon-box">${info.icon}</div>
+                    <span class="${versionClass}">${versionDisplay}</span>
+                </div>
+                <h3 class="plugin-card-title">${displayName}</h3>
+                <div class="plugin-card-author">por <span>@${plugin.author || 'TheDroid'}</span></div>
+                <p class="plugin-card-desc">${description}</p>
+                <div class="plugin-requirements-badge">🔧 Requires: ${info.requires}</div>
+                <ul class="plugin-features-list">${featuresHtml}</ul>
+                <div class="plugin-card-actions">
+                    <button class="${buttonClass}"
+                            data-url="${plugin.downloadUrl}" data-filename="${plugin.fileName}">
+                        ${buttonLabel}
+                    </button>
+                    ${isInstalled ? `<button class="btn-plugin-delete" title="Desinstalar" data-filename="${plugin.fileName}">${deleteSvg}</button>` : ''}
+                    <button class="btn-plugin-changelog" title="Changelog" data-plugin-key="${key}">📋</button>
+                </div>
+            `;
+
+            card.querySelector('.btn-plugin-install').addEventListener('click', function () {
+                PluginsTabManager.handleInstall(plugin.downloadUrl, plugin.fileName, this);
+            });
+            card.querySelector('.btn-plugin-changelog').addEventListener('click', () => {
+                PluginsTabManager.showChangelog(key);
+            });
+
+            const deleteBtn = card.querySelector('.btn-plugin-delete');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function () {
+                    PluginsTabManager.handleDelete(plugin.fileName, info.displayName, this);
+                });
+            }
+
+            gridEl.appendChild(card);
+        }
+    },
+
+    async handleDelete(fileName, displayName, btnElement) {
+        // Confirm deletion
+        const confirmMsg = `Deseja desinstalar ${displayName}?\nO arquivo será removido da pasta de plugins do BetterDiscord.`;
+        if (!confirm(confirmMsg)) return;
+
+        btnElement.disabled = true;
+        btnElement.innerHTML = '<span class="plugins-spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></span>';
+
+        try {
+            const result = await ipcRenderer.invoke('plugin:delete', fileName);
+            if (result.success) {
+                showToast('🗑️', `${displayName} desinstalado!`, 'success');
+                // Refresh cards
+                await this.loadPlugins(true);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (e) {
+            console.error('[Plugins] Delete failed:', e);
+            showToast('❌', `Erro ao desinstalar: ${e.message}`, 'error');
+            btnElement.disabled = false;
+            btnElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+        }
+    },
+
+    async handleInstall(url, fileName, btnElement) {
+        if (btnElement.classList.contains('installed')) return;
+
+        const installingLabel = t('pluginStore.installing') !== 'pluginStore.installing' ? t('pluginStore.installing') : 'Baixando...';
+        const installedLabel = t('pluginStore.installed') !== 'pluginStore.installed' ? t('pluginStore.installed') : 'Instalado';
+        const checkSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`;
+        const downloadSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = `<span class="plugins-spinner" style="width:16px;height:16px;border-width:2px;margin:0;"></span> ${installingLabel}`;
+        btnElement.disabled = true;
+
+        try {
+            const result = await ipcRenderer.invoke('plugin:download', { url, fileName });
+            if (result.success) {
+                btnElement.className = 'btn-plugin-install installed';
+                btnElement.innerHTML = `${checkSvg} ${installedLabel}`;
+                const msg = t('pluginStore.activateNotice') !== 'pluginStore.activateNotice' ? t('pluginStore.activateNotice') : 'Ative o plugin nas configurações do BetterDiscord!';
+                showToast('✅', msg, 'success');
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (e) {
+            console.error('[Plugins] Install failed:', e);
+            btnElement.innerHTML = originalHtml;
+            btnElement.disabled = false;
+            showToast('❌', 'Erro ao instalar: ' + e.message, 'error');
+        }
+    },
+
+    // Robust markdown renderer (no external dependency)
+    simpleMarkdown(md) {
+        if (!md) return '<p>Nenhum changelog disponível.</p>';
+        const lines = md.split('\n');
+        let html = '';
+        let inList = false;
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) {
+                if (inList) { html += '</ul>'; inList = false; }
+                continue;
+            }
+
+            // Headings
+            if (trimmed.startsWith('### ')) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<h4 class="changelog-version">${trimmed.slice(4)}</h4>`;
+                continue;
+            }
+            if (trimmed.startsWith('## ')) {
+                if (inList) { html += '</ul>'; inList = false; }
+                html += `<h3>${trimmed.slice(3)}</h3>`;
+                continue;
+            }
+
+            // List items
+            if (trimmed.startsWith('- ')) {
+                if (!inList) { html += '<ul>'; inList = true; }
+                let itemContent = trimmed.slice(2);
+                // Inline formatting
+                itemContent = itemContent
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                    .replace(/`(.+?)`/g, '<code>$1</code>');
+                html += `<li>${itemContent}</li>`;
+                continue;
+            }
+
+            // Regular paragraph
+            if (inList) { html += '</ul>'; inList = false; }
+            let content = trimmed
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/`(.+?)`/g, '<code>$1</code>');
+            html += `<p>${content}</p>`;
+        }
+
+        if (inList) html += '</ul>';
+        return html;
+    },
+
+    showChangelog(key) {
+        if (!this.metaData || !this.metaData[key]) return;
+        const plugin = this.metaData[key];
+        const info = this.pluginInfo[key] || { displayName: key };
+        const modal = document.getElementById('plugin-changelog-modal');
+        const title = document.getElementById('plugin-changelog-title');
+        const content = document.getElementById('plugin-changelog-content');
+
+        if (modal && title && content) {
+            title.textContent = `${info.displayName} — Changelog`;
+            content.innerHTML = this.simpleMarkdown(plugin.changelog);
+            modal.classList.add('active');
+        }
+    },
+
+    async handleUpdateAll() {
+        if (!this.metaData) return;
+        const btn = document.getElementById('plugins-update-all-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="plugins-spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></span> Verificando...';
+        }
+
+        // Semver comparison: returns true if remote > installed
+        const isNewer = (remote, installed) => {
+            const r = remote.split('.').map(Number);
+            const i = installed.split('.').map(Number);
+            for (let idx = 0; idx < Math.max(r.length, i.length); idx++) {
+                const rv = r[idx] || 0;
+                const iv = i[idx] || 0;
+                if (rv > iv) return true;
+                if (rv < iv) return false;
+            }
+            return false; // Same version
+        };
+
+        let successCount = 0;
+        let errorCount = 0;
+        let skippedCount = 0;
+
+        for (const [key, plugin] of Object.entries(this.metaData)) {
+            try {
+                // Check installed version — skip if not installed
+                const installedVersion = await ipcRenderer.invoke('plugin:get-version', plugin.fileName);
+
+                if (!installedVersion) {
+                    console.log(`[Plugins] ${plugin.fileName} not installed, skipping`);
+                    skippedCount++;
+                    continue;
+                }
+
+                if (!isNewer(plugin.version, installedVersion)) {
+                    console.log(`[Plugins] ${plugin.fileName} v${installedVersion} is up to date (remote: v${plugin.version})`);
+                    skippedCount++;
+                    continue;
+                }
+
+                if (btn) {
+                    btn.innerHTML = `<span class="plugins-spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></span> Atualizando ${key}...`;
+                }
+
+                console.log(`[Plugins] Updating ${plugin.fileName}: v${installedVersion || 'N/A'} → v${plugin.version}`);
+                const result = await ipcRenderer.invoke('plugin:download', {
+                    url: plugin.downloadUrl,
+                    fileName: plugin.fileName
+                });
+                if (result.success) successCount++;
+                else {
+                    console.error(`[Plugins] Update failed for ${key}:`, result.error);
+                    errorCount++;
+                }
+            } catch (e) {
+                console.error(`[Plugins] Update error for ${key}:`, e);
+                errorCount++;
+            }
+        }
+
+        if (btn) {
+            btn.disabled = false;
+            const downloadSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+            const label = t('pluginStore.updateAll') !== 'pluginStore.updateAll' ? t('pluginStore.updateAll') : 'Atualizar Todos';
+            btn.innerHTML = `${downloadSvg} <span>${label}</span>`;
+        }
+
+        if (successCount > 0) {
+            showToast('✅', `${successCount} plugin(s) atualizado(s)!`, 'success');
+        }
+        if (errorCount > 0) {
+            showToast('❌', `${errorCount} plugin(s) falharam`, 'error');
+        }
+        if (successCount === 0 && errorCount === 0) {
+            showToast('✅', 'Todos os plugins já estão atualizados!', 'success');
+        }
+
+        // Refresh cards to show updated state
+        if (successCount > 0) {
+            await this.loadPlugins(true);
+        }
+    }
+};
+
+// Changelog Modal dinâmico
+if (!document.getElementById('plugin-changelog-modal')) {
+    const modalHtml = `
+    <div class="modal-overlay" id="plugin-changelog-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="plugin-changelog-title">Changelog</h3>
+                <button class="modal-close" onclick="document.getElementById('plugin-changelog-modal').classList.remove('active')">&times;</button>
+            </div>
+            <div class="modal-body markdown-content" id="plugin-changelog-content" style="max-height: 400px; overflow-y: auto; padding-right: 10px;">
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+// Hook de troca de aba
+const pluginsTabBtn = document.querySelector('.tab-btn[data-tab="plugins-tab"]');
+if (pluginsTabBtn) {
+    pluginsTabBtn.addEventListener('click', () => {
+        PluginsTabManager.init();
+    });
+}
+
+
+
 
 // === SpotifySync Plugin Settings ===
 // Static listeners removed. UI is now fully dynamic.
@@ -3384,3 +3936,158 @@ if (wizardContainer) {
         }
     });
 }
+
+// ===== CHANGELOG MODAL =====
+// Shows release notes on first launch of a new version
+
+ipcRenderer.on('show-changelog', (event, data) => {
+    const { version, body, name } = data;
+    console.log('[Solari] Showing changelog for', name);
+
+    // Don't create duplicate modals
+    if (document.getElementById('changelogModal')) return;
+
+    // Convert markdown body to basic HTML
+    const htmlBody = convertMarkdownToHtml(body);
+
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'changelogModal';
+    overlay.className = 'changelog-overlay';
+    overlay.innerHTML = `
+        <div class="changelog-container">
+            <div class="changelog-header">
+                <div class="changelog-title-row">
+                    <span class="changelog-icon">🎉</span>
+                    <h2>${name || 'Solari v' + version}</h2>
+                </div>
+                <p class="changelog-subtitle">${t('changelog') || 'Changelog'}</p>
+            </div>
+            <div class="changelog-body">${htmlBody}</div>
+            <div class="changelog-footer">
+                <button class="btn-primary changelog-close-btn" id="closeChangelogBtn">
+                    ${t('wizard.start') || 'OK'}
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Animate in
+    requestAnimationFrame(() => overlay.classList.add('active'));
+
+    // Close handlers
+    const closeBtn = document.getElementById('closeChangelogBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300);
+        });
+    }
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300);
+        }
+    });
+});
+
+/**
+ * Basic Markdown to HTML converter (no external deps).
+ * Handles: headers, bold, italic, lists, links, inline code, code blocks, line breaks.
+ */
+function convertMarkdownToHtml(md) {
+    if (!md) return '';
+
+    let html = md
+        // Escape HTML
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        // Code blocks (```...```)
+        .replace(/```([^`]*?)```/gs, '<pre><code>$1</code></pre>')
+        // Inline code
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        // Headers
+        .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+        .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+        .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+        // Bold + Italic
+        .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+        // Bold
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        // Italic
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        // Links
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+        // Unordered lists
+        .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
+        // Line breaks (double newline = paragraph, single = br)
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+
+    // Wrap loose <li> in <ul>
+    html = html.replace(/(<li>.*?<\/li>)/gs, (match) => {
+        // Only wrap if not already in a ul
+        return '<ul>' + match + '</ul>';
+    });
+
+    // Clean up consecutive </ul><ul>
+    html = html.replace(/<\/ul>\s*<ul>/g, '');
+
+    return '<p>' + html + '</p>';
+}
+
+// ===== TOAST NOTIFICATION SYSTEM =====
+/**
+ * Show a toast notification at the bottom-right of the screen.
+ * @param {string} message - Text to display
+ * @param {'success'|'info'|'warning'|'error'} type - Toast type for styling
+ * @param {number} duration - How long to show in ms (default 4000)
+ */
+function showSolariToast(message, type = 'info', duration = 4000) {
+    // Create container if it doesn't exist
+    let container = document.getElementById('solariToastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'solariToastContainer';
+        container.className = 'solari-toast-container';
+        document.body.appendChild(container);
+    }
+
+    const icons = { success: '✅', info: 'ℹ️', warning: '⚠️', error: '❌' };
+
+    const toast = document.createElement('div');
+    toast.className = `solari-toast solari-toast-${type}`;
+    toast.innerHTML = `<span class="solari-toast-icon">${icons[type] || icons.info}</span><span class="solari-toast-msg">${message}</span>`;
+    container.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    // Auto dismiss
+    setTimeout(() => {
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+        setTimeout(() => toast.remove(), 400);
+    }, duration);
+}
+
+// Listen for plugin update notifications from main process
+ipcRenderer.on('plugins-updated', (event, plugins) => {
+    if (!plugins || plugins.length === 0) return;
+    console.log('[Solari] Plugins updated:', plugins);
+
+    plugins.forEach((plugin, i) => {
+        const cleanName = plugin.name.replace('.plugin.js', '');
+        setTimeout(() => {
+            showSolariToast(
+                `🔌 ${cleanName} ${t('settings.updated') || 'updated'}: ${plugin.from} → ${plugin.to}`,
+                'success',
+                5000
+            );
+        }, i * 800); // Stagger toasts
+    });
+});

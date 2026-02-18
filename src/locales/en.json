@@ -4,6 +4,8 @@
     "version": "v1.2.0",
     "connected": "Connected",
     "disconnected": "Disabled",
+    "connecting": "Connecting...",
+    "reconnecting": "Reconnecting...",
     "enabled": "Enabled",
     "autoDetect": "Auto-Detect",
     "starting": "Starting...",
@@ -13,7 +15,26 @@
   },
   "tabs": {
     "rpc": "Rich Presence",
+    "plugins": "Plugins",
     "soundboard": "SoundBoard"
+  },
+  "pluginStore": {
+    "title": "Official Plugins",
+    "subtitle": "Free plugins to extend Solari with BetterDiscord",
+    "bdWarningTitle": "BetterDiscord Not Detected",
+    "bdWarningDesc": "To use Solari plugins, you need BetterDiscord installed.",
+    "bdDownload": "Download BetterDiscord",
+    "loading": "Loading plugins...",
+    "fetchError": "Error loading plugins. Check your connection.",
+    "retry": "Try Again",
+    "install": "Install",
+    "installed": "Installed",
+    "installing": "Downloading...",
+    "activateNotice": "Activate the plugin in BetterDiscord settings!",
+    "bdBrokenTitle": "BetterDiscord is Broken",
+    "bdBrokenDesc": "A Discord update removed the BetterDiscord injection. Reinstall to restore plugins.",
+    "bdReinstall": "Reinstall",
+    "trash": "Trash Can"
   },
   "menu": {
     "file": "File",

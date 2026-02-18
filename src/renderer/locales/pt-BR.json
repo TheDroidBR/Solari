@@ -53,7 +53,60 @@
     },
     "tabs": {
         "rpc": "Rich Presence",
-        "soundboard": "SoundBoard"
+        "soundboard": "SoundBoard",
+        "plugins": "Plugins"
+    },
+    "pluginStore": {
+        "title": "Plugins Oficiais",
+        "subtitle": "Plugins gratuitos para estender o Solari com BetterDiscord",
+        "loading": "Carregando plugins...",
+        "fetchError": "Erro ao carregar plugins. Verifique sua conexão.",
+        "retry": "Tentar Novamente",
+        "install": "Instalar",
+        "installed": "Instalado",
+        "installing": "Baixando...",
+        "activateNotice": "Ative o plugin nas configurações do BetterDiscord!",
+        "bdWarningTitle": "BetterDiscord não detectado",
+        "bdWarningDesc": "Para usar os plugins do Solari, você precisa do BetterDiscord instalado no Discord.",
+        "bdDownload": "Baixar BetterDiscord",
+        "bdBrokenTitle": "BetterDiscord quebrado",
+        "bdBrokenDesc": "Uma atualização do Discord removeu a injeção do BetterDiscord. Reinstale para restaurar os plugins.",
+        "bdReinstall": "Reinstalar",
+        "updateAll": "Atualizar Todos",
+        "bdStatusInstalled": "Instalado",
+        "bdStatusBroken": "Quebrado",
+        "bdStatusMissing": "Não instalado",
+        "bdStatusChecking": "Verificando...",
+        "update": "Atualizar"
+    },
+    "plugins": {
+        "title": "🔌 Plugins",
+        "connected": "Conectado",
+        "disconnected": "Desconectado",
+        "trash": "Lixeira (Bloqueados)",
+        "noPlugin": "Nenhum plugin conectado...",
+        "configure": "Configurar",
+        "moveToTrash": "Mover para Lixeira",
+        "emptyTrash": "Lixeira vazia...",
+        "restore": "Restaurar",
+        "smartafk": {
+            "title": "SmartAFK Detector",
+            "description": "Detecta inatividade automaticamente e atualiza seu status no Discord. Sincroniza com o Solari via WebSocket.",
+            "features": [
+                "Auto-detecção de inatividade",
+                "Timeout customizável",
+                "Sync com o app Solari via WebSocket"
+            ]
+        },
+        "spotifysync": {
+            "title": "SpotifySync",
+            "description": "Sincronize o Spotify com Discord e controle a reprodução diretamente do Discord.",
+            "features": [
+                "Controles Play/Pause/Next/Previous",
+                "Volume, Seek, Shuffle e Repeat",
+                "Biblioteca e Fila de músicas"
+            ]
+        }
     },
     "server": {
         "title": "Status do Servidor",
@@ -229,17 +282,6 @@
         "statusChangedTo": "Status alterado para:",
         "customStatusChangedTo": "Status customizado alterado para:",
         "levelUp": "Subiu para Nível"
-    },
-    "plugins": {
-        "title": "🔌 Plugins",
-        "connected": "Conectado",
-        "disconnected": "Desconectado",
-        "trash": "Lixeira (Bloqueados)",
-        "noPlugin": "Nenhum plugin conectado...",
-        "configure": "Configurar",
-        "moveToTrash": "Mover para Lixeira",
-        "emptyTrash": "Lixeira vazia...",
-        "restore": "Restaurar"
     },
     "dialogs": {
         "confirm": "Confirmar",
