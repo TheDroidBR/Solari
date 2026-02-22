@@ -5,6 +5,7 @@
         "starting": "Starting...",
         "connected": "Connected",
         "disconnected": "Disconnected",
+        "connecting": "Connecting...",
         "themeDefault": "Default Theme",
         "themeDark": "Dark Theme",
         "themeLight": "Light Theme"
@@ -54,7 +55,24 @@
     "tabs": {
         "rpc": "Rich Presence",
         "soundboard": "SoundBoard",
-        "plugins": "Plugins"
+        "plugins": "Plugins",
+        "settings": "Settings"
+    },
+    "settings": {
+        "generalTitle": "General",
+        "generalDesc": "Startup and interface configuration.",
+        "rpcTitle": "Discord RPC",
+        "rpcDesc": "Global settings for Discord integration.",
+        "updatesTitle": "Updates and About",
+        "updatesDesc": "Manage automatic updates and view Changelogs.",
+        "labelStart": "Start",
+        "labelHidden": "Hidden",
+        "labelTray": "Tray",
+        "labelVisual": "Visual",
+        "labelApp": "App",
+        "labelPlugins": "Plugins",
+        "showEcoMode": "Show Eco Mode",
+        "showEcoModeDesc": "Displays the Eco Mode bar at the top of Solari."
     },
     "pluginStore": {
         "title": "Official Plugins",
@@ -121,6 +139,10 @@
         "cancel": "Cancel",
         "confirm": "Confirm"
     },
+    "prompt": {
+        "clientIdTitle": "Enter Global Client ID",
+        "clientIdDesc": "Input your custom application Client ID:"
+    },
     "connection": {
         "testConnection": "Test Connection",
         "success": "Success! Server running.",
@@ -136,8 +158,12 @@
         "competing": "Competing",
         "details": "Details (Line 1)",
         "detailsPlaceholder": "What are you doing?",
+        "detailsUrl": "DETAILS URL (OPTIONAL)",
+        "detailsUrlPlaceholder": "Link when clicking Line 1 (ex: https://...)",
         "state": "State (Line 2)",
         "statePlaceholder": "Current status",
+        "stateUrl": "STATE URL (OPTIONAL)",
+        "stateUrlPlaceholder": "Link when clicking Line 2 (ex: https://...)",
         "largeImage": "Large Image (URL)",
         "largeImageText": "Large Image Text",
         "smallImage": "Small Image (URL)",

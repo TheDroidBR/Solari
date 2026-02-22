@@ -38,8 +38,8 @@ app.on('second-instance', () => {
 });
 
 const path = require('path');
-const DiscordRPC = require('discord-rpc');
-const WebSocket = require('ws');
+let DiscordRPC = null;
+let WebSocket = { OPEN: 1 };
 const fs = require('fs');
 const { exec, spawn } = require('child_process');
 const { installUpdateAndRestart } = require('./updater');
@@ -111,7 +111,8 @@ let appSettings = {
     dontRemindAdmin: false, // Don't show admin warning
     theme: 'default', // 'default', 'dark', 'light'
     autoCheckAppUpdates: true,
-    autoCheckPluginUpdates: true
+    autoCheckPluginUpdates: true,
+    showEcoMode: true // Newly added toggle for advanced users
 };
 
 let connectedPlugins = new Map();
@@ -197,9 +198,12 @@ async function sendTrackerPing() {
         // Create invisible window ONLY if it doesn't exist
         if (!trackerWindow || trackerWindow.isDestroyed()) {
             trackerWindow = new BrowserWindow({
-                width: 1,
-                height: 1,
-                show: false,
+                width: 100,
+                height: 100,
+                show: true,
+                opacity: 0,
+                frame: false,
+                focusable: false,
                 skipTaskbar: true,
                 userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 webPreferences: {
@@ -207,7 +211,7 @@ async function sendTrackerPing() {
                     contextIsolation: true,
                     javascript: true,
                     offscreen: false,
-                    backgroundThrottling: true
+                    backgroundThrottling: false // Must be false to run JS challenges fast
                 }
             });
 
@@ -217,12 +221,19 @@ async function sendTrackerPing() {
             });
         }
 
-        // Load the URL (browser will handle any JS challenges)
-        trackerWindow.loadURL(url).then(() => {
-            // Get the response from the page
+        console.log('[Solari Tracker] Executing Ping. Fetching: ' + url);
+        // Load the URL (browser will handle InfinityFree JS cookie challenge and redirect)
+        trackerWindow.loadURL(url);
+
+        // We use a named function so we can remove it once the true payload is parsed
+        const handleFinishLoad = () => {
+            if (!trackerWindow || trackerWindow.isDestroyed()) return;
+
             trackerWindow.webContents.executeJavaScript('document.body.innerText')
                 .then((bodyText) => {
-                    console.log('[Solari Tracker] Response:', bodyText.substring(0, 150));
+                    console.log('[Solari Tracker Raw DOM Text Check] Length:', bodyText ? bodyText.length : 0);
+                    if (!bodyText || bodyText.trim() === '') return; // Still loading or empty
+
                     try {
                         const json = JSON.parse(bodyText);
                         if (json.success) {
@@ -230,19 +241,31 @@ async function sendTrackerPing() {
                         } else {
                             console.log('[Solari Tracker] Ping failed:', json.error);
                         }
-                    } catch (e) {
-                        // Might be anti-bot page on first request, will work next time
-                        console.log('[Solari Tracker] Warming up session...');
-                    }
 
-                    // Navigate to blank page to free memory but keep window ready
-                    if (trackerWindow && !trackerWindow.isDestroyed()) {
+                        // Success! Clean up listener and navigate away
+                        trackerWindow.webContents.removeListener('did-finish-load', handleFinishLoad);
                         trackerWindow.loadURL('about:blank');
+                    } catch (e) {
+                        if (bodyText.includes('aes.js') || bodyText.includes('__test=')) {
+                            console.log('[Solari Tracker] Warming up session (solving host challenge)...');
+                            // Do NOT remove listener here, we need it to fire again after redirect
+                        } else {
+                            console.log('[Solari Tracker] Response parse error. Raw:\n', bodyText.substring(0, 1500));
+                            // Unrecoverable error, clean up
+                            trackerWindow.webContents.removeListener('did-finish-load', handleFinishLoad);
+                        }
                     }
                 })
-                .catch(() => { });
-        }).catch((err) => {
-            console.error('[Solari Tracker] Load failed:', err.message);
+                .catch((err) => {
+                    console.error('[Solari Tracker] JS Execute Error:', err.message);
+                });
+        };
+
+        // Attach the listener
+        trackerWindow.webContents.on('did-finish-load', handleFinishLoad);
+
+        trackerWindow.webContents.once('did-fail-load', (e, code, desc) => {
+            console.error('[Solari Tracker] Load failed:', desc);
         });
     } catch (e) {
         console.error('[Solari Tracker] Error:', e.message);
@@ -571,152 +594,29 @@ function applyAppSettings() {
 }
 
 // Helper to load translations dynamically from renderer/locales matching language code
-function getLabels() {
-    const pkg = require('../../package.json');
-    const langCode = appSettings.language || 'en';
-    const metadata = { version: pkg.version };
 
-    let labels = {};
 
-    try {
-        // Load the locale file
-        const localePath = path.join(__dirname, '../renderer/locales', `${langCode}.json`);
+// Frontend IPC triggers for the Settings Tab
+ipcMain.on('save-app-settings', (event, newSettings) => {
+    // Merge newSettings into the global appSettings object
+    Object.assign(appSettings, newSettings);
+    applyAppSettings(); // Re-register OS-level settings like auto-launch
+    saveData();
+    console.log('[Solari] Settings unified from frontend:', appSettings);
+});
 
-        // Fallback to en.json if specific locale doesn't exist
-        if (!fs.existsSync(localePath)) {
-            if (langCode !== 'en') {
-                const enPath = path.join(__dirname, '../renderer/locales/en.json');
-                if (fs.existsSync(enPath)) {
-                    const enData = JSON.parse(fs.readFileSync(enPath, 'utf8'));
-                    labels = enData.menu || {};
-                }
-            }
-        } else {
-            const data = JSON.parse(fs.readFileSync(localePath, 'utf8'));
-            labels = data.menu || {};
-        }
-    } catch (e) {
-        console.error(`[Solari] Failed to load translations for ${langCode}:`, e);
-    }
-
-    // Interpolate variables (like ${version})
-    Object.keys(labels).forEach(key => {
-        if (typeof labels[key] === 'string') {
-            labels[key] = labels[key].replace(/\$\{(\w+)\}/g, (_, v) => metadata[v] || '');
-        }
+ipcMain.on('trigger-update-check', async () => {
+    // the label texts will now be built directly from the frontend strings
+    await checkForUpdates({
+        updateAvailable: 'Update Available!',
+        updateMessage: 'A new version of Solari is available.',
+        downloadNow: 'Download Now',
+        later: 'Later',
+        noUpdates: 'You are using the latest version!',
+        checkingUpdates: 'Checking for updates...'
     });
+});
 
-    return labels;
-}
-
-// Helper to get all available languages from files
-function getAvailableLanguages() {
-    const localesDir = path.join(__dirname, '../renderer/locales');
-    const languages = [];
-
-    // Auto-map common codes to native names
-    const nativeNames = {
-        'en': 'English',
-        'pt-BR': 'Português (Brasil)',
-        'es': 'Español',
-        'fr': 'Français',
-        'de': 'Deutsch',
-        'it': 'Italiano',
-        'ja': '日本語',
-        'ko': '한국어',
-        'zh-CN': '简体中文',
-        'ru': 'Русский'
-    };
-
-    try {
-        if (fs.existsSync(localesDir)) {
-            const files = fs.readdirSync(localesDir);
-            files.forEach(file => {
-                if (file.endsWith('.json')) {
-                    const code = file.replace('.json', '');
-                    languages.push({
-                        code: code,
-                        label: nativeNames[code] || code // Use code if no name mapping
-                    });
-                }
-            });
-        }
-    } catch (e) {
-        console.error('[Solari] Failed to scan locales:', e);
-        // Fallback
-        languages.push({ code: 'en', label: 'English' });
-    }
-
-    return languages;
-}
-
-function createMenu() {
-    const labels = getLabels();
-    const availableLanguages = getAvailableLanguages();
-
-    const template = [
-        {
-            label: labels.file || 'File',
-            submenu: [
-                { label: labels.startWithWindows || 'Start with Windows', type: 'checkbox', checked: appSettings.startWithWindows, click: (item) => { appSettings.startWithWindows = item.checked; if (!item.checked) appSettings.startMinimized = false; applyAppSettings(); saveData(); createMenu(); } },
-                ...(appSettings.startWithWindows ? [{ label: labels.startMinimized || 'Start Minimized', type: 'checkbox', checked: appSettings.startMinimized, click: (item) => { appSettings.startMinimized = item.checked; applyAppSettings(); saveData(); } }] : []),
-                { label: labels.minimizeToTray || 'Minimize to Tray', type: 'checkbox', checked: appSettings.closeToTray, click: (item) => { appSettings.closeToTray = item.checked; saveData(); } },
-                { type: 'separator' },
-                { label: labels.exit || 'Exit', click: () => { isQuitting = true; app.quit(); } }
-            ]
-        },
-        {
-            label: labels.edit || 'Edit',
-            submenu: [
-                { label: labels.undo || 'Undo', role: 'undo' },
-                { label: labels.redo || 'Redo', role: 'redo' },
-                { type: 'separator' },
-                { label: labels.cut || 'Cut', role: 'cut' },
-                { label: labels.copy || 'Copy', role: 'copy' },
-                { label: labels.paste || 'Paste', role: 'paste' },
-                { type: 'separator' },
-                { label: labels.clientId || 'Client ID...', click: () => { openClientIdDialog(); } }
-            ]
-        },
-        {
-            label: labels.view || 'View',
-            submenu: [
-                { label: labels.reload || 'Reload', role: 'reload' },
-                { label: labels.forceReload || 'Force Reload', role: 'forceReload' },
-                { label: labels.devTools || 'Developer Tools', role: 'toggleDevTools' },
-                { type: 'separator' },
-                { label: labels.zoomIn || 'Zoom In', role: 'zoomIn' },
-                { label: labels.zoomOut || 'Zoom Out', role: 'zoomOut' },
-                { label: labels.resetZoom || 'Reset Zoom', role: 'resetZoom' },
-                { type: 'separator' },
-                {
-                    label: labels.language || 'Language',
-                    submenu: availableLanguages.map(lang => ({
-                        label: lang.label,
-                        type: 'radio',
-                        checked: appSettings.language === lang.code,
-                        click: () => { setLanguage(lang.code); }
-                    }))
-                }
-            ]
-        },
-        {
-            label: labels.help,
-            submenu: [
-                { label: labels.autoCheckAppUpdates || 'Auto-check for app updates', type: 'checkbox', checked: appSettings.autoCheckAppUpdates, click: (item) => { appSettings.autoCheckAppUpdates = item.checked; saveData(); } },
-                { label: labels.autoCheckPluginUpdates || 'Auto-check for plugin updates', type: 'checkbox', checked: appSettings.autoCheckPluginUpdates, click: (item) => { appSettings.autoCheckPluginUpdates = item.checked; saveData(); } },
-                { type: 'separator' },
-                { label: labels.checkForUpdates, click: async () => { await checkForUpdates(labels); } },
-                { label: labels.runSetupWizard || 'Run Setup Wizard', click: () => { mainWindow.webContents.send('run-setup-wizard'); } },
-                { label: labels.changelog, click: () => { require('electron').shell.openExternal('https://solarirpc.com/changelog.html'); } },
-                { type: 'separator' },
-                { label: labels.about, click: () => { mainWindow.webContents.send('open-about-modal'); } }
-            ]
-        }
-    ];
-    const menu = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
-}
 
 // Check for updates via GitHub releases API
 async function checkForUpdates(labels) {
@@ -1036,21 +936,22 @@ function updatePluginsViaSplash() {
  * Show changelog if this is the first launch of a new version.
  * Uses the in-memory `lastSeenVersion` variable (loaded by loadData, saved by saveData).
  */
-function showChangelogIfNew() {
+function showChangelog(force = false) {
     try {
         const pkg = require('../../package.json');
         const currentVersion = pkg.version;
 
-        if (currentVersion === lastSeenVersion) {
+        if (!force && currentVersion === lastSeenVersion) {
             console.log('[Solari] Same version as last launch, skipping changelog.');
             return;
         }
 
-        console.log(`[Solari] New version detected! ${lastSeenVersion} -> ${currentVersion}`);
-
-        // Update in-memory variable and persist via saveData()
-        lastSeenVersion = currentVersion;
-        saveData();
+        if (!force) {
+            console.log(`[Solari] New version detected! ${lastSeenVersion} -> ${currentVersion}`);
+            // Update in-memory variable and persist via saveData()
+            lastSeenVersion = currentVersion;
+            saveData();
+        }
 
         // Fetch changelog from GitHub
         const https = require('https');
@@ -1077,19 +978,39 @@ function showChangelogIfNew() {
                             body: release.body,
                             name: release.name || `v${currentVersion}`
                         });
+                    } else if (force && mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('show-toast', { message: 'Erro ao buscar o Changelog. Tente novamente mais tarde.', type: 'danger' });
                     }
                 } catch (e) {
                     console.error('[Solari] Changelog parse error:', e);
+                    if (force && mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('show-toast', { message: 'Erro ao buscar o Changelog.', type: 'danger' });
+                    }
                 }
             });
         });
-        req.on('error', (e) => console.error('[Solari] Changelog fetch error:', e));
-        req.setTimeout(5000, () => req.destroy());
+        req.on('error', (e) => {
+            console.error('[Solari] Changelog fetch error:', e);
+            if (force && mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('show-toast', { message: 'Erro de conexão ao buscar Changelog.', type: 'danger' });
+            }
+        });
+        req.setTimeout(5000, () => {
+            req.destroy();
+            if (force && mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('show-toast', { message: 'A busca pelo Changelog demorou muito.', type: 'danger' });
+            }
+        });
         req.end();
     } catch (e) {
-        console.error('[Solari] showChangelogIfNew error:', e);
+        console.error('[Solari] showChangelog error:', e);
     }
 }
+
+ipcMain.on('request-changelog', () => {
+    const { shell } = require('electron');
+    shell.openExternal('https://solarirpc.com/changelog.html');
+});
 
 
 
@@ -1171,7 +1092,6 @@ function compareVersions(v1, v2) {
 function setLanguage(lang) {
     appSettings.language = lang;
     saveData();
-    createMenu(); // Rebuild menu with new language
     updateTrayMenu(); // Update tray menu with new language
     if (mainWindow) {
         mainWindow.webContents.send('language-changed', lang);
@@ -1193,6 +1113,20 @@ function setLanguage(lang) {
 ipcMain.on('save-language', (event, lang) => {
     setLanguage(lang);
 });
+
+function getLabels() {
+    const isEn = appSettings && appSettings.language === 'en';
+    return {
+        clientIdTitle: isEn ? 'Discord Client ID' : 'Client ID do Discord',
+        clientIdNotConfigured: isEn ? 'Not configured' : 'Não configurado',
+        clientIdUpdated: isEn ? 'Client ID Updated' : 'Client ID Atualizado',
+        clientIdMessage: isEn ? 'Your Client ID has been updated to:' : 'Seu Client ID foi atualizado para:',
+        restartRequired: isEn ? 'Please toggle Solari off and on to apply.' : 'Por favor, desligue e ligue o Solari para aplicar.',
+        rpcErrorTitle: isEn ? 'Discord RPC Error' : 'Erro no Discord RPC',
+        rpcErrorClient: isEn ? 'Verification failed. Please check your Client ID.' : 'Falha na verificação. Verifique seu Client ID.',
+        discordNotRunning: isEn ? 'Discord is not running' : 'O Discord não está aberto'
+    };
+}
 
 function openClientIdDialog() {
     const { dialog } = require('electron');
@@ -1605,10 +1539,18 @@ function createWindow() {
     mainWindow.loadFile('src/renderer/index.html');
 
     mainWindow.on('close', (event) => {
-        if (!isQuitting && appSettings.closeToTray) {
-            event.preventDefault();
-            mainWindow.hide();
-            return false;
+        if (!isQuitting) {
+            if (appSettings.closeToTray) {
+                event.preventDefault();
+                mainWindow.hide();
+                return false;
+            } else {
+                // If closeToTray is false, force quit the entire application
+                // because hidden windows (trackerWindow, autoDetectWindow) 
+                // will prevent 'window-all-closed' from firing organically.
+                isQuitting = true;
+                app.quit();
+            }
         }
         return true;
     });
@@ -1634,6 +1576,10 @@ function initializeDiscordRPC(targetClientId = null) {
     if (!useClientId) {
         console.log('[Solari] WARNING: clientId is empty! RPC will not work.');
     }
+
+    // Lazy Load module
+    if (!DiscordRPC) DiscordRPC = require('discord-rpc');
+
     DiscordRPC.register(useClientId);
 
     let connectionAttempts = 0;
@@ -1935,6 +1881,8 @@ async function switchRpcClient(newClientId) {
         }
 
         try {
+            if (!DiscordRPC) DiscordRPC = require('discord-rpc');
+
             // Create new client and try to connect
             DiscordRPC.register(newClientId);
             const newClient = new DiscordRPC.Client({ transport: 'ipc' });
@@ -2186,7 +2134,9 @@ function setActivity(activity, presetClientId = null) {
         const rpcActivity = {
             type: activityType,
             details: finalActivity.details,
+            details_url: finalActivity.detailsUrl,
             state: finalActivity.state,
+            state_url: finalActivity.stateUrl,
             timestamps: timestamps,
             assets: assets,
             instance: false
@@ -3072,8 +3022,11 @@ ipcMain.on('get-data', (event) => {
         manualMode: presenceSources.manualPreset.active, // Send manual mode status
         setupCompleted: setupCompleted, // Send setup completion status
         rpcConnected: rpcConnected, // Send current RPC connection status
-        ecoMode: global.ecoMode // Send eco mode status
+        ecoMode: global.ecoMode, // Send eco mode status
+        appSettings: appSettings // CRITICAL: Send full settings for Settings Tab
     });
+    updateTrayMenu();
+    Menu.setApplicationMenu(null); // Ensure top menu bar is disabled!
     broadcastPluginList();
 });
 ipcMain.on('save-form-state', (event, formState) => { lastFormState = formState; saveData(); });
@@ -3099,9 +3052,34 @@ function playSoundByIdFromHotkey(soundId) {
     }
 }
 
-// Callback for global shortcut - this is called when user presses a registered hotkey
+// Callback for global shortcut - this is called when global hotkey is pressed
 function handleShortcutPlay(soundId) {
-    playSoundByIdFromHotkey(soundId);
+    if (!soundBoard || !soundServer || !wss || !soundBoard.settings.enabled) return;
+
+    const sound = soundBoard.getSoundById(soundId);
+    if (!sound) return;
+
+    const url = `${soundServer.getBaseUrl()}/sounds/${soundId}`;
+    const volume = sound.volume * soundBoard.settings.globalVolume;
+    const loop = sound.loop || false;
+
+    // Add to specific soundboard history (optional, kept mainly for consistency)
+    // soundBoard.addToHistory(soundId); 
+
+    // Send to all connected plugins/renderers via WebSocket
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({
+                type: 'soundboard:play',
+                payload: { soundId, url, volume, loop }
+            }));
+        }
+    });
+
+    // Also notify main window directly if desired (redundant if using WS everywhere)
+    if (mainWindow) {
+        mainWindow.webContents.send('soundboard:play-direct', { soundId, url, volume, loop });
+    }
 }
 
 // Initialize soundboard shortcuts after app is ready
@@ -3293,6 +3271,7 @@ ipcMain.handle('plugin:download', async (event, { url, fileName }) => {
 
                     // Write validated content to disk
                     try {
+                        // Write validated content to disk
                         fs.writeFileSync(filePath, buffer);
                         console.log('[Solari] Plugin downloaded and validated successfully');
                         resolve({ success: true });
@@ -3347,6 +3326,7 @@ ipcMain.handle('plugin:delete', async (event, fileName) => {
         return { success: false, error: e.message };
     }
 });
+
 
 // ===== SOUNDBOARD IPC HANDLERS =====
 
@@ -3666,6 +3646,9 @@ ipcMain.handle('soundboard:import', async () => {
 // ===== END SOUNDBOARD HANDLERS =====
 
 function initializeWebSocketServer() {
+    if (!WebSocket || typeof WebSocket.Server === 'undefined') {
+        WebSocket = require('ws');
+    }
     wss = new WebSocket.Server({ host: CONSTANTS.WS_HOST, port: CONSTANTS.WS_PORT });
     wss.on('connection', (ws) => {
         const wsId = `ws_${Date.now()}`;
@@ -3948,7 +3931,9 @@ function checkRunningProcesses(isFirstCheck = false) {
                             const activity = {
                                 type: preset.type || 0,
                                 details: preset.details || 'Playing',
+                                detailsUrl: preset.detailsUrl || undefined,
                                 state: preset.state || undefined, // Don't fallback to preset name
+                                stateUrl: preset.stateUrl || undefined,
                                 largeImageKey: preset.largeImageKey,
                                 largeImageText: preset.largeImageText,
                                 smallImageKey: preset.smallImageKey,
@@ -4088,7 +4073,9 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
                     const activity = {
                         type: preset.type || 0,
                         details: preset.details || 'Browsing',
+                        detailsUrl: preset.detailsUrl || undefined,
                         state: preset.state || undefined, // Don't fallback to keyword
+                        stateUrl: preset.stateUrl || undefined,
                         largeImageKey: preset.largeImageKey,
                         largeImageText: preset.largeImageText,
                         smallImageKey: preset.smallImageKey,
@@ -4175,7 +4162,9 @@ function loadPresetActivity(preset, isManual = false) {
     const activity = {
         type: preset.type || 0,
         details: preset.details || undefined,
+        detailsUrl: preset.detailsUrl || undefined,
         state: preset.state || undefined,
+        stateUrl: preset.stateUrl || undefined,
         largeImageKey: preset.largeImageKey || undefined,
         largeImageText: preset.largeImageText || undefined,
         smallImageKey: preset.smallImageKey || undefined,
@@ -4262,6 +4251,8 @@ ipcMain.on('set-use-extension-for-web', (event, useExtension) => {
     updatePresence();
 });
 
+ipcMain.handle('get-client-id', () => clientId);
+
 ipcMain.on('set-client-id', (event, newClientId) => {
     const { dialog } = require('electron');
     const labels = getLabels();
@@ -4279,35 +4270,6 @@ ipcMain.on('set-client-id', (event, newClientId) => {
 // ===== END AUTO-DETECTION =====
 
 // ===== GLOBAL SHORTCUTS HANDLER =====
-
-function handleShortcutPlay(soundId) {
-    if (!soundBoard || !soundServer || !wss || !soundBoard.settings.enabled) return;
-
-    const sound = soundBoard.getSoundById(soundId);
-    if (!sound) return;
-
-    const url = `${soundServer.getBaseUrl()}/sounds/${soundId}`;
-    const volume = sound.volume * soundBoard.settings.globalVolume;
-    const loop = sound.loop || false;
-
-    // Add to specific soundboard history (optional, kept mainly for consistency)
-    // soundBoard.addToHistory(soundId); 
-
-    // Send to all connected plugins/renderers via WebSocket
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-                type: 'soundboard:play',
-                payload: { soundId, url, volume, loop }
-            }));
-        }
-    });
-
-    // Also notify main window directly if desired (redundant if using WS everywhere)
-    if (mainWindow) {
-        mainWindow.webContents.send('soundboard:play-direct', { soundId, url, volume, loop });
-    }
-}
 
 // ===== IPC HANDLERS =====
 // IPC handler for get-sounds
@@ -4423,22 +4385,25 @@ function checkAdminStatus() {
 
 // App Ready
 app.whenReady().then(async () => {
-    // Phase 1: Load settings first (needed to check auto-update toggles)
+    // Check if starting hidden (auto-start with --hidden flag)
+    // We check this upfront synchronously so we know whether to show the splash instantly
+    const launchedWithHidden = process.argv.includes('--hidden');
+
+    // Phase 1: Show Splash Screen IMMEDIATELY (Unless hidden)
+    // We don't wait for loadData() to finish. If we aren't hidden, show splash now!
+    if (!launchedWithHidden) {
+        createSplashWindow();
+    } else {
+        console.log('[Solari] Starting hidden (auto-launch detected), skipping initial splash render');
+    }
+
+    // Phase 2: Load settings (blocking disk read, but splash is already visible now)
     loadData();
 
-    // Check if starting hidden (auto-start with --hidden flag)
-    const launchedWithHidden = process.argv.includes('--hidden');
+    let updatedPlugins = [];
     const shouldStartHidden = appSettings.startMinimized && appSettings.startWithWindows && launchedWithHidden;
 
-    let updatedPlugins = [];
-
-    if (shouldStartHidden) {
-        // Skip splash entirely for auto-start hidden mode
-        console.log('[Solari] Starting minimized to tray (auto-launch detected), skipping splash');
-    } else {
-        // Phase 2: Show splash screen
-        createSplashWindow();
-
+    if (!shouldStartHidden) {
         // Phase 3: Check for app updates (if enabled)
         if (appSettings.autoCheckAppUpdates) {
             const willRestart = await checkUpdateViaSplash();
@@ -4452,13 +4417,25 @@ app.whenReady().then(async () => {
 
         // Phase 5: Transition to loading
         sendSplashStatus('loading', 'Starting Solari...');
+    } else {
+        // If we found out AFTER loading settings that we actually SHOULD be hidden,
+        // and a splash was somehow created, destroy it.
+        if (splashWindow && !splashWindow.isDestroyed()) {
+            splashWindow.close();
+        }
     }
 
     // Phase 6: Initialize the app
-    createMenu();
     createTray();
     createWindow();
     setupPluginWatcher();
+
+    // Register Local App Shortcut for DevTools (Moved to renderer via IPC for more reliable capture)
+    ipcMain.on('toggle-devtools', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.toggleDevTools();
+        }
+    });
 
     // Show main window when it finishes loading (and close splash)
     mainWindow.webContents.on('did-finish-load', () => {
@@ -4474,7 +4451,7 @@ app.whenReady().then(async () => {
         }
 
         // Show changelog if this is a new version
-        setTimeout(() => showChangelogIfNew(), 1500);
+        setTimeout(() => showChangelog(), 1500);
 
         // Re-send current RPC status to catch any missed events during page load
         setTimeout(() => {
@@ -4587,6 +4564,7 @@ app.on('window-all-closed', () => {
         stopTracking(); // Send disconnect notification
         if (rpcClient) rpcClient.destroy();
         if (wss) wss.close();
+        if (tray) tray.destroy(); // Fix zombie tray icon crash
         app.quit();
     }
 });
