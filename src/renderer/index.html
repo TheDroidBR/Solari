@@ -13,7 +13,7 @@
     <header>
       <div class="brand">
         <h1>Solari</h1>
-        <span class="version">v1.5.0</span>
+        <span class="version">v1.6.0</span>
       </div>
       <div class="header-controls">
         <div class="toggle-container">
@@ -75,9 +75,177 @@
         <span class="tab-icon">🔌</span>
         <span data-i18n="tabs.plugins">Plugins</span>
       </button>
+      <button class="tab-btn" data-tab="settings-tab">
+        <span class="tab-icon">⚙️</span>
+        <span data-i18n="tabs.settings">Configurações</span>
+      </button>
     </nav>
 
     <main>
+      <!-- Settings Tab -->
+      <div id="settings-tab" class="tab-content">
+        <div class="plugins-tab-wrapper">
+          <div class="settings-grid">
+
+            <!-- GENERAL SETTINGS CARD -->
+            <div class="settings-card">
+              <div class="settings-header">
+                <div class="settings-icon-box" style="background: rgba(255,153,102, 0.15); color: #ff9966;">🛠️</div>
+                <div class="settings-info">
+                  <h3 data-i18n="settings.generalTitle"
+                    style="background: var(--text-gradient, linear-gradient(135deg, #fff, #a1a1aa)); -webkit-background-clip: text; background-clip: text; color: transparent;">
+                    Geral</h3>
+                  <p data-i18n="settings.generalDesc">Configurações de inicialização e interface do aplicativo.</p>
+                </div>
+              </div>
+              <div class="settings-content">
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span data-i18n="settings.labelStart">Início</span>
+                    <div>
+                      <span data-i18n="menu.startWithWindows">Iniciar com o Windows</span>
+                      <span class="settings-row-desc">Inicia o Solari automaticamente ao ligar o PC.</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="settings-startWithWindows">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span data-i18n="settings.labelHidden">Oculto</span>
+                    <div>
+                      <span data-i18n="menu.startMinimized" id="label-startMinimized">Iniciar Minimizado</span>
+                      <span class="settings-row-desc">Inicia diretamente na Bandeja do Sistema.</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="settings-startMinimized">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span data-i18n="settings.labelTray">Bandeja</span>
+                    <div>
+                      <span data-i18n="menu.minimizeToTray">Minimizar para a Bandeja</span>
+                      <span class="settings-row-desc">Oculta o app ao invés de fechar.</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="settings-minimizeToTray">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span data-i18n="settings.labelVisual">Visual</span>
+                    <div>
+                      <span data-i18n="settings.showEcoMode">Mostrar Modo Eco</span>
+                      <span class="settings-row-desc" data-i18n="settings.showEcoModeDesc">Exibe a barra do Modo Eco no
+                        topo do Solari.</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="settings-showEcoMode" checked>
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span>🌐</span>
+                    <span data-i18n="menu.language">Idioma</span>
+                  </div>
+                  <select id="settings-language" class="form-select"
+                    style="width: auto; padding: 6px 14px; border-radius: 8px;">
+                    <option value="en">English</option>
+                    <option value="pt-BR">Português (Brasil)</option>
+                    <option value="es">Español</option>
+                    <option value="de">Deutsch</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- DISCORD RPC SETTINGS CARD -->
+            <div class="settings-card">
+              <div class="settings-header">
+                <div class="settings-icon-box" style="background: rgba(114,137,218, 0.15); color: #7289da;">🎮</div>
+                <div class="settings-info">
+                  <h3 data-i18n="settings.rpcTitle"
+                    style="background: var(--text-gradient, linear-gradient(135deg, #fff, #a1a1aa)); -webkit-background-clip: text; background-clip: text; color: transparent;">
+                    Discord RPC</h3>
+                  <p data-i18n="settings.rpcDesc">Configurações globais de integração com o Discord.</p>
+                </div>
+              </div>
+              <div class="settings-content">
+                <button id="settings-clientIdBtn" class="btn btn-secondary"
+                  style="width: 100%; border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 10px;">
+                  🔑 <span data-i18n="menu.clientId">Client ID...</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- UPDATES & ABOUT SETTINGS CARD -->
+            <div class="settings-card">
+              <div class="settings-header">
+                <div class="settings-icon-box" style="background: rgba(16,185,129, 0.15); color: #10b981;">🔄</div>
+                <div class="settings-info">
+                  <h3 data-i18n="settings.updatesTitle"
+                    style="background: var(--text-gradient, linear-gradient(135deg, #fff, #a1a1aa)); -webkit-background-clip: text; background-clip: text; color: transparent;">
+                    Atualizações e Sobre</h3>
+                  <p data-i18n="settings.updatesDesc">Gerencie as atualizações automáticas e veja os Logs de versão.</p>
+                </div>
+              </div>
+              <div class="settings-content">
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span data-i18n="settings.labelApp">Aplicativo</span>
+                    <span data-i18n="menu.autoCheckAppUpdates">Verificar atualizações do app</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="settings-autoCheckApp">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span data-i18n="settings.labelPlugins">Extensões</span>
+                    <span data-i18n="menu.autoCheckPluginUpdates">Verificar atualizações dos plugins</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="settings-autoCheckPlugins">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <div class="settings-actions-grid">
+                  <button id="settings-checkUpdatesBtn" class="btn btn-primary">
+                    ⬇️ <span data-i18n="menu.checkForUpdates">Verificar Updates</span>
+                  </button>
+                  <button id="settings-changelogBtn" class="btn btn-secondary">
+                    📋 <span data-i18n="menu.changelog">Changelog</span>
+                  </button>
+                  <button id="settings-setupWizardBtn" class="btn btn-secondary">
+                    ✨ <span data-i18n="menu.runSetupWizard">Rodar Wizard</span>
+                  </button>
+                  <button id="settings-aboutBtn" class="btn btn-secondary">
+                    ℹ️ <span data-i18n="menu.about">Sobre o Solari</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
       <!-- Plugins Tab -->
       <div id="plugins-tab" class="tab-content">
         <div class="plugins-tab-wrapper">
@@ -111,10 +279,30 @@
 
           <!-- Section Header -->
           <div class="plugins-store-header">
-            <div class="plugins-store-title">
-              <h2>🔌 <span data-i18n="pluginStore.title">Plugins Oficiais</span></h2>
-              <p class="hint" data-i18n="pluginStore.subtitle">Plugins gratuitos para estender o Solari com
-                BetterDiscord</p>
+            <div class="plugins-store-title-wrapper">
+              <div class="plugins-store-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#plugGradient)"
+                  stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <defs>
+                    <linearGradient id="plugGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#818cf8" />
+                      <stop offset="100%" stop-color="#38bdf8" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                  </path>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+              </div>
+              <div class="plugins-store-title">
+                <h2><span data-i18n="pluginStore.title">Plugins Oficiais</span></h2>
+                <div class="plugins-subtitle-pill">
+                  <p class="hint" data-i18n="pluginStore.subtitle">Plugins gratuitos para estender o Solari com
+                    BetterDiscord</p>
+                </div>
+              </div>
             </div>
             <div class="plugins-header-actions">
               <!-- BD Status Indicator -->
@@ -383,16 +571,30 @@
               </select>
             </div>
 
-            <div class="form-group">
-              <label for="details" data-i18n="presence.details">Detalhes (Linha 1)</label>
-              <input type="text" id="details" placeholder="O que você está fazendo?"
-                data-i18n-placeholder="presence.detailsPlaceholder" />
+            <div class="form-group" style="display: flex; gap: 10px; align-items: stretch;">
+              <div style="flex: 1;">
+                <label for="details" data-i18n="presence.details">Detalhes (Linha 1)</label>
+                <input type="text" id="details" placeholder="O que você está fazendo?"
+                  data-i18n-placeholder="presence.detailsPlaceholder" />
+              </div>
+              <div style="flex: 1;">
+                <label for="detailsUrl" data-i18n="presence.detailsUrl">URL dos Detalhes (Opcional)</label>
+                <input type="text" id="detailsUrl" placeholder="Link ao clicar na Linha 1 (ex: https://...)"
+                  data-i18n-placeholder="presence.detailsUrlPlaceholder" />
+              </div>
             </div>
 
-            <div class="form-group">
-              <label for="state" data-i18n="presence.state">Estado (Linha 2)</label>
-              <input type="text" id="state" placeholder="Status atual"
-                data-i18n-placeholder="presence.statePlaceholder" />
+            <div class="form-group" style="display: flex; gap: 10px; align-items: stretch;">
+              <div style="flex: 1;">
+                <label for="state" data-i18n="presence.state">Estado (Linha 2)</label>
+                <input type="text" id="state" placeholder="Status atual"
+                  data-i18n-placeholder="presence.statePlaceholder" />
+              </div>
+              <div style="flex: 1;">
+                <label for="stateUrl" data-i18n="presence.stateUrl">URL do Estado (Opcional)</label>
+                <input type="text" id="stateUrl" placeholder="Link ao clicar na Linha 2 (ex: https://...)"
+                  data-i18n-placeholder="presence.stateUrlPlaceholder" />
+              </div>
             </div>
 
             <div class="form-group">
@@ -634,135 +836,125 @@
               <p id="testResult" style="margin-top: 5px; font-size: 0.8em; color: #aaa;"></p>
             </section>
 
-            <!-- Plugin Manager -->
-
-            <section class="plugin-manager">
-              <div
-                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: none; padding-bottom: 0;">
-                <h2 style="margin: 0 0 0 0; border: none; padding-bottom: 14px;">🔌 Plugins</h2>
-                <button id="toggleTrashBtn" class="btn-icon" title="Ver Lixeira">🗑️</button>
-              </div>
-
-              <!-- Active Plugins -->
-              <ul id="pluginList" class="plugin-list">
-                <li class="plugin-item placeholder">Nenhum plugin conectado...</li>
-              </ul>
-
-              <!-- Trash List (Hidden by default) -->
-              <div id="trashContainer" style="display: none; margin-top: 10px;">
-                <h3 style="font-size: 0.9rem; color: #ef4444; margin-bottom: 5px;">Lixeira (Bloqueados)</h3>
-                <ul id="trashList" class="plugin-list">
-                  <li class="plugin-item placeholder">Lixeira vazia...</li>
-                </ul>
-              </div>
-            </section>
+            <!-- Plugin Manager Removed from here -->
           </div>
         </div>
 
-        <!-- Plugin Configuration Area (Dynamic) -->
-        <div id="pluginConfigArea" class="plugin-config-area" style="margin-top: 20px; display: none;">
-          <!-- SmartAFK Config -->
-          <div id="configSmartAFKDetector" class="plugin-config-panel" style="display: none;">
-            <h2>⚙️ Smart AFK Detector</h2>
-            <div class="config-grid">
-              <div class="form-group">
-                <div class="toggle-container" style="justify-content: flex-start;">
-                  <span class="toggle-label" style="margin-right: 12px;">Ativar Detector</span>
-                  <label class="switch">
-                    <input type="checkbox" id="afkToggle" checked>
-                    <span class="slider round"></span>
-                  </label>
-                </div>
-              </div>
+      </div> <!-- end main-grid -->
+  </div> <!-- end rpc-tab -->
 
-              <div class="form-group" style="margin-top: 20px;">
-                <label style="margin-bottom: 12px; display: block; font-size: 0.95em;">📊 NÍVEIS DE AFK</label>
-                <p class="hint" style="margin-bottom: 14px; font-size: 0.85em; color: rgba(255,255,255,0.5);">
-                  Configure
-                  múltiplos níveis com tempos e
-                  status diferentes:</p>
-                <div id="afkTiersContainer">
-                  <!-- Tiers will be rendered dynamically -->
-                </div>
-                <div style="margin-top: 14px; display: flex; gap: 12px;">
-                  <button id="addAfkTierBtn" class="btn"
-                    style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); flex: 1;">+ Adicionar
-                    Nível</button>
-                  <button id="saveAfkBtn" class="btn btn-primary" style="flex: 1;">💾 Salvar Configurações</button>
-                </div>
-                <p id="afkSaveStatus" style="color: #4ade80; margin-top: 10px; display: none; font-size: 0.9em;">✓
-                  Salvo
-                  e
-                  sincronizado!</p>
+  <!-- Plugin Config Modal -->
+  <div id="pluginConfigModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; font-size: 1.4em;">⚙️ Configuração do Plugin</h2>
+        <button id="closePluginConfigBtn" class="btn-icon" style="font-size: 1.2em;">✖</button>
+      </div>
 
+      <!-- Plugin Configuration Area (Dynamic) -->
+      <div id="pluginConfigArea" class="plugin-config-area" style="display: block;">
+        <!-- SmartAFK Config -->
+        <div id="configSmartAFKDetector" class="plugin-config-panel" style="display: none;">
+          <h2>⚙️ Smart AFK Detector</h2>
+          <div class="config-grid">
+            <div class="form-group">
+              <div class="toggle-container" style="justify-content: flex-start;">
+                <span class="toggle-label" style="margin-right: 12px;">Ativar Detector</span>
+                <label class="switch">
+                  <input type="checkbox" id="afkToggle" checked>
+                  <span class="slider round"></span>
+                </label>
               </div>
             </div>
 
-            <!-- AFK Disabled Presets -->
-            <div class="form-group" style="margin-top: 22px;">
-              <label style="margin-bottom: 12px; display: block; font-size: 0.95em;">🎮 PRESETS QUE DESATIVAM
-                AFK</label>
-              <p class="hint" style="margin-bottom: 12px; font-size: 0.85em; color: rgba(255,255,255,0.5);">Quando um
-                destes presets estiver ativo, você
-                não ficará AFK:</p>
-              <div id="afkDisabledPresetsContainer" class="afk-presets-container">
-                <!-- Presets will be rendered dynamically -->
-                <p style="color: rgba(255,255,255,0.4); font-size: 0.85em;">Nenhum preset selecionado</p>
+            <div class="form-group" style="margin-top: 20px;">
+              <label style="margin-bottom: 12px; display: block; font-size: 0.95em;">📊 NÍVEIS DE AFK</label>
+              <p class="hint" style="margin-bottom: 14px; font-size: 0.85em; color: rgba(255,255,255,0.5);">
+                Configure
+                múltiplos níveis com tempos e
+                status diferentes:</p>
+              <div id="afkTiersContainer">
+                <!-- Tiers will be rendered dynamically -->
               </div>
-              <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center;">
-                <select id="addPresetToAfkDisable" class="form-group" style="flex: 1; margin: 0;">
-                  <option value="">Selecione um preset...</option>
-                </select>
-                <button id="addPresetToDisableBtn" class="btn"
-                  style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); flex: none; padding: 12px 18px;">+
-                  Adicionar</button>
+              <div style="margin-top: 14px; display: flex; gap: 12px;">
+                <button id="addAfkTierBtn" class="btn"
+                  style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); flex: 1;">+ Adicionar
+                  Nível</button>
+                <button id="saveAfkBtn" class="btn btn-primary" style="flex: 1;">💾 Salvar Configurações</button>
               </div>
-            </div>
-            <div class="afk-logs-container" style="margin-top: 20px;">
-              <h3>📜 Logs de Atividade</h3>
-              <ul id="afkLogs">
-                <li>Aguardando logs...</li>
-              </ul>
+              <p id="afkSaveStatus" style="color: #4ade80; margin-top: 10px; display: none; font-size: 0.9em;">✓
+                Salvo
+                e
+                sincronizado!</p>
+
             </div>
           </div>
 
-          <!-- SpotifySync Config (Modern) -->
-          <div id="configSpotifySync" class="plugin-config-panel" style="display: none;">
-            <!-- Spotify Header with gradient -->
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
-              <div
-                style="width: 48px; height: 48px; background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(29, 185, 84, 0.4);">
-                <span style="font-size: 1.5em;">🎵</span>
-              </div>
-              <div>
-                <h2
-                  style="margin: 0; padding: 0; font-size: 1.3em; background: linear-gradient(90deg, #1DB954, #1ed760); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
-                  SpotifySync</h2>
-                <p style="margin: 2px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.5);"
-                  data-i18n="spotify.controlsVisibility">Visibilidade dos Controles</p>
-              </div>
+          <!-- AFK Disabled Presets -->
+          <div class="form-group" style="margin-top: 22px;">
+            <label style="margin-bottom: 12px; display: block; font-size: 0.95em;">🎮 PRESETS QUE DESATIVAM
+              AFK</label>
+            <p class="hint" style="margin-bottom: 12px; font-size: 0.85em; color: rgba(255,255,255,0.5);">Quando um
+              destes presets estiver ativo, você
+              não ficará AFK:</p>
+            <div id="afkDisabledPresetsContainer" class="afk-presets-container">
+              <!-- Presets will be rendered dynamically -->
+              <p style="color: rgba(255,255,255,0.4); font-size: 0.85em;">Nenhum preset selecionado</p>
             </div>
-
-            <!-- Dynamic Settings Container -->
-            <div id="spotify-settings-container"></div>
+            <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center;">
+              <select id="addPresetToAfkDisable" class="form-group" style="flex: 1; margin: 0;">
+                <option value="">Selecione um preset...</option>
+              </select>
+              <button id="addPresetToDisableBtn" class="btn"
+                style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); flex: none; padding: 12px 18px;">+
+                Adicionar</button>
+            </div>
+          </div>
+          <div class="afk-logs-container" style="margin-top: 20px;">
+            <h3>📜 Logs de Atividade</h3>
+            <ul id="afkLogs">
+              <li>Aguardando logs...</li>
+            </ul>
           </div>
         </div>
 
-        <!-- Solari Plugin Config (User Info / Toast) -->
-        <div id="configSolari" class="plugin-config-panel" style="display: none;">
-          <h2>⚙️ Solari Plugin</h2>
-          <div class="info-card">
-            <p><strong>Usuário Discord:</strong> <span id="discordUser">Aguardando conexão...</span></p>
+        <!-- SpotifySync Config (Modern) -->
+        <div id="configSpotifySync" class="plugin-config-panel" style="display: none;">
+          <!-- Spotify Header with gradient -->
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+            <div
+              style="width: 48px; height: 48px; background: linear-gradient(135deg, #1DB954 0%, #1ed760 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(29, 185, 84, 0.4);">
+              <span style="font-size: 1.5em;">🎵</span>
+            </div>
+            <div>
+              <h2
+                style="margin: 0; padding: 0; font-size: 1.3em; background: linear-gradient(90deg, #1DB954, #1ed760); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                SpotifySync</h2>
+              <p style="margin: 2px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.5);"
+                data-i18n="spotify.controlsVisibility">Visibilidade dos Controles</p>
+            </div>
           </div>
-          <div class="form-group" style="margin-top: 15px;">
-            <label for="toastMessage">Enviar Notificação para Discord</label>
-            <input type="text" id="toastMessage" placeholder="Mensagem para o Discord" />
-          </div>
-          <button id="sendToastBtn" class="btn btn-small">Enviar Notificação</button>
+
+          <!-- Dynamic Settings Container -->
+          <div id="spotify-settings-container"></div>
         </div>
       </div>
-  </div> <!-- end main-grid -->
-  </div> <!-- end rpc-tab -->
+
+      <!-- Solari Plugin Config (User Info / Toast) -->
+      <div id="configSolari" class="plugin-config-panel" style="display: none;">
+        <h2>⚙️ Solari Plugin</h2>
+        <div class="info-card">
+          <p><strong>Usuário Discord:</strong> <span id="discordUser">Aguardando conexão...</span></p>
+        </div>
+        <div class="form-group" style="margin-top: 15px;">
+          <label for="toastMessage">Enviar Notificação para Discord</label>
+          <input type="text" id="toastMessage" placeholder="Mensagem para o Discord" />
+        </div>
+        <button id="sendToastBtn" class="btn btn-small">Enviar Notificação</button>
+      </div>
+
+    </div>
+  </div>
 
 
   </main>
@@ -786,14 +978,15 @@
   <!-- About Modal -->
   <div id="aboutModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px; text-align: center;">
-      <h2 style="margin-bottom: 5px;">Solari RPC</h2>
-      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.5.0</p>
-
-      <p style="margin-bottom: 15px;">
-        <span data-i18n="about.description">Premium Discord Rich Presence Manager</span><br>
-        <span data-i18n="about.developedBy">Developed by</span> <strong>TheDroid</strong><br>
-        <span style="font-size: 0.85em; opacity: 0.7;">Licensed under GPL v2.0</span>
-      </p>
+      <h2 style="font-size: 2em; margin-bottom: 5px; color: var(--primary);">Solari RPC</h2>
+      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.6.0</p>
+      <div style="text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
+        <p style="margin-bottom: 15px;">
+          <span data-i18n="about.description">Premium Discord Rich Presence Manager</span><br>
+          <span data-i18n="about.developedBy">Developed by</span> <strong>TheDroid</strong><br>
+          <span style="font-size: 0.85em; opacity: 0.7;">Licensed under GPL v2.0</span>
+        </p>
+      </div>
 
       <div class="modal-buttons" style="flex-direction: column; gap: 10px;">
         <button class="btn btn-secondary"

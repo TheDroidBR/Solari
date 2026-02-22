@@ -5,6 +5,7 @@
         "starting": "Starte...",
         "connected": "Verbunden",
         "disconnected": "Getrennt",
+        "connecting": "Verbinden...",
         "themeDefault": "Standard-Design",
         "themeDark": "Dunkles Design",
         "themeLight": "Helles Design"
@@ -54,7 +55,24 @@
     "tabs": {
         "rpc": "Rich Presence",
         "soundboard": "SoundBoard",
-        "plugins": "Plugins"
+        "plugins": "Plugins",
+        "settings": "Einstellungen"
+    },
+    "settings": {
+        "generalTitle": "Allgemein",
+        "generalDesc": "App-Start und Benutzeroberfläche.",
+        "rpcTitle": "Discord RPC",
+        "rpcDesc": "Globale Einstellungen für die Discord-Integration.",
+        "updatesTitle": "Updates & Info",
+        "updatesDesc": "Verwalten Sie automatische Updates.",
+        "labelStart": "Start",
+        "labelHidden": "Versteckt",
+        "labelTray": "Tray",
+        "labelVisual": "Visuell",
+        "labelApp": "App",
+        "labelPlugins": "Plugins",
+        "showEcoMode": "Eco-Modus anzeigen",
+        "showEcoModeDesc": "Zeigt die Eco-Modus-Leiste oben in Solari an."
     },
     "pluginStore": {
         "title": "Offizielle Plugins",
@@ -136,8 +154,12 @@
         "competing": "Wettkampf in",
         "details": "Details (Zeile 1)",
         "detailsPlaceholder": "Was machst du gerade?",
+        "detailsUrl": "Details URL (Optional)",
+        "detailsUrlPlaceholder": "Link beim Klicken auf Zeile 1",
         "state": "Status (Zeile 2)",
         "statePlaceholder": "Aktueller Status",
+        "stateUrl": "Status URL (Optional)",
+        "stateUrlPlaceholder": "Link beim Klicken auf Zeile 2",
         "largeImage": "Großes Bild (URL)",
         "largeImageText": "Text großes Bild",
         "smallImage": "Kleines Bild (URL)",

@@ -5,6 +5,7 @@
         "starting": "Iniciando...",
         "connected": "Conectado",
         "disconnected": "Desconectado",
+        "connecting": "Conectando...",
         "themeDefault": "Tema Padrão",
         "themeDark": "Tema Escuro",
         "themeLight": "Tema Claro"
@@ -54,7 +55,24 @@
     "tabs": {
         "rpc": "Rich Presence",
         "soundboard": "SoundBoard",
-        "plugins": "Plugins"
+        "plugins": "Plugins",
+        "settings": "Configurações"
+    },
+    "settings": {
+        "generalTitle": "Geral",
+        "generalDesc": "Configurações de inicialização e interface do aplicativo.",
+        "rpcTitle": "Discord RPC",
+        "rpcDesc": "Configurações globais de integração com o Discord.",
+        "updatesTitle": "Atualizações e Sobre",
+        "updatesDesc": "Gerencie as atualizações automáticas e veja os Logs de versão.",
+        "labelStart": "Início",
+        "labelHidden": "Oculto",
+        "labelTray": "Bandeja",
+        "labelVisual": "Visual",
+        "labelApp": "Aplicativo",
+        "labelPlugins": "Extensões",
+        "showEcoMode": "Mostrar Modo Eco",
+        "showEcoModeDesc": "Exibe a barra do Modo Eco no topo do Solari."
     },
     "pluginStore": {
         "title": "Plugins Oficiais",
@@ -121,6 +139,10 @@
         "cancel": "Cancelar",
         "confirm": "Confirmar"
     },
+    "prompt": {
+        "clientIdTitle": "Client ID Global",
+        "clientIdDesc": "Insira o Client ID do seu aplicativo personalizado:"
+    },
     "connection": {
         "testConnection": "Testar Conexão",
         "success": "Sucesso! Servidor rodando.",
@@ -136,8 +158,12 @@
         "competing": "Competindo",
         "details": "Detalhes (Linha 1)",
         "detailsPlaceholder": "O que você está fazendo?",
+        "detailsUrl": "URL dos Detalhes (Opcional)",
+        "detailsUrlPlaceholder": "Link ao clicar na Linha 1 (ex: https://...)",
         "state": "Estado (Linha 2)",
         "statePlaceholder": "Status atual",
+        "stateUrl": "URL do Estado (Opcional)",
+        "stateUrlPlaceholder": "Link ao clicar na Linha 2 (ex: https://...)",
         "largeImage": "Imagem Grande (URL)",
         "largeImageText": "Texto da Imagem Grande",
         "smallImage": "Imagem Pequena (URL)",

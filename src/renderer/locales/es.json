@@ -5,6 +5,7 @@
         "starting": "Iniciando...",
         "connected": "Conectado",
         "disconnected": "Desconectado",
+        "connecting": "Conectando...",
         "themeDefault": "Tema Predeterminado",
         "themeDark": "Tema Oscuro",
         "themeLight": "Tema Claro"
@@ -54,7 +55,24 @@
     "tabs": {
         "rpc": "Rich Presence",
         "soundboard": "SoundBoard",
-        "plugins": "Plugins"
+        "plugins": "Plugins",
+        "settings": "Configuración"
+    },
+    "settings": {
+        "generalTitle": "General",
+        "generalDesc": "Configuración de inicio y de interfaz.",
+        "rpcTitle": "Discord RPC",
+        "rpcDesc": "Ajustes globales de integración con Discord.",
+        "updatesTitle": "Actualizaciones",
+        "updatesDesc": "Administra actualizaciones automáticas.",
+        "labelStart": "Inicio",
+        "labelHidden": "Oculto",
+        "labelTray": "Bandeja",
+        "labelVisual": "Visual",
+        "labelApp": "App",
+        "labelPlugins": "Plugins",
+        "showEcoMode": "Mostrar Modo Eco",
+        "showEcoModeDesc": "Muestra la barra del Modo Eco en la parte superior."
     },
     "pluginStore": {
         "title": "Plugins Oficiales",
@@ -107,8 +125,12 @@
         "competing": "Compitiendo",
         "details": "Detalles (Línea 1)",
         "detailsPlaceholder": "¿Qué estás haciendo?",
+        "detailsUrl": "URL de Detalles (Opcional)",
+        "detailsUrlPlaceholder": "Enlace al hacer clic en (Línea 1)",
         "state": "Estado (Línea 2)",
         "statePlaceholder": "Estado actual",
+        "stateUrl": "URL de Estado (Opcional)",
+        "stateUrlPlaceholder": "Enlace al hacer clic en (Línea 2)",
         "largeImage": "Imagen Grande (URL)",
         "largeImageText": "Texto de Imagen Grande",
         "smallImage": "Imagen Pequeña (URL)",

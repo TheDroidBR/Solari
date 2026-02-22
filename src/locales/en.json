@@ -16,7 +16,16 @@
   "tabs": {
     "rpc": "Rich Presence",
     "plugins": "Plugins",
-    "soundboard": "SoundBoard"
+    "soundboard": "SoundBoard",
+    "settings": "Settings"
+  },
+  "settings": {
+    "generalTitle": "General",
+    "generalDesc": "Application startup and interface configuration.",
+    "rpcTitle": "Discord RPC",
+    "rpcDesc": "Global settings for Discord integration.",
+    "updatesTitle": "Updates & Info",
+    "updatesDesc": "Manage automatic updates and view changelogs."
   },
   "pluginStore": {
     "title": "Official Plugins",
@@ -42,7 +51,13 @@
     "view": "View",
     "help": "Help",
     "startWithWindows": "Start with Windows",
-    "minimizeToTray": "Minimize to Tray",
+    "startMinimized": "Start Minimized (Tray)",
+    "minimizeToTray": "Minimize to Tray on Close",
+    "autoCheckAppUpdates": "Check for Solari updates on start",
+    "autoCheckPluginUpdates": "Check for Plugin updates on start",
+    "checkForUpdates": "Check for Updates Now",
+    "changelog": "View Changelog",
+    "runSetupWizard": "Run Setup Wizard",
     "exit": "Exit",
     "language": "Language",
     "english": "English",
@@ -69,8 +84,12 @@
     "competing": "Competing in",
     "details": "DETAILS (LINE 1)",
     "detailsPlaceholder": "What are you doing?",
+    "detailsUrl": "DETAILS URL (OPTIONAL)",
+    "detailsUrlPlaceholder": "Link when clicking Line 1 (ex: https://...)",
     "state": "STATE (LINE 2)",
     "statePlaceholder": "Additional info",
+    "stateUrl": "STATE URL (OPTIONAL)",
+    "stateUrlPlaceholder": "Link when clicking Line 2 (ex: https://...)",
     "largeImage": "LARGE IMAGE (URL)",
     "largeImageHint": "Upload to Imgur and paste the link here",
     "largeImageWarning": "If the image doesn't show, restart Solari and try again! If the link ends with '?h=extension', it means the URL wasn't converted. Change the URL manually!",

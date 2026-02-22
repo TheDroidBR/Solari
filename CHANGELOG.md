@@ -1,3 +1,34 @@
+## [1.6.0] - 2026-02-20
+### 🌐 The Clickable Links & Plugin Overhaul
+
+Solari now supports Clickable Rich Presence URLs and ships a much cleaner interface for managing Plugins!
+
+---
+
+### ✨ Clickable Rich Presence
+- **Clickable Details & State**: You can now attach custom hyperlinks directly to your Discord Activity. When users click on your Line 1 (Details) or Line 2 (State) in your Discord profile, they will be redirected to your links!
+- **Core Integration**: Clickable links are natively supported by the Solari Auto-Detection engine, applying your preset URLs instantly when you switch games or browse websites.
+- **Grid UI Layout**: Side-by-side input groupings keep the URL configurations naturally tied to their text components.
+
+### 🎨 Clean UI & Plugin Managers
+- **Focused Dashboard**: Extracted plugin-specific visuals (like SpotifySync and SmartAFK settings) away from the general Rich Presence page, drastically reducing clutter on the main dashboard.
+- **Dynamic Plugin Modals**: Added dedicated "Config" buttons to cards inside the Plugins tab. Plugin preferences now open in a beautiful, isolated glassmorphic pop-up directly where you manage them.
+
+### 🔧 System Settings & UI Polish
+- **Instant Splash Screen**: The Solari Splash Screen now initializes *synchronously* the moment the application process starts. This eliminates the previous ~1.5s delay caused by the system reading initial data configuration files, making the app feel instantly responsive.
+- **Dedicated Settings Tab**: The main configuration menu has been extracted from the top navigation bar into its own specialized "Configurações" (Settings) tab.
+- **Eco Mode Toggle**: Added a new visual setting (General > Mostrar Modo Eco) to hide the Eco Mode switch from the top bar entirely, keeping the interface pristine for users who don't need it.
+- **Smart "Start Minimized"**: The "Start Minimized" toggle is now dynamically linked to "Start with Windows". It will gray itself out and disable if auto-start is turned off.
+- **Intuitive Modals**: Simple prompts (like the Client ID configuration window) can now be instantly canceled by simply clicking anywhere outside the prompt box on the dark background.
+
+### 🐛 Tracker & Backend Fixes
+- **Installer Forward-Compatibility**: Rewrote the core `updater.js` self-extraction batch script to dynamically test if an incoming update payload contains the phrase `Setup` (e.g., `Solari_Setup.exe`). If detected, the 1.6.0 updater will automatically suppress the standard portable copy-paste behavior and execute a silent NSIS installation (`/S`) instead. This paves the way for a seamless user migration from Portable to an Installer format in version 1.7.0.
+- **Discord Preview Startup**: Fixed a bug where the Rich Presence preview image wouldn't render immediately on application start unless an Imgur URL was being resolved, requiring a manual preset change to load visually.
+- **Global Identity Sync**: Eliminated a race condition that caused the Discord Preview header (e.g., "Jogando XYZ") to appear blank on startup because the Global Client ID was fetched before the App Profiles had fully loaded from memory.
+- **InfinityFree API Bypass**: Engineered a brute-force JSON scraper inside `apiFetch()` for `admin.html`. This extracts raw API outputs and completely bypasses Cloudflare/InfinityFree's tracking scripts (`<script type="...-text/javascript">`), which were corrupting the JSON parsing engine and silently breaking the Admin panel.
+
+---
+
 ## [1.5.0] - 2026-02-18
 ### 🚀 The Plugin & Splash Update
 
@@ -7,7 +38,6 @@ Solari now features a **Real-Time Plugin Manager**, a sleek **Splash Screen**, a
 
 ### 🔌 The Ultimate Plugins Experience
 The new **Plugins Tab** is your command center for extending Solari.
-- **✨ Real-Time Magic**: The UI updates *instantly* when you install, delete, or update a plugin file manually. No refresh needed!
 - **⚡ Background Auto-Checks**: Solari quietly checks for plugin updates every 5 minutes in the background. If an update is found, the button changes to "Update" automatically.
 - **📦 Smart Versioning**: We now use semantic versioning (comparing `v1.0.0` vs `v1.1.0`) to ensure you only get notified for *real* updates, ignoring simple formatting changes.
 - **🛠️ BetterDiscord Integration**: Automatically checks if BetterDiscord is installed and working correctly. If an update breaks it, Solari lets you know immediately.

@@ -14,7 +14,9 @@ const { initI18n, t, applyTranslations, loadTranslations, getCurrentLang } = req
 // --- UI Elements ---
 const activityTypeSelect = document.getElementById('activityType');
 const detailsInput = document.getElementById('details');
+const detailsUrlInput = document.getElementById('detailsUrl');
 const stateInput = document.getElementById('state');
+const stateUrlInput = document.getElementById('stateUrl');
 const largeImageInput = document.getElementById('largeImage');
 const largeImageTextInput = document.getElementById('largeImageText');
 const smallImageInput = document.getElementById('smallImage');
@@ -46,12 +48,7 @@ const presetList = document.getElementById('presetList');
 const testConnectionBtn = document.getElementById('testConnectionBtn');
 const testResult = document.getElementById('testResult');
 
-// Plugin Manager
-const pluginListEl = document.getElementById('pluginList');
-const pluginConfigArea = document.getElementById('pluginConfigArea');
-const toggleTrashBtn = document.getElementById('toggleTrashBtn');
-const trashContainer = document.getElementById('trashContainer');
-const trashListEl = document.getElementById('trashList');
+// Plugin Manager UI (Removed to Modal)
 
 // Tab System
 const tabBtns = document.querySelectorAll('.tab-btn');
@@ -142,7 +139,23 @@ let selectedPlugin = null;
 let showTrash = false;
 
 // Custom CSS Elements
+let identities = [];
 const customCssBtn = document.getElementById('customCssBtn');
+
+// --- Settings Tab Elements ---
+const settingsStartWithWindows = document.getElementById('settings-startWithWindows');
+const settingsStartMinimized = document.getElementById('settings-startMinimized');
+const settingsMinimizeToTray = document.getElementById('settings-minimizeToTray');
+const settingsShowEcoMode = document.getElementById('settings-showEcoMode');
+const settingsLanguage = document.getElementById('settings-language');
+const settingsClientIdBtn = document.getElementById('settings-clientIdBtn');
+const settingsAutoCheckApp = document.getElementById('settings-autoCheckApp');
+const settingsAutoCheckPlugins = document.getElementById('settings-autoCheckPlugins');
+const settingsCheckUpdatesBtn = document.getElementById('settings-checkUpdatesBtn');
+const settingsChangelogBtn = document.getElementById('settings-changelogBtn');
+const settingsSetupWizardBtn = document.getElementById('settings-setupWizardBtn');
+const settingsAboutBtn = document.getElementById('settings-aboutBtn');
+
 const customCssModal = document.getElementById('customCssModal');
 const customCssInput = document.getElementById('customCssInput');
 const saveCustomCssBtn = document.getElementById('saveCustomCssBtn');
@@ -302,7 +315,7 @@ function applyCss(css) {
 
 // Open modal
 if (customCssBtn) {
-    customCssBtn.addEventListener('click', () => {
+    customCssBtn?.addEventListener('click', () => {
         customCssModal.classList.add('active');
         const currentCss = localStorage.getItem('solari_custom_css') || '';
         const activePreset = localStorage.getItem('solari_active_preset') || 'none';
@@ -315,14 +328,14 @@ if (customCssBtn) {
 
 // Close modal
 if (closeCustomCssBtn) {
-    closeCustomCssBtn.addEventListener('click', () => {
+    closeCustomCssBtn?.addEventListener('click', () => {
         customCssModal.classList.remove('active');
     });
 }
 
 // Preset selection change
 if (cssPresetSelect) {
-    cssPresetSelect.addEventListener('change', () => {
+    cssPresetSelect?.addEventListener('change', () => {
         const value = cssPresetSelect.value;
         updateDeleteButton();
 
@@ -342,7 +355,7 @@ if (cssPresetSelect) {
 
 // Save & Apply
 if (saveCustomCssBtn) {
-    saveCustomCssBtn.addEventListener('click', () => {
+    saveCustomCssBtn?.addEventListener('click', () => {
         const css = customCssInput.value;
         const preset = cssPresetSelect ? cssPresetSelect.value : 'none';
         localStorage.setItem('solari_custom_css', css);
@@ -355,7 +368,7 @@ if (saveCustomCssBtn) {
 
 // Save as new preset - Open name modal
 if (saveAsPresetBtn && presetNameModal) {
-    saveAsPresetBtn.addEventListener('click', () => {
+    saveAsPresetBtn?.addEventListener('click', () => {
         // Open the preset name modal
         presetNameModal.classList.add('active');
         if (cssPresetNameInput) {
@@ -367,14 +380,14 @@ if (saveAsPresetBtn && presetNameModal) {
 
 // Cancel preset name modal
 if (cancelPresetNameBtn && presetNameModal) {
-    cancelPresetNameBtn.addEventListener('click', () => {
+    cancelPresetNameBtn?.addEventListener('click', () => {
         presetNameModal.classList.remove('active');
     });
 }
 
 // Confirm save preset
 if (confirmPresetNameBtn && presetNameModal) {
-    confirmPresetNameBtn.addEventListener('click', () => {
+    confirmPresetNameBtn?.addEventListener('click', () => {
         const name = cssPresetNameInput ? cssPresetNameInput.value : '';
         if (!name || !name.trim()) {
             showToast('⚠️', t('customCss.nameRequired') || 'Please enter a name', 'warning');
@@ -397,7 +410,7 @@ if (confirmPresetNameBtn && presetNameModal) {
 
     // Allow Enter key to confirm
     if (cssPresetNameInput) {
-        cssPresetNameInput.addEventListener('keypress', (e) => {
+        cssPresetNameInput?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 confirmPresetNameBtn.click();
             }
@@ -407,7 +420,7 @@ if (confirmPresetNameBtn && presetNameModal) {
 
 // Delete preset (no confirm dialog - user already clicked delete button intentionally)
 if (deletePresetBtn) {
-    deletePresetBtn.addEventListener('click', () => {
+    deletePresetBtn?.addEventListener('click', () => {
         const value = cssPresetSelect.value;
         if (!value.startsWith('user:')) return;
 
@@ -427,7 +440,7 @@ if (deletePresetBtn) {
 
 // Reset CSS
 if (resetCssBtn) {
-    resetCssBtn.addEventListener('click', () => {
+    resetCssBtn?.addEventListener('click', () => {
         customCssInput.value = '';
         if (cssPresetSelect) cssPresetSelect.value = 'none';
         updateDeleteButton();
@@ -442,7 +455,7 @@ if (resetCssBtn) {
 
 // Eco Mode Toggle
 if (ecoModeToggle) {
-    ecoModeToggle.addEventListener('change', (e) => {
+    ecoModeToggle?.addEventListener('change', (e) => {
         const isEco = e.target.checked;
         document.body.classList.toggle('eco-mode', isEco);
         ipcRenderer.send('save-eco-mode', isEco);
@@ -472,12 +485,230 @@ setInterval(async () => {
     }
 }, 5000);
 
+// Global appSettings object to store state locally
+let appSettings = {};
+
+// === Settings Tab Event Listeners ===
+function updateStartMinimizedUI() {
+    if (!settingsStartWithWindows || !settingsStartMinimized) return;
+    const isWindowsOn = settingsStartWithWindows.checked;
+    const row = settingsStartMinimized.closest('.settings-row');
+
+    if (isWindowsOn) {
+        settingsStartMinimized.disabled = false;
+        if (row) row.style.opacity = '1';
+        if (row) row.style.pointerEvents = 'auto';
+    } else {
+        settingsStartMinimized.checked = false;
+        settingsStartMinimized.disabled = true;
+        if (row) row.style.opacity = '0.5';
+        if (row) row.style.pointerEvents = 'none';
+
+        if (appSettings.startMinimized) {
+            appSettings.startMinimized = false;
+            ipcRenderer.send('save-app-settings', { startMinimized: false });
+        }
+    }
+}
+
+function updateEcoModeVisibility() {
+    if (ecoModeToggle) {
+        const container = ecoModeToggle.closest('.toggle-container');
+        if (container) {
+            container.style.display = appSettings.showEcoMode !== false ? 'flex' : 'none';
+        }
+    }
+}
+
+if (settingsStartWithWindows) {
+    settingsStartWithWindows.addEventListener('change', (e) => {
+        ipcRenderer.send('save-app-settings', { startWithWindows: e.target.checked });
+        appSettings.startWithWindows = e.target.checked;
+        updateStartMinimizedUI();
+    });
+}
+if (settingsStartMinimized) {
+    settingsStartMinimized.addEventListener('change', (e) => {
+        ipcRenderer.send('save-app-settings', { startMinimized: e.target.checked });
+        appSettings.startMinimized = e.target.checked;
+    });
+}
+if (settingsMinimizeToTray) {
+    settingsMinimizeToTray.addEventListener('change', (e) => {
+        ipcRenderer.send('save-app-settings', { closeToTray: e.target.checked });
+        appSettings.closeToTray = e.target.checked;
+    });
+}
+if (settingsShowEcoMode) {
+    settingsShowEcoMode.addEventListener('change', (e) => {
+        ipcRenderer.send('save-app-settings', { showEcoMode: e.target.checked });
+        appSettings.showEcoMode = e.target.checked;
+        updateEcoModeVisibility();
+    });
+}
+if (settingsLanguage) {
+    settingsLanguage.addEventListener('change', (e) => {
+        ipcRenderer.send('save-language', e.target.value);
+    });
+}
+function showPromptModal(title, message, defaultValue = '') {
+    return new Promise((resolve) => {
+        // Remove existing modal if any
+        let existing = document.getElementById('promptModal');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'promptModal';
+        overlay.className = 'modal active';
+        overlay.style.zIndex = '9999';
+
+        overlay.innerHTML = `
+            <div class="modal-content" style="max-width: 400px; text-align: center;">
+                <h2 style="margin-bottom: 10px; font-size: 1.25rem; background: var(--text-gradient, linear-gradient(135deg, #fff, #a1a1aa)); -webkit-background-clip: text; color: transparent;">${title}</h2>
+                <p style="margin-bottom: 20px; color: #a1a1aa; font-size: 0.95rem;">${message}</p>
+                <div style="position: relative; margin-bottom: 25px;">
+                    <input type="password" id="promptInput" value="${defaultValue}" class="preset-input" style="width: 100%; box-sizing: border-box; text-align: center; font-family: monospace; letter-spacing: 1px; padding-right: 40px;" placeholder="Ex: 123456789012345678">
+                    <button id="promptToggleVisibility" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #a1a1aa; cursor: pointer; padding: 5px; font-size: 1.1rem; display: flex; align-items: center; justify-content: center;" title="Show/Hide">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-eye">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button class="btn btn-secondary" id="promptCancelBtn" style="flex: 1;">${t('modal.cancel') || 'Cancelar'}</button>
+                    <button class="btn-primary" id="promptConfirmBtn" style="flex: 1;">${t('modal.confirm') || 'Confirmar'}</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        const input = document.getElementById('promptInput');
+        const toggleBtn = document.getElementById('promptToggleVisibility');
+        input.focus();
+
+        const close = (value) => {
+            overlay.remove();
+            resolve(value);
+        };
+
+        toggleBtn.addEventListener('click', () => {
+            if (input.type === 'password') {
+                input.type = 'text';
+                toggleBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-eye-off">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                    </svg>
+                `;
+            } else {
+                input.type = 'password';
+                toggleBtn.innerHTML = `
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-eye">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                `;
+            }
+        });
+
+        // Close when clicking outside the modal content
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                close(null);
+            }
+        });
+
+        document.getElementById('promptCancelBtn').addEventListener('click', () => close(null));
+        document.getElementById('promptConfirmBtn').addEventListener('click', () => close(input.value));
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') close(input.value);
+            if (e.key === 'Escape') close(null);
+        });
+    });
+}
+
+if (settingsClientIdBtn) {
+    settingsClientIdBtn.addEventListener('click', async () => {
+        const currentId = await ipcRenderer.invoke('get-client-id');
+        const result = await showPromptModal(t('prompt.clientIdTitle') || 'Client ID Global', t('prompt.clientIdDesc') || 'Insira o Client ID:', currentId || '');
+        if (result !== null) {
+            ipcRenderer.send('set-client-id', result.trim());
+            showToast('🔑', t('toasts.clientIdSaved') || 'Client ID salvo!', 'success');
+        }
+    });
+}
+if (settingsAutoCheckApp) {
+    settingsAutoCheckApp.addEventListener('change', (e) => {
+        ipcRenderer.send('save-app-settings', { autoCheckAppUpdates: e.target.checked });
+        appSettings.autoCheckAppUpdates = e.target.checked;
+    });
+}
+if (settingsAutoCheckPlugins) {
+    settingsAutoCheckPlugins.addEventListener('change', (e) => {
+        ipcRenderer.send('save-app-settings', { autoCheckPluginUpdates: e.target.checked });
+        appSettings.autoCheckPluginUpdates = e.target.checked;
+    });
+}
+if (settingsCheckUpdatesBtn) {
+    settingsCheckUpdatesBtn.addEventListener('click', () => {
+        ipcRenderer.send('trigger-update-check');
+    });
+}
+if (settingsChangelogBtn) {
+    settingsChangelogBtn.addEventListener('click', () => {
+        ipcRenderer.send('request-changelog'); // Must be mapped in backend
+    });
+}
+if (settingsSetupWizardBtn) {
+    settingsSetupWizardBtn.addEventListener('click', () => {
+        const wizard = document.getElementById('setupWizard');
+        if (wizard) wizard.style.display = 'flex';
+    });
+}
+if (settingsAboutBtn) {
+    settingsAboutBtn.addEventListener('click', () => {
+        const aboutModal = document.getElementById('aboutModal');
+        if (aboutModal) aboutModal.classList.add('active');
+    });
+}
+
 // --- Load Initial Data ---
+function syncSettingsUI(loadedSettings) {
+    if (!loadedSettings) return;
+
+    // Setup global state first so UI helper functions can read it correctly
+    appSettings = loadedSettings;
+
+    // Checkboxes
+    if (settingsStartWithWindows) settingsStartWithWindows.checked = appSettings.startWithWindows || false;
+    if (settingsStartMinimized) settingsStartMinimized.checked = appSettings.startMinimized || false;
+    if (settingsMinimizeToTray) settingsMinimizeToTray.checked = appSettings.closeToTray || false;
+    if (settingsShowEcoMode) settingsShowEcoMode.checked = appSettings.showEcoMode !== false;
+    if (settingsAutoCheckApp) settingsAutoCheckApp.checked = appSettings.autoCheckAppUpdates || false;
+    if (settingsAutoCheckPlugins) settingsAutoCheckPlugins.checked = appSettings.autoCheckPluginUpdates || false;
+
+    // Apply UI Dependencies
+    updateStartMinimizedUI();
+    updateEcoModeVisibility();
+
+    // Dropdown
+    if (settingsLanguage) {
+        settingsLanguage.value = appSettings.language || 'en';
+    }
+}
+
+ipcRenderer.on('app-data-synced', (event, appSettings) => {
+    syncSettingsUI(appSettings);
+});
+
 ipcRenderer.send('get-data');
 
 ipcRenderer.on('data-loaded', async (event, data) => {
     // Initialize i18n with saved language
-    const lang = data.language || 'en';
+    const lang = data.language || (data.appSettings && data.appSettings.language) || 'en';
+    syncSettingsUI(data.appSettings); // Feed the settings UI on first boot
+
     await initI18n(lang);
     console.log('[Solari] Initialized language:', lang);
 
@@ -526,9 +757,9 @@ ipcRenderer.on('data-loaded', async (event, data) => {
         if (data.lastFormState.activityType) activityTypeSelect.value = data.lastFormState.activityType;
         if (data.lastFormState.details) detailsInput.value = data.lastFormState.details;
         if (data.lastFormState.state) stateInput.value = data.lastFormState.state;
-        if (data.lastFormState.largeImage) largeImageInput.value = data.lastFormState.largeImage;
+        if (data.lastFormState.largeImageKey) largeImageInput.value = data.lastFormState.largeImageKey;
         if (data.lastFormState.largeImageText) largeImageTextInput.value = data.lastFormState.largeImageText;
-        if (data.lastFormState.smallImage) smallImageInput.value = data.lastFormState.smallImage;
+        if (data.lastFormState.smallImageKey) smallImageInput.value = data.lastFormState.smallImageKey;
         if (data.lastFormState.smallImageText) smallImageTextInput.value = data.lastFormState.smallImageText;
         if (data.lastFormState.button1Label) button1LabelInput.value = data.lastFormState.button1Label;
         if (data.lastFormState.button1Url) button1UrlInput.value = data.lastFormState.button1Url;
@@ -541,6 +772,44 @@ ipcRenderer.on('data-loaded', async (event, data) => {
 
         // NOTE: Form fields are restored for visual state only.
         // RPC is NOT auto-activated on startup - only auto-detect or manual "Update Status" button controls it.
+
+        // Resolve Imgur URLs for preview if needed
+        (async () => {
+            let img = data.lastFormState.largeImageKey;
+            let smImg = data.lastFormState.smallImageKey;
+            let needsUpdate = false;
+
+            if (img && img.includes('imgur.com') && !img.startsWith('https://i.imgur.com/')) {
+                try {
+                    const resolved = await ipcRenderer.invoke('resolve-imgur-url', img);
+                    if (resolved) {
+                        largeImageInput.value = resolved;
+                        needsUpdate = true;
+                    }
+                } catch (e) { console.error('[Solari] Startup img resolution failed:', e); }
+            }
+            if (smImg && smImg.includes('imgur.com') && !smImg.startsWith('https://i.imgur.com/')) {
+                try {
+                    const resolved = await ipcRenderer.invoke('resolve-imgur-url', smImg);
+                    if (resolved) {
+                        smallImageInput.value = resolved;
+                        needsUpdate = true;
+                    }
+                } catch (e) { console.error('[Solari] Startup small img resolution failed:', e); }
+            }
+            if (needsUpdate) {
+                // Resolution applied inside the variables, now trigger preview
+                updatePreview();
+            } else {
+                // If it wasn't an imgur link that needed resolution, the form values
+                // were populated instantly on line 757, but preview wasn't triggered yet.
+                // We must trigger it now so standard image keys/URLs show up on boot!
+                updatePreview();
+            }
+        })();
+    } else {
+        // If there was no restored state, trigger a preview with default empty fields
+        updatePreview();
     }
 
     // Load auto-detect toggle state
@@ -557,12 +826,12 @@ ipcRenderer.on('data-loaded', async (event, data) => {
 
     renderPresets(data.presets);
 
-    // Update preview app name after a short delay to ensure dropdown is populated
-    setTimeout(() => {
-        if (typeof updatePreviewAppNameFromDropdown === 'function') {
-            updatePreviewAppNameFromDropdown();
-        }
-    }, 500);
+    // Update preview app name
+    // Since identities and presets are fully loaded by now from renderPresets(),
+    // we can safely pull the true Discord App Name to show in the preview header.
+    if (typeof updatePreviewAppNameFromDropdown === 'function') {
+        updatePreviewAppNameFromDropdown();
+    }
     // Initialize Manual Mode Button state
     if (exitManualModeBtn) {
         if (data.manualMode) {
@@ -836,7 +1105,9 @@ function renderPresets(presets) {
                         name: newName,
                         type: parseInt(activityTypeSelect.value),
                         details: detailsInput.value,
+                        detailsUrl: detailsUrlInput?.value || '',
                         state: stateInput.value,
+                        stateUrl: stateUrlInput?.value || '',
                         largeImageKey: largeImageInput.value,
                         largeImageText: largeImageTextInput.value,
                         smallImageKey: smallImageInput.value,
@@ -887,126 +1158,57 @@ function updateSoundBoardUI() {
 }
 
 function renderPluginList() {
-    pluginListEl.innerHTML = '';
-
-    if (connectedPlugins.length === 0) {
-        pluginListEl.innerHTML = `<li class="plugin-item placeholder">${t('plugins.noPlugin')}</li>`;
-        pluginConfigArea.style.display = 'none';
-        return;
-    }
-
-    connectedPlugins.forEach(plugin => {
-        const li = document.createElement('li');
-        li.className = 'plugin-item';
-
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = plugin.name;
-        li.appendChild(nameSpan);
-
-        const controlsDiv = document.createElement('div');
-        controlsDiv.style.display = 'flex';
-        controlsDiv.style.gap = '5px';
-
-        // Config Button
-        const configBtn = document.createElement('button');
-        configBtn.textContent = '⚙️';
-        configBtn.title = t('plugins.configure');
-        configBtn.className = 'btn-config-mini';
-        configBtn.onclick = (e) => {
-            e.stopPropagation();
-            selectPlugin(plugin);
-        };
-
-        // Trash Button
-        const trashBtn = document.createElement('button');
-        trashBtn.textContent = '🗑️';
-        trashBtn.title = t('plugins.moveToTrash');
-        trashBtn.className = 'btn-config-mini btn-trash';
-        trashBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (confirm(t('dialogs.blockPlugin').replace('{name}', plugin.name))) {
-                ipcRenderer.send('block-plugin', plugin.name);
-            }
-        };
-
-        controlsDiv.appendChild(configBtn);
-        controlsDiv.appendChild(trashBtn);
-        li.appendChild(controlsDiv);
-
-        li.dataset.pluginId = plugin.id;
-        li.addEventListener('click', () => selectPlugin(plugin));
-
-        pluginListEl.appendChild(li);
-    });
+    // Deprecated: Rendered via PluginsTabManager now
+    return;
 }
 
 function renderTrashList() {
-    trashListEl.innerHTML = '';
-    if (blockedPlugins.length === 0) {
-        trashListEl.innerHTML = `<li class="plugin-item placeholder">${t('plugins.emptyTrash')}</li>`;
-        return;
-    }
-
-    blockedPlugins.forEach(pluginName => {
-        const li = document.createElement('li');
-        li.className = 'plugin-item trash-item';
-
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = pluginName;
-        li.appendChild(nameSpan);
-
-        const restoreBtn = document.createElement('button');
-        restoreBtn.textContent = '♻️ ' + t('plugins.restore');
-        restoreBtn.className = 'btn-config-mini';
-        restoreBtn.onclick = () => {
-            ipcRenderer.send('unblock-plugin', pluginName);
-        };
-
-        li.appendChild(restoreBtn);
-        trashListEl.appendChild(li);
-    });
+    // Deprecated: Trash list moved/removed
+    return;
 }
 
 function selectPlugin(plugin) {
-    // TOGGLE BEHAVIOR: If clicking on the same plugin, deselect it
-    if (selectedPlugin && selectedPlugin.id === plugin.id) {
-        selectedPlugin = null;
-        document.querySelectorAll('.plugin-item').forEach(el => el.classList.remove('active'));
-        pluginConfigArea.style.display = 'none';
-        return;
-    }
+    // Deprecated: UI moved to Plugin Config Modal
+}
 
-    selectedPlugin = plugin;
+function openPluginConfig(pluginName) {
+    const modal = document.getElementById('pluginConfigModal');
+    if (!modal) return;
 
-    // Highlight selection
-    document.querySelectorAll('.plugin-item').forEach(el => el.classList.remove('active'));
-    document.querySelector(`.plugin-item[data-plugin-id="${plugin.id}"]`)?.classList.add('active');
-
-    // Show config area container
-    pluginConfigArea.style.display = 'block';
-
-    // Hide all panels first
+    // Hide all panels
     document.querySelectorAll('.plugin-config-panel').forEach(p => p.style.display = 'none');
 
     // Determine Panel ID
-    let panelId = `config${plugin.name.replace(/\s/g, '')}`;
-
-    // Alias handling
-    if (plugin.name === 'SmartAFK') panelId = 'configSmartAFKDetector';
+    let panelId = `config${pluginName.replace(/\s/g, '')}`;
+    if (pluginName.toLowerCase() === 'smartafk') panelId = 'configSmartAFKDetector';
+    if (pluginName.toLowerCase() === 'spotifysync') panelId = 'configSpotifySync';
 
     const panel = document.getElementById(panelId);
-
     if (panel) {
         panel.style.display = 'block';
+        modal.classList.add('active'); // Show modal
     } else {
-        console.warn(`No config panel found for ${plugin.name} (ID: ${panelId})`);
+        console.warn(`No config panel found for ${pluginName} (ID: ${panelId})`);
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.getElementById('closePluginConfigBtn');
+    const modal = document.getElementById('pluginConfigModal');
+    if (closeBtn && modal) {
+        closeBtn?.addEventListener('click', () => modal.classList.remove('active'));
+        modal?.addEventListener('click', (e) => {
+            if (e.target === modal) modal.classList.remove('active');
+        });
+    }
+});
 
 function loadPreset(preset) {
     activityTypeSelect.value = preset.type || "0";
     detailsInput.value = preset.details || '';
+    if (detailsUrlInput) detailsUrlInput.value = preset.detailsUrl || '';
     stateInput.value = preset.state || '';
+    if (stateUrlInput) stateUrlInput.value = preset.stateUrl || '';
     largeImageInput.value = preset.largeImageKey || '';
     largeImageTextInput.value = preset.largeImageText || '';
     smallImageInput.value = preset.smallImageKey || '';
@@ -1021,6 +1223,33 @@ function loadPreset(preset) {
     if (presetClientIdSelect) {
         presetClientIdSelect.value = preset.clientId || '';
     }
+
+    // Resolve Imgur URLs for preview if needed
+    (async () => {
+        let img = preset.largeImageKey;
+        let smImg = preset.smallImageKey;
+        let needsUpdate = false;
+
+        if (img && img.includes('imgur.com') && !img.startsWith('https://i.imgur.com/')) {
+            try {
+                const resolved = await ipcRenderer.invoke('resolve-imgur-url', img);
+                if (resolved) {
+                    largeImageInput.value = resolved;
+                    needsUpdate = true;
+                }
+            } catch (e) { }
+        }
+        if (smImg && smImg.includes('imgur.com') && !smImg.startsWith('https://i.imgur.com/')) {
+            try {
+                const resolved = await ipcRenderer.invoke('resolve-imgur-url', smImg);
+                if (resolved) {
+                    smallImageInput.value = resolved;
+                    needsUpdate = true;
+                }
+            } catch (e) { }
+        }
+        if (needsUpdate) updatePreview();
+    })();
 
     saveFormState(); // Auto-save after loading preset
 
@@ -1037,10 +1266,12 @@ function saveFormState() {
     const formState = {
         activityType: activityTypeSelect.value,
         details: detailsInput.value,
+        detailsUrl: detailsUrlInput?.value || '',
         state: stateInput.value,
-        largeImage: largeImageInput.value,
+        stateUrl: stateUrlInput?.value || '',
+        largeImageKey: largeImageInput.value,
         largeImageText: largeImageTextInput.value,
-        smallImage: smallImageInput.value,
+        smallImageKey: smallImageInput.value,
         smallImageText: smallImageTextInput.value,
         button1Label: button1LabelInput.value,
         button1Url: button1UrlInput.value,
@@ -1066,8 +1297,8 @@ function debouncedSaveFormState() {
     el.addEventListener('input', updatePreview);
     el.addEventListener('change', updatePreview);
 });
-statusToggle.addEventListener('change', saveFormState);
-ecoModeToggle.addEventListener('change', (e) => {
+statusToggle?.addEventListener('change', saveFormState);
+ecoModeToggle?.addEventListener('change', (e) => {
     if (e.target.checked) {
         document.body.classList.add('eco-mode');
     } else {
@@ -1254,11 +1485,6 @@ setTimeout(updatePreview, 100);
 
 // --- Event Handlers ---
 
-toggleTrashBtn.addEventListener('click', () => {
-    showTrash = !showTrash;
-    trashContainer.style.display = showTrash ? 'block' : 'none';
-    toggleTrashBtn.style.background = showTrash ? 'rgba(255,255,255,0.2)' : 'transparent';
-});
 
 // Timestamp mode change listener - show/hide custom datetime field
 timestampRadios.forEach(radio => {
@@ -1268,7 +1494,7 @@ timestampRadios.forEach(radio => {
 });
 
 // Update Status
-updateBtn.addEventListener('click', async () => {
+updateBtn?.addEventListener('click', async () => {
     let imageUrl = largeImageInput.value || undefined;
     let smallImageUrl = smallImageInput.value || undefined;
 
@@ -1328,7 +1554,9 @@ updateBtn.addEventListener('click', async () => {
     const activity = {
         type: parseInt(activityTypeSelect.value),
         details: detailsInput.value || undefined,
+        detailsUrl: detailsUrlInput?.value || undefined,
         state: stateInput.value || undefined,
+        stateUrl: stateUrlInput?.value || undefined,
         largeImageKey: imageUrl,
         largeImageText: largeImageTextInput.value || undefined,
         smallImageKey: smallImageUrl,
@@ -1365,17 +1593,19 @@ async function handleImgurConversion(inputElement) {
 }
 
 if (largeImageInput) {
-    largeImageInput.addEventListener('blur', () => handleImgurConversion(largeImageInput));
+    largeImageInput?.addEventListener('blur', () => handleImgurConversion(largeImageInput));
 }
 if (smallImageInput) {
-    smallImageInput.addEventListener('blur', () => handleImgurConversion(smallImageInput));
+    smallImageInput?.addEventListener('blur', () => handleImgurConversion(smallImageInput));
 }
 
 // Reset to Default
-resetBtn.addEventListener('click', () => {
+resetBtn?.addEventListener('click', () => {
     activityTypeSelect.value = "0";
     detailsInput.value = '';
+    if (detailsUrlInput) detailsUrlInput.value = '';
     stateInput.value = '';
+    if (stateUrlInput) stateUrlInput.value = '';
     largeImageInput.value = '';
     largeImageTextInput.value = '';
     smallImageInput.value = '';
@@ -1392,7 +1622,7 @@ resetBtn.addEventListener('click', () => {
 
 // Save Default (if fallback section exists)
 if (saveDefaultBtn) {
-    saveDefaultBtn.addEventListener('click', () => {
+    saveDefaultBtn?.addEventListener('click', () => {
         const defaultActivity = {
             details: defDetailsInput?.value || '',
             state: defStateInput?.value || ''
@@ -1405,7 +1635,7 @@ if (saveDefaultBtn) {
 }
 
 // Save Preset
-savePresetBtn.addEventListener('click', () => {
+savePresetBtn?.addEventListener('click', () => {
     const name = presetNameInput.value;
     if (!name) return;
     const presetClientIdSelect = document.getElementById('presetClientId');
@@ -1413,7 +1643,9 @@ savePresetBtn.addEventListener('click', () => {
         name,
         type: parseInt(activityTypeSelect.value),
         details: detailsInput.value,
+        detailsUrl: detailsUrlInput?.value || '',
         state: stateInput.value,
+        stateUrl: stateUrlInput?.value || '',
         largeImageKey: largeImageInput.value,
         largeImageText: largeImageTextInput.value,
         smallImageKey: smallImageInput.value,
@@ -1433,7 +1665,7 @@ const exportPresetsBtn = document.getElementById('exportPresetsBtn');
 const importPresetsBtn = document.getElementById('importPresetsBtn');
 
 if (exportPresetsBtn) {
-    exportPresetsBtn.addEventListener('click', async () => {
+    exportPresetsBtn?.addEventListener('click', async () => {
         const result = await ipcRenderer.invoke('export-presets');
         if (result.success) {
             showToast('📤', t('presets.exported') || 'Presets exported successfully!', 'success');
@@ -1444,7 +1676,7 @@ if (exportPresetsBtn) {
 }
 
 if (importPresetsBtn) {
-    importPresetsBtn.addEventListener('click', async () => {
+    importPresetsBtn?.addEventListener('click', async () => {
         const result = await ipcRenderer.invoke('import-presets');
         if (result.success) {
             showToast('📥', t('presets.imported') || 'Presets imported successfully!', 'success');
@@ -1459,7 +1691,7 @@ if (importPresetsBtn) {
 }
 
 // Send Toast
-sendToastBtn.addEventListener('click', () => {
+sendToastBtn?.addEventListener('click', () => {
     const message = toastMessageInput.value;
     if (!message) return;
     ipcRenderer.send('send-toast', message);
@@ -1469,7 +1701,7 @@ sendToastBtn.addEventListener('click', () => {
 });
 
 // Test Connection
-testConnectionBtn.addEventListener('click', () => {
+testConnectionBtn?.addEventListener('click', () => {
     testResult.textContent = t('connection.testing');
     testResult.style.color = '#fff';
     try {
@@ -1492,7 +1724,7 @@ testConnectionBtn.addEventListener('click', () => {
 // Export Debug Logs
 const exportLogsBtn = document.getElementById('exportLogsBtn');
 if (exportLogsBtn) {
-    exportLogsBtn.addEventListener('click', async () => {
+    exportLogsBtn?.addEventListener('click', async () => {
         exportLogsBtn.textContent = '⏳ Exportando...';
         const result = await ipcRenderer.invoke('export-logs');
         if (result.success) {
@@ -1505,7 +1737,7 @@ if (exportLogsBtn) {
 }
 
 // Toggle RPC
-statusToggle.addEventListener('change', (e) => {
+statusToggle?.addEventListener('change', (e) => {
     const isEnabled = e.target.checked;
     ipcRenderer.send('toggle-activity', isEnabled);
     updateStatusDisplay(isEnabled);
@@ -1542,7 +1774,7 @@ function collectCurrentTierValues() {
 
 // Add Tier Button
 if (addAfkTierBtn) {
-    addAfkTierBtn.addEventListener('click', () => {
+    addAfkTierBtn?.addEventListener('click', () => {
         // Save current values before adding new tier
         collectCurrentTierValues();
 
@@ -1556,7 +1788,7 @@ if (addAfkTierBtn) {
 }
 
 // Save Button
-saveAfkBtn.addEventListener('click', () => {
+saveAfkBtn?.addEventListener('click', () => {
     // Collect all tier values from UI
     const rows = afkTiersContainer.querySelectorAll('.tier-row');
     console.log('[Solari] Save clicked - Found rows:', rows.length);
@@ -1597,7 +1829,7 @@ saveAfkBtn.addEventListener('click', () => {
 
 // Add Preset to Disable AFK Button
 if (addPresetToDisableBtn) {
-    addPresetToDisableBtn.addEventListener('click', () => {
+    addPresetToDisableBtn?.addEventListener('click', () => {
         const selectedPreset = addPresetToAfkDisable.value;
         if (!selectedPreset) return;
 
@@ -1617,7 +1849,7 @@ if (addPresetToDisableBtn) {
 // Exit Manual Mode Button Logic
 const exitManualModeBtn = document.getElementById('exitManualModeBtn');
 if (exitManualModeBtn) {
-    exitManualModeBtn.addEventListener('click', () => {
+    exitManualModeBtn?.addEventListener('click', () => {
         ipcRenderer.send('exit-manual-mode');
         // Optimistically hide
         exitManualModeBtn.style.display = 'none';
@@ -1635,11 +1867,11 @@ if (exitManualModeBtn) {
 renderAfkTiers();
 
 // Auto-Detection Handlers
-autoDetectToggle.addEventListener('change', (e) => {
+autoDetectToggle?.addEventListener('change', (e) => {
     ipcRenderer.send('toggle-autodetect', e.target.checked);
 });
 
-autoDetectSettingsBtn.addEventListener('click', () => {
+autoDetectSettingsBtn?.addEventListener('click', () => {
     ipcRenderer.send('open-autodetect-settings');
 });
 
@@ -2181,39 +2413,39 @@ function updateSpotifyNowPlaying(track) {
 
 // Spotify toggle handlers
 if (spotifySyncToggle) {
-    spotifySyncToggle.addEventListener('change', () => {
+    spotifySyncToggle?.addEventListener('change', () => {
         ipcRenderer.send('update-spotify-settings', { enabled: spotifySyncToggle.checked });
     });
 }
 
 if (spotifyRpcToggle) {
-    spotifyRpcToggle.addEventListener('change', () => {
+    spotifyRpcToggle?.addEventListener('change', () => {
         ipcRenderer.send('update-spotify-settings', { showInRichPresence: spotifyRpcToggle.checked });
     });
 }
 
 // Spotify control buttons
 if (spotifyPrevBtn) {
-    spotifyPrevBtn.addEventListener('click', () => {
+    spotifyPrevBtn?.addEventListener('click', () => {
         ipcRenderer.send('spotify-control', 'previous');
     });
 }
 
 if (spotifyPlayPauseBtn) {
-    spotifyPlayPauseBtn.addEventListener('click', () => {
+    spotifyPlayPauseBtn?.addEventListener('click', () => {
         ipcRenderer.send('spotify-control', 'pause');
     });
 }
 
 if (spotifyNextBtn) {
-    spotifyNextBtn.addEventListener('click', () => {
+    spotifyNextBtn?.addEventListener('click', () => {
         ipcRenderer.send('spotify-control', 'next');
     });
 }
 
 // Priority settings
 if (savePriorityBtn) {
-    savePriorityBtn.addEventListener('click', () => {
+    savePriorityBtn?.addEventListener('click', () => {
         const priorities = {
             autoDetect: parseInt(priorityAutoDetect?.value) || 1,
             spotify: parseInt(prioritySpotify?.value) || 2,
@@ -2226,7 +2458,7 @@ if (savePriorityBtn) {
 
 // Spotify Buttons save
 if (saveSpotifyButtonsBtn) {
-    saveSpotifyButtonsBtn.addEventListener('click', () => {
+    saveSpotifyButtonsBtn?.addEventListener('click', () => {
         const spotifyBtn1Label = document.getElementById('spotifyButton1Label');
         const spotifyBtn1Url = document.getElementById('spotifyButton1Url');
         const spotifyBtn2Label = document.getElementById('spotifyButton2Label');
@@ -2378,7 +2610,7 @@ function createSettingElement(item, config) {
                     if (item.inputConfig.secret) inp.type = 'password';
 
                     // Auto-save
-                    inp.addEventListener('blur', () => {
+                    inp?.addEventListener('blur', () => {
                         if (inp.value !== item.inputConfig.value) {
                             ipcRenderer.send('update-spotify-plugin-settings', { [item.inputConfig.key]: inp.value.trim() });
                             showToast('💾', 'Client ID Saved', 'success');
@@ -2511,7 +2743,7 @@ function createSettingElement(item, config) {
             const input = document.createElement('input');
             input.type = 'checkbox';
             input.checked = config[item.key] !== false; // Default true if undefined
-            input.addEventListener('change', () => {
+            input?.addEventListener('change', () => {
                 console.log(`[Solari] Auto-save ${item.key}: ${input.checked}`);
                 ipcRenderer.send('update-spotify-plugin-settings', { [item.key]: input.checked });
             });
@@ -2553,7 +2785,7 @@ function createSettingElement(item, config) {
                     optInput.style.height = '18px';
                     optInput.style.accentColor = '#1DB954';
 
-                    optInput.addEventListener('change', () => {
+                    optInput?.addEventListener('change', () => {
                         ipcRenderer.send('update-spotify-plugin-settings', { [item.key]: opt.value });
                     });
 
@@ -2589,7 +2821,7 @@ function createSettingElement(item, config) {
 }
 const spotifyDetectionMethod = document.getElementById('spotifyDetectionMethod');
 if (spotifyDetectionMethod) {
-    spotifyDetectionMethod.addEventListener('change', (e) => {
+    spotifyDetectionMethod?.addEventListener('change', (e) => {
         ipcRenderer.send('update-spotify-settings', { detectionMethod: e.target.value });
         showToast('ℹ️', t('toasts.detectionMethodUpdated'), 'info');
     });
@@ -2611,7 +2843,7 @@ ipcRenderer.invoke('get-spotify-status').then(status => {
 // PLUGINS TAB MANAGER
 // =========================================
 
-const PluginsTabManager = {
+var PluginsTabManager = {
     initialized: false,
     metaData: null,
 
@@ -2643,13 +2875,13 @@ const PluginsTabManager = {
         if (this.initialized) return;
 
         const refreshBtn = document.getElementById('plugins-refresh-btn');
-        if (refreshBtn) refreshBtn.addEventListener('click', () => this.loadPlugins(true));
+        if (refreshBtn) refreshBtn?.addEventListener('click', () => this.loadPlugins(true));
 
         const retryBtn = document.getElementById('plugins-retry-btn');
-        if (retryBtn) retryBtn.addEventListener('click', () => this.loadPlugins(true));
+        if (retryBtn) retryBtn?.addEventListener('click', () => this.loadPlugins(true));
 
         const updateAllBtn = document.getElementById('plugins-update-all-btn');
-        if (updateAllBtn) updateAllBtn.addEventListener('click', () => this.handleUpdateAll());
+        if (updateAllBtn) updateAllBtn?.addEventListener('click', () => this.handleUpdateAll());
 
         this.initialized = true;
         this.checkBD();
@@ -2894,7 +3126,9 @@ const PluginsTabManager = {
                             data-url="${plugin.downloadUrl}" data-filename="${plugin.fileName}">
                         ${buttonLabel}
                     </button>
-                    ${isInstalled ? `<button class="btn-plugin-delete" title="Desinstalar" data-filename="${plugin.fileName}">${deleteSvg}</button>` : ''}
+                    ${isInstalled ? `
+                    <button class="btn-plugin-config" title="Configurar" data-plugin-key="${key}">⚙️</button>
+                    <button class="btn-plugin-delete" title="Desinstalar" data-filename="${plugin.fileName}">${deleteSvg}</button>` : ''}
                     <button class="btn-plugin-changelog" title="Changelog" data-plugin-key="${key}">📋</button>
                 </div>
             `;
@@ -2906,9 +3140,18 @@ const PluginsTabManager = {
                 PluginsTabManager.showChangelog(key);
             });
 
+
+
+            const configBtn = card.querySelector('.btn-plugin-config');
+            if (configBtn) {
+                configBtn?.addEventListener('click', () => {
+                    openPluginConfig(key);
+                });
+            }
+
             const deleteBtn = card.querySelector('.btn-plugin-delete');
             if (deleteBtn) {
-                deleteBtn.addEventListener('click', function () {
+                deleteBtn?.addEventListener('click', function () {
                     PluginsTabManager.handleDelete(plugin.fileName, info.displayName, this);
                 });
             }
@@ -2961,6 +3204,8 @@ const PluginsTabManager = {
                 btnElement.innerHTML = `${checkSvg} ${installedLabel}`;
                 const msg = t('pluginStore.activateNotice') !== 'pluginStore.activateNotice' ? t('pluginStore.activateNotice') : 'Ative o plugin nas configurações do BetterDiscord!';
                 showToast('✅', msg, 'success');
+                // Refresh cards to instantly show the blue toggle
+                this.loadPlugins(true);
             } else {
                 throw new Error(result.error);
             }
@@ -3000,7 +3245,7 @@ const PluginsTabManager = {
 
             // List items
             if (trimmed.startsWith('- ')) {
-                if (!inList) { html += '<ul>'; inList = true; }
+                if (!inList) { html += '</ul>'; inList = true; }
                 let itemContent = trimmed.slice(2);
                 // Inline formatting
                 itemContent = itemContent
@@ -3144,7 +3389,7 @@ if (!document.getElementById('plugin-changelog-modal')) {
 // Hook de troca de aba
 const pluginsTabBtn = document.querySelector('.tab-btn[data-tab="plugins-tab"]');
 if (pluginsTabBtn) {
-    pluginsTabBtn.addEventListener('click', () => {
+    pluginsTabBtn?.addEventListener('click', () => {
         PluginsTabManager.init();
     });
 }
@@ -3209,7 +3454,7 @@ if (neonModeEnabled) {
 }
 
 if (neonToggle) {
-    neonToggle.addEventListener('click', () => {
+    neonToggle?.addEventListener('click', () => {
         const isEnabled = document.body.classList.toggle('neon-mode');
         neonToggle.classList.toggle('active', isEnabled);
         localStorage.setItem(neonModeKey, isEnabled);
@@ -3218,7 +3463,7 @@ if (neonToggle) {
 }
 
 // ===== IDENTITIES (App Profiles) MANAGER =====
-let identities = [];
+
 let editingIdentityId = null;
 
 async function loadIdentities() {
@@ -3311,7 +3556,7 @@ function populatePresetClientIdDropdown() {
     });
 
     // Add change listener to update preview when Client ID changes
-    select.addEventListener('change', () => {
+    select?.addEventListener('change', () => {
         updatePreviewAppNameFromDropdown();
     });
 }
@@ -3343,7 +3588,7 @@ function updatePreviewAppNameFromDropdown() {
 // Add Identity Button Handler
 const addIdentityBtn = document.getElementById('addIdentityBtn');
 if (addIdentityBtn) {
-    addIdentityBtn.addEventListener('click', async () => {
+    addIdentityBtn?.addEventListener('click', async () => {
         const nameInput = document.getElementById('newIdentityName');
         const idInput = document.getElementById('newIdentityId');
 
@@ -3383,7 +3628,7 @@ if (addIdentityBtn) {
 
     const cancelIdentityEditBtn = document.getElementById('cancelIdentityEditBtn');
     if (cancelIdentityEditBtn) {
-        cancelIdentityEditBtn.addEventListener('click', () => {
+        cancelIdentityEditBtn?.addEventListener('click', () => {
             resetIdentityForm();
         });
     }
@@ -3398,19 +3643,19 @@ const closeAboutBtn = document.getElementById('closeAboutBtn');
 const aboutModal = document.getElementById('aboutModal');
 
 if (aboutBtn && aboutModal) {
-    aboutBtn.addEventListener('click', () => {
+    aboutBtn?.addEventListener('click', () => {
         aboutModal.classList.add('active');
     });
 }
 
 if (closeAboutBtn && aboutModal) {
-    closeAboutBtn.addEventListener('click', () => {
+    closeAboutBtn?.addEventListener('click', () => {
         aboutModal.classList.remove('active');
     });
 }
 
 if (aboutModal) {
-    aboutModal.addEventListener('click', (e) => {
+    aboutModal?.addEventListener('click', (e) => {
         if (e.target === aboutModal) {
             aboutModal.classList.remove('active');
         }
@@ -3435,7 +3680,7 @@ const toggleIdentityIdBtn = document.getElementById('toggleIdentityIdBtn');
 const newIdentityIdInput = document.getElementById('newIdentityId');
 
 if (toggleIdentityIdBtn && newIdentityIdInput) {
-    toggleIdentityIdBtn.addEventListener('click', () => {
+    toggleIdentityIdBtn?.addEventListener('click', () => {
         const type = newIdentityIdInput.getAttribute('type') === 'password' ? 'text' : 'password';
         newIdentityIdInput.setAttribute('type', type);
         toggleIdentityIdBtn.textContent = type === 'password' ? '👁️' : '🔒';
@@ -3484,6 +3729,16 @@ function showSetupWizard() {
     else if (userLang.startsWith('es')) setWizardLanguage('es');
     else setWizardLanguage('en');
 }
+
+// ==========================================
+// DEVTOOLS SHORTCUT LISTENER
+// ==========================================
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        ipcRenderer.send('toggle-devtools');
+    }
+});
 
 function updateWizardUI() {
     // Update Slides
@@ -3591,12 +3846,12 @@ function finishWizard() {
 }
 
 // Wizard Event Listeners
-if (wizardNextBtn) wizardNextBtn.addEventListener('click', nextWizardSlide);
-if (wizardBackBtn) wizardBackBtn.addEventListener('click', prevWizardSlide);
+if (wizardNextBtn) wizardNextBtn?.addEventListener('click', nextWizardSlide);
+if (wizardBackBtn) wizardBackBtn?.addEventListener('click', prevWizardSlide);
 
 // Step 1: Language
 document.querySelectorAll('.lang-card').forEach(card => {
-    card.addEventListener('click', () => {
+    card?.addEventListener('click', () => {
         setWizardLanguage(card.dataset.lang);
         // playWizardSound('click');
         // Auto advance after selection for speed
@@ -3622,7 +3877,7 @@ function setWizardLanguage(code) {
 
 // Step 2: Theme
 document.querySelectorAll('.theme-card').forEach(card => {
-    card.addEventListener('click', () => {
+    card?.addEventListener('click', () => {
         const theme = card.dataset.themePreview;
 
         // LOGIC: Neon is COMPLEMENTARY (Toggle), others are MUTUALLY EXCLUSIVE (Radio)
@@ -3681,7 +3936,7 @@ document.querySelectorAll('.theme-card').forEach(card => {
 // Step 4: Client ID Skipped?
 const wizardSkipClientId = document.getElementById('wizardSkipClientId');
 if (wizardSkipClientId) {
-    wizardSkipClientId.addEventListener('change', (e) => {
+    wizardSkipClientId?.addEventListener('change', (e) => {
         const input = document.getElementById('wizardClientId');
         if (e.target.checked) {
             input.value = '';
@@ -3698,7 +3953,7 @@ if (wizardSkipClientId) {
 // Step 4: Client ID Helper Link
 const wizardPortalLink = document.getElementById('wizardPortalLink');
 if (wizardPortalLink) {
-    wizardPortalLink.addEventListener('click', (e) => {
+    wizardPortalLink?.addEventListener('click', (e) => {
         e.preventDefault();
         shell.openExternal('https://discord.com/developers/applications');
     });
@@ -3760,10 +4015,10 @@ async function handleWizardPluginToggle(key, isChecked) {
 }
 
 if (wizardToggleSmartAfk) {
-    wizardToggleSmartAfk.addEventListener('change', (e) => handleWizardPluginToggle('smartAfk', e.target.checked));
+    wizardToggleSmartAfk?.addEventListener('change', (e) => handleWizardPluginToggle('smartAfk', e.target.checked));
 }
 if (wizardToggleSpotify) {
-    wizardToggleSpotify.addEventListener('change', (e) => handleWizardPluginToggle('spotify', e.target.checked));
+    wizardToggleSpotify?.addEventListener('change', (e) => handleWizardPluginToggle('spotify', e.target.checked));
 }
 
 // --- AUDIO ENGINE (Web Audio API) ---
@@ -3894,7 +4149,7 @@ let isDraggingWizard = false;
 let wizardDragStartX, wizardDragStartY, wizardInitialLeft, wizardInitialTop;
 
 if (wizardContainer) {
-    wizardContainer.addEventListener('mousedown', (e) => {
+    wizardContainer?.addEventListener('mousedown', (e) => {
         // Only allow dragging in preview mode
         if (!wizardOverlay.classList.contains('preview-mode')) return;
 
@@ -3986,7 +4241,7 @@ ipcRenderer.on('show-changelog', (event, data) => {
         });
     }
 
-    overlay.addEventListener('click', (e) => {
+    overlay?.addEventListener('click', (e) => {
         if (e.target === overlay) {
             overlay.classList.remove('active');
             setTimeout(() => overlay.remove(), 300);
