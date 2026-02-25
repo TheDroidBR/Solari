@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Spotify controller for Discord. Album art, progress bar with seek, like/unlike, volume, shuffle, repeat — all from Discord. Integrates with Solari RPC.
- * @version 2.1.0
+ * @version 2.1.1
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
@@ -240,7 +240,7 @@ module.exports = class SpotifySync {
     getSettingsSchema() {
         const premiumStatus = this.hasPremium() ? 'connected' : 'disconnected';
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v2.1.0' },
+            { type: 'custom_header', title: this.t('title'), version: 'v2.1.1' },
             { type: 'status_card', id: 'solariStatus', label: this.t('solari'), status: this.isConnectedToSolari ? 'connected' : 'disconnected' },
 
             {
@@ -526,7 +526,7 @@ module.exports = class SpotifySync {
 
     // ═══════════════════ LIFECYCLE ═══════════════════
     start() {
-        console.log('[SpotifySync] v2.1.0 Starting...');
+        console.log('[SpotifySync] v2.1.1 Starting...');
         this.loadConfig();
 
         // Force clear any stale internal caches
@@ -1379,40 +1379,84 @@ module.exports = class SpotifySync {
         const cacheKey = this._trackId;
         if (cacheKey && this._lyricsCache[cacheKey]) return this._lyricsCache[cacheKey];
 
+        const UA = { 'User-Agent': 'SpotifySync/2.1.1 (https://solarirpc.com)' };
+        // Clean track name: remove common suffixes that prevent matching
+        const cleanTrack = (trackName || '').replace(/\s*[-–]\s*(Remaster(ed)?|Deluxe|Bonus Track|Anniversary|Edition|Mix|Version|Live|Acoustic|Demo|Radio Edit).*$/i, '')
+            .replace(/\s*\((?:feat\.|ft\.|with |Remaster|Deluxe|Bonus|Anniversary|Edition|Live|Acoustic|Demo|Radio Edit)[^)]*\)\s*/gi, '')
+            .replace(/\s*\[(?:feat\.|ft\.|Remaster|Deluxe)[^\]]*\]\s*/gi, '')
+            .trim();
+        // Also get first artist only (before ", " or " & ")
+        const primaryArtist = (artistName || '').split(/,\s*|&\s*/)[0].trim();
+
         try {
+            // === TIER 1: Exact match (track + artist + album + duration) ===
             const durationSec = Math.round((durationMs || 0) / 1000);
-            const params = new URLSearchParams({
+            const params1 = new URLSearchParams({
                 track_name: trackName || '',
                 artist_name: artistName || '',
                 album_name: albumName || '',
                 duration: durationSec.toString()
             });
-            const res = await fetch(`https://lrclib.net/api/get?${params}`, {
-                headers: { 'User-Agent': 'SpotifySync/2.1.0 (https://solarirpc.com)' }
-            });
+            const res1 = await fetch(`https://lrclib.net/api/get?${params1}`, { headers: UA });
+            if (res1.ok) {
+                const data = await res1.json();
+                const parsed = this._parseLyrics(data.syncedLyrics, data.plainLyrics);
+                if (parsed.lines.length > 0) {
+                    if (cacheKey) this._lyricsCache[cacheKey] = parsed;
+                    return parsed;
+                }
+            }
 
-            if (!res.ok) {
-                // Fallback: try search endpoint without album/duration
-                const searchParams = new URLSearchParams({ track_name: trackName, q: `${artistName} ${trackName}` });
-                const searchRes = await fetch(`https://lrclib.net/api/search?${searchParams}`, {
-                    headers: { 'User-Agent': 'SpotifySync/2.1.0 (https://solarirpc.com)' }
-                });
-                if (searchRes.ok) {
-                    const results = await searchRes.json();
-                    if (results && results.length > 0) {
-                        const best = results[0];
-                        const parsed = this._parseLyrics(best.syncedLyrics, best.plainLyrics);
+            // === TIER 2: Exact match with cleaned track name (no album/duration) ===
+            const params2 = new URLSearchParams({
+                track_name: cleanTrack,
+                artist_name: primaryArtist
+            });
+            const res2 = await fetch(`https://lrclib.net/api/get?${params2}`, { headers: UA });
+            if (res2.ok) {
+                const data = await res2.json();
+                const parsed = this._parseLyrics(data.syncedLyrics, data.plainLyrics);
+                if (parsed.lines.length > 0) {
+                    if (cacheKey) this._lyricsCache[cacheKey] = parsed;
+                    return parsed;
+                }
+            }
+
+            // === TIER 3: Search endpoint with artist + track ===
+            const params3 = new URLSearchParams({
+                artist_name: primaryArtist,
+                track_name: cleanTrack
+            });
+            const res3 = await fetch(`https://lrclib.net/api/search?${params3}`, { headers: UA });
+            if (res3.ok) {
+                const results = await res3.json();
+                if (results && results.length > 0) {
+                    // Prefer result with synced lyrics, fallback to plain
+                    const best = results.find(r => r.syncedLyrics) || results.find(r => r.plainLyrics) || results[0];
+                    const parsed = this._parseLyrics(best.syncedLyrics, best.plainLyrics);
+                    if (parsed.lines.length > 0) {
                         if (cacheKey) this._lyricsCache[cacheKey] = parsed;
                         return parsed;
                     }
                 }
-                return { synced: false, plain: null, lines: [] };
             }
 
-            const data = await res.json();
-            const parsed = this._parseLyrics(data.syncedLyrics, data.plainLyrics);
-            if (cacheKey) this._lyricsCache[cacheKey] = parsed;
-            return parsed;
+            // === TIER 4: Broad search with just query string ===
+            const params4 = new URLSearchParams({ q: `${primaryArtist} ${cleanTrack}` });
+            const res4 = await fetch(`https://lrclib.net/api/search?${params4}`, { headers: UA });
+            if (res4.ok) {
+                const results = await res4.json();
+                if (results && results.length > 0) {
+                    const best = results.find(r => r.syncedLyrics) || results.find(r => r.plainLyrics) || results[0];
+                    const parsed = this._parseLyrics(best.syncedLyrics, best.plainLyrics);
+                    if (parsed.lines.length > 0) {
+                        if (cacheKey) this._lyricsCache[cacheKey] = parsed;
+                        return parsed;
+                    }
+                }
+            }
+
+            return { synced: false, plain: null, lines: [] };
         } catch (e) {
             console.error('[SpotifySync] Lyrics fetch error:', e);
             return { synced: false, plain: null, lines: [] };
@@ -1471,10 +1515,14 @@ module.exports = class SpotifySync {
                 : (state.isPlaying && state.track);
 
             // ═══ AFK PREMIUM FALLBACK ═══
-            // If Discord Stores report nothing but we have Premium, poll Spotify Web API directly
-            if (!shouldShow && this.hasPremium()) {
+            // If Discord Stores report no real track data but we have Premium, use Spotify Web API
+            const hasRealTrack = state.track && state.track.trackId;
+            if (!hasRealTrack && this.hasPremium()) {
                 const fallback = await this.getSpotifyStatePremiumFallback();
-                if (fallback && (fallback.isPlaying || this.config.controlsVisibility === 'whenOpen')) {
+                if (fallback && fallback.track && fallback.track.trackId) {
+                    state = fallback;
+                    shouldShow = true;
+                } else if (fallback && this.config.controlsVisibility === 'whenOpen') {
                     state = fallback;
                     shouldShow = true;
                 }
@@ -2224,7 +2272,7 @@ module.exports = class SpotifySync {
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px;">
                         <span style="color:#1DB954;">🎵</span> ${this.t('title')}
-                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.1.0</span>
+                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.1.1</span>
                     </h2>
                     <select id="ss2-lang" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:5px 8px;">
                         <option value="en" ${this.config.language === 'en' ? 'selected' : ''}>English</option>
