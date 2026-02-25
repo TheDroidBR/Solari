@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Spotify controller for Discord. Album art, progress bar with seek, like/unlike, volume, shuffle, repeat — all from Discord. Integrates with Solari RPC.
- * @version 2.0.2
+ * @version 2.1.0
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
@@ -28,6 +28,8 @@ module.exports = class SpotifySync {
             openInSpotify: 'Open in Spotify', by: 'by', on: 'on',
             share: 'Share in Chat', shareCopied: 'Link copied!', copyTrackUrl: 'Copy Song Link',
             copyArtistUrl: 'Copy Artist Link', copyAlbumUrl: 'Copy Album Link', copied: 'Copied!',
+            lyrics: 'Lyrics', noLyrics: 'No lyrics found for this song', lyricsBy: 'Lyrics by LrcLib',
+            devices: 'Devices', noDevices: 'No devices found', transferring: 'Transferring...', activeDevice: 'Active',
             // Premium Auth
             premiumTitle: 'Premium Connection',
             premiumHelp: 'Connect your Spotify account to enable Like, Seek, Volume, and Playlist management. This requires a one-time setup.',
@@ -57,6 +59,8 @@ module.exports = class SpotifySync {
             openInSpotify: 'Abrir no Spotify', by: 'por', on: 'em',
             share: 'Compartilhar no Chat', shareCopied: 'Link copiado!', copyTrackUrl: 'Copiar Link da Música',
             copyArtistUrl: 'Copiar Link do Artista', copyAlbumUrl: 'Copiar Link do Álbum', copied: 'Copiado!',
+            lyrics: 'Letras', noLyrics: 'Letras não encontradas para esta música', lyricsBy: 'Letras por LrcLib',
+            devices: 'Dispositivos', noDevices: 'Nenhum dispositivo encontrado', transferring: 'Transferindo...', activeDevice: 'Ativo',
             // Premium Auth
             premiumTitle: 'Conexão Premium',
             premiumHelp: 'Conecte sua conta Spotify para habilitar Curtir, Volume, Seek e Playlists. Configuração única necessária.',
@@ -86,6 +90,8 @@ module.exports = class SpotifySync {
             openInSpotify: 'Abrir en Spotify', by: 'por', on: 'en',
             share: 'Compartir en Chat', shareCopied: '¡Enlace copiado!', copyTrackUrl: 'Copiar Enlace de Canción',
             copyArtistUrl: 'Copiar Enlace del Artista', copyAlbumUrl: 'Copiar Enlace del Álbum', copied: '¡Copiado!',
+            lyrics: 'Letras', noLyrics: 'No se encontraron letras para esta canción', lyricsBy: 'Letras por LrcLib',
+            devices: 'Dispositivos', noDevices: 'No se encontraron dispositivos', transferring: 'Transfiriendo...', activeDevice: 'Activo',
             // Premium Auth
             premiumTitle: 'Conexión Premium',
             premiumHelp: 'Conecta tu cuenta Spotify para habilitar Me Gusta, Volumen, Seek y Listas. Requiere configuración única.',
@@ -130,6 +136,11 @@ module.exports = class SpotifySync {
         this._expanded = false;
         this._artistIds = []; // [{name, id}] for context menu
         this._albumId = null;
+        this._lyricsCache = {}; // { trackId: { synced, plain, lines } }
+        this._lyricsInterval = null;
+        this._premiumPollInterval = null;
+        this._activeDeviceId = null;
+        this._lastPremiumFallbackTime = 0;
 
         this.config = {
             enabled: true,
@@ -229,7 +240,7 @@ module.exports = class SpotifySync {
     getSettingsSchema() {
         const premiumStatus = this.hasPremium() ? 'connected' : 'disconnected';
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v2.0.2' },
+            { type: 'custom_header', title: this.t('title'), version: 'v2.1.0' },
             { type: 'status_card', id: 'solariStatus', label: this.t('solari'), status: this.isConnectedToSolari ? 'connected' : 'disconnected' },
 
             {
@@ -515,7 +526,7 @@ module.exports = class SpotifySync {
 
     // ═══════════════════ LIFECYCLE ═══════════════════
     start() {
-        console.log('[SpotifySync] v2.0.2 Starting (Revised Fix)...');
+        console.log('[SpotifySync] v2.1.0 Starting...');
         this.loadConfig();
 
         // Force clear any stale internal caches
@@ -540,6 +551,9 @@ module.exports = class SpotifySync {
         }, 2000);
 
         if (this.config.showControls) this.injectWidget();
+
+        // Start Premium Polling for volume/state sync
+        this.startPremiumPoll();
     }
 
     stop() {
@@ -552,10 +566,12 @@ module.exports = class SpotifySync {
         }
         this.removeWidget();
 
-        // Clear any intervals that might be lingering
+        // Clear all intervals
         if (this.spotifyStateInterval) clearInterval(this.spotifyStateInterval);
         if (this.progressInterval) clearInterval(this.progressInterval);
         if (this.reinjectInterval) clearInterval(this.reinjectInterval);
+        if (this._lyricsInterval) clearInterval(this._lyricsInterval);
+        this.stopPremiumPoll();
     }
 
     // ═══════════════════ WEBSOCKET ═══════════════════
@@ -1273,13 +1289,196 @@ module.exports = class SpotifySync {
         }
     }
 
+    // ═══════════════════ PREMIUM AFK FALLBACK ═══════════════════
+    async getSpotifyStatePremiumFallback() {
+        // Called when Discord Stores report nothing (AFK), but user has Premium token
+        if (!this.hasPremium()) return null;
+        if (Date.now() - this._lastPremiumFallbackTime < 1500) return this._lastPremiumFallbackState || null;
+        this._lastPremiumFallbackTime = Date.now();
+
+        try {
+            const data = await this.spotifyApi('', 'GET'); // GET /me/player
+            if (!data || typeof data !== 'object' || !data.item) {
+                this._lastPremiumFallbackState = null;
+                return null;
+            }
+
+            const track = data.item;
+            const art = track.album?.images?.[0]?.url || null;
+            this._artistIds = (track.artists || []).map(a => ({ name: a.name, id: a.id }));
+            this._albumId = track.album?.id || null;
+
+            // Also sync volume/shuffle/repeat from this full state
+            this._shuffleState = data.shuffle_state ?? false;
+            this._repeatState = data.repeat_state ?? 'off';
+            this._volumePercent = data.device?.volume_percent ?? this._volumePercent;
+            this._activeDeviceId = data.device?.id || null;
+            if (data.context) this._context = data.context;
+
+            const state = {
+                isPlaying: data.is_playing === true,
+                isSpotifyOpen: true,
+                track: {
+                    title: track.name || 'Unknown',
+                    artist: track.artists?.map(a => a.name).join(', ') || 'Unknown',
+                    album: track.album?.name || '',
+                    albumArtUrl: art,
+                    trackId: track.id || null,
+                    duration: track.duration_ms || 0,
+                    position: data.progress_ms || 0,
+                    _config: this.config
+                }
+            };
+            this._lastPremiumFallbackState = state;
+            return state;
+        } catch (e) {
+            console.error('[SpotifySync] Premium fallback error:', e);
+            return null;
+        }
+    }
+
+    // ═══════════════════ PREMIUM POLL (Volume/State Sync) ═══════════════════
+    startPremiumPoll() {
+        if (this._premiumPollInterval) clearInterval(this._premiumPollInterval);
+        if (!this.hasPremium()) return;
+
+        this._premiumPollInterval = setInterval(async () => {
+            if (!this.hasPremium()) return;
+            try {
+                const data = await this.spotifyApi('', 'GET'); // GET /me/player
+                if (data && typeof data === 'object') {
+                    this._volumePercent = data.device?.volume_percent ?? this._volumePercent;
+                    this._shuffleState = data.shuffle_state ?? this._shuffleState;
+                    this._repeatState = data.repeat_state ?? this._repeatState;
+                    this._activeDeviceId = data.device?.id || null;
+                    if (data.context) this._context = data.context;
+
+                    // Update UI if widget is visible
+                    const volSlider = document.getElementById('ss2-volume');
+                    if (volSlider && volSlider !== document.activeElement) {
+                        volSlider.value = this._volumePercent;
+                        const pctEl = document.getElementById('ss2-volume-pct');
+                        if (pctEl) pctEl.textContent = `${this._volumePercent}%`;
+                    }
+                    this.updateShuffleButton();
+                    this.updateRepeatButton();
+                }
+            } catch (e) { /* silent */ }
+        }, 2000);
+    }
+
+    stopPremiumPoll() {
+        if (this._premiumPollInterval) {
+            clearInterval(this._premiumPollInterval);
+            this._premiumPollInterval = null;
+        }
+    }
+
+    // ═══════════════════ LYRICS (LrcLib) ═══════════════════
+    async fetchLyrics(trackName, artistName, albumName, durationMs) {
+        const cacheKey = this._trackId;
+        if (cacheKey && this._lyricsCache[cacheKey]) return this._lyricsCache[cacheKey];
+
+        try {
+            const durationSec = Math.round((durationMs || 0) / 1000);
+            const params = new URLSearchParams({
+                track_name: trackName || '',
+                artist_name: artistName || '',
+                album_name: albumName || '',
+                duration: durationSec.toString()
+            });
+            const res = await fetch(`https://lrclib.net/api/get?${params}`, {
+                headers: { 'User-Agent': 'SpotifySync/2.1.0 (https://solarirpc.com)' }
+            });
+
+            if (!res.ok) {
+                // Fallback: try search endpoint without album/duration
+                const searchParams = new URLSearchParams({ track_name: trackName, q: `${artistName} ${trackName}` });
+                const searchRes = await fetch(`https://lrclib.net/api/search?${searchParams}`, {
+                    headers: { 'User-Agent': 'SpotifySync/2.1.0 (https://solarirpc.com)' }
+                });
+                if (searchRes.ok) {
+                    const results = await searchRes.json();
+                    if (results && results.length > 0) {
+                        const best = results[0];
+                        const parsed = this._parseLyrics(best.syncedLyrics, best.plainLyrics);
+                        if (cacheKey) this._lyricsCache[cacheKey] = parsed;
+                        return parsed;
+                    }
+                }
+                return { synced: false, plain: null, lines: [] };
+            }
+
+            const data = await res.json();
+            const parsed = this._parseLyrics(data.syncedLyrics, data.plainLyrics);
+            if (cacheKey) this._lyricsCache[cacheKey] = parsed;
+            return parsed;
+        } catch (e) {
+            console.error('[SpotifySync] Lyrics fetch error:', e);
+            return { synced: false, plain: null, lines: [] };
+        }
+    }
+
+    _parseLyrics(syncedLyrics, plainLyrics) {
+        if (syncedLyrics) {
+            const lines = [];
+            const regex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]\s*(.*)/g;
+            let match;
+            while ((match = regex.exec(syncedLyrics)) !== null) {
+                const min = parseInt(match[1]);
+                const sec = parseInt(match[2]);
+                const ms = match[3].length === 2 ? parseInt(match[3]) * 10 : parseInt(match[3]);
+                const timeMs = (min * 60 + sec) * 1000 + ms;
+                const text = match[4].trim();
+                if (text) lines.push({ timeMs, text });
+            }
+            if (lines.length > 0) return { synced: true, plain: plainLyrics, lines };
+        }
+        if (plainLyrics) {
+            const lines = plainLyrics.split('\n').filter(l => l.trim()).map(text => ({ timeMs: -1, text: text.trim() }));
+            return { synced: false, plain: plainLyrics, lines };
+        }
+        return { synced: false, plain: null, lines: [] };
+    }
+
+    // ═══════════════════ DEVICE PICKER (Spotify Connect) ═══════════════════
+    async fetchDevices() {
+        const data = await this.spotifyApi('/devices', 'GET');
+        if (data && data.devices) return data.devices;
+        return [];
+    }
+
+    async transferPlayback(deviceId, play = true) {
+        try {
+            const res = await this.spotifyApi('', 'PUT', { device_ids: [deviceId], play });
+            if (res !== null) {
+                this._activeDeviceId = deviceId;
+                this.safeShowToast('🔊 ' + this.t('transferring'), { type: 'success' });
+            }
+            return res;
+        } catch (e) {
+            console.error('[SpotifySync] Transfer error:', e);
+            return null;
+        }
+    }
+
     // ═══════════════════ DETECTION LOOP ═══════════════════
     startDetection() {
-        this.spotifyStateInterval = setInterval(() => {
-            const state = this.getSpotifyState();
-            const shouldShow = this.config.controlsVisibility === 'whenOpen'
+        this.spotifyStateInterval = setInterval(async () => {
+            let state = this.getSpotifyState();
+            let shouldShow = this.config.controlsVisibility === 'whenOpen'
                 ? state.isSpotifyOpen
                 : (state.isPlaying && state.track);
+
+            // ═══ AFK PREMIUM FALLBACK ═══
+            // If Discord Stores report nothing but we have Premium, poll Spotify Web API directly
+            if (!shouldShow && this.hasPremium()) {
+                const fallback = await this.getSpotifyStatePremiumFallback();
+                if (fallback && (fallback.isPlaying || this.config.controlsVisibility === 'whenOpen')) {
+                    state = fallback;
+                    shouldShow = true;
+                }
+            }
 
             if (shouldShow && state.track) {
                 // Track changed?
@@ -1303,7 +1502,7 @@ module.exports = class SpotifySync {
             if (state.isPlaying && state.track) {
                 this.send({ type: 'spotify_state', state: { isPlaying: true, track: state.track } });
             }
-        }, 1500);
+        }, 1000);
 
         // Progress bar smooth updater
         this.progressInterval = setInterval(() => {
@@ -1609,6 +1808,12 @@ module.exports = class SpotifySync {
                     <button class="ss2-btn ss2-premium-only" id="ss2-queue-btn" title="Queue" style="display:none">
                         <svg viewBox="0 0 24 24"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zM20 10V4.16c0-.53-.21-1.04-.59-1.41-.37-.38-.88-.59-1.41-.59h-1v2h1v6h2zm-2 10v-5l5 2.5z"/></svg>
                     </button>
+                    <button class="ss2-btn ss2-premium-only" id="ss2-lyrics-btn" title="${this.t('lyrics')}" style="display:none">
+                        <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6zm-2 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                    </button>
+                    <button class="ss2-btn ss2-premium-only" id="ss2-devices-btn" title="${this.t('devices')}" style="display:none">
+                        <svg viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+                    </button>
                 </div>
                 <div class="ss2-volume-wrap" id="ss2-volume-wrap">
                     <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
@@ -1770,6 +1975,29 @@ module.exports = class SpotifySync {
             if (this._trackId) {
                 this.sendToChat(`https://open.spotify.com/track/${this._trackId}`);
             }
+        });
+
+        // Lyrics Button
+        bind('ss2-lyrics-btn', () => {
+            const container = document.getElementById('sth-list-view');
+            if (container && container.innerHTML !== '') {
+                container.innerHTML = '';
+                document.getElementById('ss2-widget')?.classList.remove('ss2-mode-list');
+                if (this._lyricsInterval) { clearInterval(this._lyricsInterval); this._lyricsInterval = null; }
+                return;
+            }
+            this.renderLyricsView();
+        });
+
+        // Devices Button
+        bind('ss2-devices-btn', () => {
+            const container = document.getElementById('sth-list-view');
+            if (container && container.innerHTML !== '') {
+                container.innerHTML = '';
+                document.getElementById('ss2-widget')?.classList.remove('ss2-mode-list');
+                return;
+            }
+            this.renderDevicesView();
         });
 
         // Simple clicks for Art/Artist/Album
@@ -1996,7 +2224,7 @@ module.exports = class SpotifySync {
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px;">
                         <span style="color:#1DB954;">🎵</span> ${this.t('title')}
-                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.0.2</span>
+                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.1.0</span>
                     </h2>
                     <select id="ss2-lang" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:5px 8px;">
                         <option value="en" ${this.config.language === 'en' ? 'selected' : ''}>English</option>
@@ -2323,6 +2551,286 @@ module.exports = class SpotifySync {
                     }
                 }
             };
+        });
+    }
+
+    // ═══════════════════ UI: LYRICS VIEW ═══════════════════
+    async renderLyricsView() {
+        const container = document.getElementById('sth-list-view');
+        if (!container) return;
+        document.getElementById('ss2-widget')?.classList.add('ss2-mode-list');
+
+        // Show loading
+        container.innerHTML = `
+            <div style="position:absolute;inset:0;z-index:50;background:rgba(18,18,18,0.98);backdrop-filter:blur(20px);display:flex;flex-direction:column;border-radius:10px;padding:10px;animation:ss2-slide-up 0.25s cubic-bezier(0.2,0.8,0.2,1);">
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+                    <svg viewBox="0 0 24 24" style="width:40px;height:40px;fill:rgba(255,255,255,0.2);animation:ss2-spin 1s linear infinite;"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
+                </div>
+            </div>
+        `;
+
+        // Get current track info
+        const titleEl = document.getElementById('ss2-title');
+        const artistEl = document.getElementById('ss2-artist');
+        const albumEl = document.getElementById('ss2-album');
+        const trackName = titleEl?.textContent || '';
+        const artistName = artistEl?.textContent || '';
+        const albumName = albumEl?.textContent || '';
+
+        const lyrics = await this.fetchLyrics(trackName, artistName, albumName, this._durationMs);
+        const closeIcon = `<svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:currentColor;"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>`;
+
+        if (!lyrics || lyrics.lines.length === 0) {
+            container.innerHTML = `
+                <div style="position:absolute;inset:0;z-index:50;background:rgba(18,18,18,0.98);backdrop-filter:blur(20px);display:flex;flex-direction:column;border-radius:10px;padding:10px;animation:ss2-slide-up 0.25s cubic-bezier(0.2,0.8,0.2,1);">
+                    <div style="flex-shrink:0;display:flex;align-items:center;gap:16px;padding:16px 20px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.08);">
+                        <button id="sth-lyrics-back" style="background:transparent;border:none;color:#fff;cursor:pointer;padding:4px;border-radius:50%;display:flex;">${closeIcon}</button>
+                        <span style="font-weight:700;font-size:16px;color:#fff;">${this.t('lyrics')}</span>
+                    </div>
+                    <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:40px;">
+                        <svg viewBox="0 0 24 24" style="width:48px;height:48px;fill:rgba(255,255,255,0.15);"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                        <span style="color:rgba(255,255,255,0.5);font-size:14px;text-align:center;">${this.t('noLyrics')}</span>
+                    </div>
+                </div>
+            `;
+            container.querySelector('#sth-lyrics-back')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                container.innerHTML = '';
+                document.getElementById('ss2-widget')?.classList.remove('ss2-mode-list');
+            });
+            return;
+        }
+
+        container.innerHTML = `
+            <style>
+                @keyframes ss2-slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                .ss2-lyrics-container { position:absolute;inset:0;z-index:50;background:rgba(18,18,18,0.98);backdrop-filter:blur(20px);display:flex;flex-direction:column;border-radius:10px;animation:ss2-slide-up 0.25s cubic-bezier(0.2,0.8,0.2,1); }
+                .ss2-lyrics-header { flex-shrink:0;display:flex;align-items:center;gap:16px;padding:16px 20px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.08);box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+                .ss2-lyrics-scroll { flex:1;overflow-y:auto;overflow-x:hidden;padding:20px 16px;scroll-behavior:smooth; }
+                .ss2-lyrics-scroll::-webkit-scrollbar { width:4px; }
+                .ss2-lyrics-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.2);border-radius:2px; }
+                .ss2-lyrics-line {
+                    padding:6px 12px;font-size:14px;color:rgba(255,255,255,0.35);
+                    transition:all 0.3s cubic-bezier(0.4,0,0.2,1);
+                    border-radius:6px;cursor:default;line-height:1.6;
+                    font-weight:400;
+                }
+                .ss2-lyrics-line.ss2-lyrics-active {
+                    color:#1DB954 !important;font-weight:700;font-size:15px;
+                    background:rgba(30,215,96,0.08);
+                    transform:scale(1.02);
+                    text-shadow:0 0 20px rgba(30,215,96,0.3);
+                }
+                .ss2-lyrics-line.ss2-lyrics-past { color:rgba(255,255,255,0.2); }
+                .ss2-lyrics-line.ss2-lyrics-future { color:rgba(255,255,255,0.5); }
+                .ss2-lyrics-footer { flex-shrink:0;padding:8px 16px;text-align:center;font-size:10px;color:rgba(255,255,255,0.2);border-top:1px solid rgba(255,255,255,0.05); }
+            </style>
+            <div class="ss2-lyrics-container">
+                <div class="ss2-lyrics-header">
+                    <button id="sth-lyrics-back" style="background:transparent;border:none;color:#fff;cursor:pointer;padding:4px;border-radius:50%;display:flex;">${closeIcon}</button>
+                    <div style="display:flex;flex-direction:column;">
+                        <span style="font-weight:700;font-size:16px;color:#fff;letter-spacing:-0.3px;">${this.t('lyrics')}</span>
+                        <span style="font-size:11px;color:rgba(255,255,255,0.5);">${trackName} — ${artistName}</span>
+                    </div>
+                </div>
+                <div class="ss2-lyrics-scroll" id="ss2-lyrics-scroll">
+                    ${lyrics.lines.map((line, i) => `<div class="ss2-lyrics-line ss2-lyrics-future" data-time="${line.timeMs}" data-idx="${i}">${line.text}</div>`).join('')}
+                </div>
+                <div class="ss2-lyrics-footer">${this.t('lyricsBy')}</div>
+            </div>
+        `;
+
+        // Back button
+        container.querySelector('#sth-lyrics-back')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            container.innerHTML = '';
+            document.getElementById('ss2-widget')?.classList.remove('ss2-mode-list');
+            if (this._lyricsInterval) { clearInterval(this._lyricsInterval); this._lyricsInterval = null; }
+        });
+
+        // Synced lyrics auto-scroll
+        if (lyrics.synced) {
+            let lastActiveIdx = -1;
+            this._lyricsInterval = setInterval(() => {
+                if (!this._isPlaying || !this._durationMs) return;
+                const elapsed = Date.now() - this._positionTimestamp;
+                const currentPos = this._positionMs + elapsed;
+
+                // Find the active line
+                let activeIdx = -1;
+                for (let i = lyrics.lines.length - 1; i >= 0; i--) {
+                    if (lyrics.lines[i].timeMs <= currentPos) { activeIdx = i; break; }
+                }
+
+                if (activeIdx !== lastActiveIdx) {
+                    lastActiveIdx = activeIdx;
+                    const scrollContainer = document.getElementById('ss2-lyrics-scroll');
+                    if (!scrollContainer) return;
+
+                    const allLines = scrollContainer.querySelectorAll('.ss2-lyrics-line');
+                    allLines.forEach((el, i) => {
+                        el.classList.remove('ss2-lyrics-active', 'ss2-lyrics-past', 'ss2-lyrics-future');
+                        if (i === activeIdx) el.classList.add('ss2-lyrics-active');
+                        else if (i < activeIdx) el.classList.add('ss2-lyrics-past');
+                        else el.classList.add('ss2-lyrics-future');
+                    });
+
+                    // Auto-scroll to active line
+                    if (activeIdx >= 0 && allLines[activeIdx]) {
+                        allLines[activeIdx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }, 300);
+        }
+
+        // Click on synced line to seek
+        if (lyrics.synced) {
+            container.querySelectorAll('.ss2-lyrics-line').forEach(el => {
+                el.style.cursor = 'pointer';
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const timeMs = parseInt(el.dataset.time);
+                    if (timeMs >= 0) {
+                        this._positionMs = timeMs;
+                        this._positionTimestamp = Date.now();
+                        this.seek(timeMs);
+                    }
+                });
+            });
+        }
+    }
+
+    // ═══════════════════ UI: DEVICES VIEW ═══════════════════
+    async renderDevicesView() {
+        const container = document.getElementById('sth-list-view');
+        if (!container) return;
+        document.getElementById('ss2-widget')?.classList.add('ss2-mode-list');
+
+        // Loading
+        container.innerHTML = `
+            <div style="position:absolute;inset:0;z-index:50;background:rgba(18,18,18,0.98);backdrop-filter:blur(20px);display:flex;flex-direction:column;border-radius:10px;padding:10px;animation:ss2-slide-up 0.25s cubic-bezier(0.2,0.8,0.2,1);">
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+                    <svg viewBox="0 0 24 24" style="width:40px;height:40px;fill:rgba(255,255,255,0.2);animation:ss2-spin 1s linear infinite;"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>
+                </div>
+            </div>
+        `;
+
+        const devices = await this.fetchDevices();
+        const closeIcon = `<svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:currentColor;"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>`;
+
+        // Device type icons
+        const deviceIcon = (type) => {
+            switch ((type || '').toLowerCase()) {
+                case 'computer': return '<svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:currentColor;"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>';
+                case 'smartphone': return '<svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:currentColor;"><path d="M15.5 1h-8C6.12 1 5 2.12 5 3.5v17C5 21.88 6.12 23 7.5 23h8c1.38 0 2.5-1.12 2.5-2.5v-17C18 2.12 16.88 1 15.5 1zm-4 21c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4.5-4H7V4h9v14z"/></svg>';
+                case 'speaker': return '<svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:currentColor;"><path d="M17 2H7c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-5 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm0 16c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
+                case 'tv': return '<svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:currentColor;"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>';
+                default: return '<svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:currentColor;"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>';
+            }
+        };
+
+        if (devices.length === 0) {
+            container.innerHTML = `
+                <div style="position:absolute;inset:0;z-index:50;background:rgba(18,18,18,0.98);backdrop-filter:blur(20px);display:flex;flex-direction:column;border-radius:10px;padding:10px;animation:ss2-slide-up 0.25s cubic-bezier(0.2,0.8,0.2,1);">
+                    <div style="flex-shrink:0;display:flex;align-items:center;gap:16px;padding:16px 20px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.08);">
+                        <button id="sth-dev-back" style="background:transparent;border:none;color:#fff;cursor:pointer;padding:4px;border-radius:50%;display:flex;">${closeIcon}</button>
+                        <span style="font-weight:700;font-size:16px;color:#fff;">${this.t('devices')}</span>
+                    </div>
+                    <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:40px;">
+                        <svg viewBox="0 0 24 24" style="width:48px;height:48px;fill:rgba(255,255,255,0.15);"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>
+                        <span style="color:rgba(255,255,255,0.5);font-size:14px;">${this.t('noDevices')}</span>
+                    </div>
+                </div>
+            `;
+            container.querySelector('#sth-dev-back')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                container.innerHTML = '';
+                document.getElementById('ss2-widget')?.classList.remove('ss2-mode-list');
+            });
+            return;
+        }
+
+        // Sort: active first, then Computer, then Web Player, then rest
+        const sortPriority = (d) => {
+            if (d.is_active) return 0;
+            const t = (d.type || '').toLowerCase();
+            if (t === 'computer') return 1;
+            if (d.name?.toLowerCase().includes('web')) return 2;
+            return 3;
+        };
+        devices.sort((a, b) => sortPriority(a) - sortPriority(b));
+
+        container.innerHTML = `
+            <style>
+                @keyframes ss2-slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                .ss2-device-item {
+                    display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:10px;cursor:pointer;
+                    transition:all 0.2s;border:1px solid transparent;
+                }
+                .ss2-device-item:hover { background:rgba(255,255,255,0.08); }
+                .ss2-device-item.ss2-device-active {
+                    background:rgba(30,215,96,0.1);border-color:rgba(30,215,96,0.3);
+                }
+                .ss2-device-icon {
+                    width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+                    background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.7);flex-shrink:0;
+                }
+                .ss2-device-active .ss2-device-icon { background:rgba(30,215,96,0.15);color:#1DB954; }
+                .ss2-device-name { font-weight:600;font-size:14px;color:#fff; }
+                .ss2-device-active .ss2-device-name { color:#1DB954; }
+                .ss2-device-type { font-size:11px;color:rgba(255,255,255,0.4);text-transform:capitalize; }
+                .ss2-device-vol { font-size:11px;color:rgba(255,255,255,0.3); }
+                .ss2-device-badge {
+                    font-size:10px;font-weight:700;color:#1DB954;background:rgba(30,215,96,0.15);
+                    padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;
+                }
+            </style>
+            <div style="position:absolute;inset:0;z-index:50;background:rgba(18,18,18,0.98);backdrop-filter:blur(20px);display:flex;flex-direction:column;border-radius:10px;animation:ss2-slide-up 0.25s cubic-bezier(0.2,0.8,0.2,1);">
+                <div style="flex-shrink:0;display:flex;align-items:center;gap:16px;padding:16px 20px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.08);box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                    <button id="sth-dev-back" style="background:transparent;border:none;color:#fff;cursor:pointer;padding:4px;border-radius:50%;display:flex;">${closeIcon}</button>
+                    <span style="font-weight:700;font-size:16px;color:#fff;letter-spacing:-0.3px;">${this.t('devices')}</span>
+                </div>
+                <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:12px;display:flex;flex-direction:column;gap:6px;">
+                    ${devices.map(d => `
+                        <div class="ss2-device-item ${d.is_active ? 'ss2-device-active' : ''}" data-device-id="${d.id}">
+                            <div class="ss2-device-icon">${deviceIcon(d.type)}</div>
+                            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+                                <span class="ss2-device-name">${d.name || 'Unknown Device'}</span>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span class="ss2-device-type">${d.type || 'device'}</span>
+                                    <span class="ss2-device-vol">🔊 ${d.volume_percent ?? '?'}%</span>
+                                </div>
+                            </div>
+                            ${d.is_active ? `<span class="ss2-device-badge">${this.t('activeDevice')}</span>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        // Back button
+        container.querySelector('#sth-dev-back')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            container.innerHTML = '';
+            document.getElementById('ss2-widget')?.classList.remove('ss2-mode-list');
+        });
+
+        // Device click → transfer playback
+        container.querySelectorAll('.ss2-device-item').forEach(el => {
+            el.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const deviceId = el.dataset.deviceId;
+                if (!deviceId) return;
+
+                // Don't transfer to already-active device
+                if (el.classList.contains('ss2-device-active')) return;
+
+                await this.transferPlayback(deviceId);
+                setTimeout(() => {
+                    container.innerHTML = '';
+                    document.getElementById('ss2-widget')?.classList.remove('ss2-mode-list');
+                }, 500);
+            });
         });
     }
 };
