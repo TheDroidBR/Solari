@@ -34,10 +34,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Special handling for Plugins init
+        // Special handling for Plugins init + Real-Time BD Polling (v1.7.0)
         if (targetId === 'plugins-tab') {
             if (typeof PluginsTabManager !== 'undefined') {
                 PluginsTabManager.init();
+                PluginsTabManager.startBDPolling();
+            }
+        } else {
+            // Stop BD polling when leaving plugins tab
+            if (typeof PluginsTabManager !== 'undefined' && PluginsTabManager._bdPollInterval) {
+                PluginsTabManager.stopBDPolling();
             }
         }
     }

@@ -617,6 +617,80 @@ ipcMain.on('trigger-update-check', async () => {
     });
 });
 
+// ===== IN-APP UPDATE BUTTON (v1.7.0) =====
+// Silent update check — returns {hasUpdate, latestVersion} without showing dialogs
+ipcMain.handle('check-update-silent', () => {
+    return new Promise((resolve) => {
+        const https = require('https');
+        const pkg = require('../../package.json');
+        const currentVersion = pkg.version;
+
+        const options = {
+            hostname: 'api.github.com',
+            path: CONSTANTS.GITHUB_RELEASES_PATH,
+            method: 'GET',
+            headers: {
+                'User-Agent': 'Solari-SilentCheck',
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const release = JSON.parse(data);
+                    const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
+                    const hasUpdate = compareVersions(latestVersion, currentVersion) > 0;
+                    resolve({ hasUpdate, latestVersion, currentVersion });
+                } catch (e) {
+                    resolve({ hasUpdate: false, latestVersion: currentVersion, currentVersion });
+                }
+            });
+        });
+
+        req.on('error', () => resolve({ hasUpdate: false, latestVersion: currentVersion, currentVersion }));
+        req.setTimeout(8000, () => {
+            req.destroy();
+            resolve({ hasUpdate: false, latestVersion: currentVersion, currentVersion });
+        });
+        req.end();
+    });
+});
+
+// Trigger update via splash: use the SAME flow as the auto-update that already works
+// Instead of relaunching, hide the main window and run checkUpdateViaSplash() directly
+ipcMain.on('trigger-update-via-splash', async () => {
+    console.log('[Solari] User requested update via in-app button. Running update flow in current instance...');
+
+    // 1. Hide the main window (same as if we were on splash screen)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide();
+    }
+
+    // 2. Create fresh splash window
+    createSplashWindow();
+
+    // 3. Run the exact same update check that the auto-update uses
+    const willRestart = await checkUpdateViaSplash();
+
+    if (willRestart) {
+        // installUpdateAndRestart() was called — app will exit via batch script
+        console.log('[Solari] Update downloaded, updater script will handle restart.');
+        return;
+    }
+
+    // 4. If no update found (shouldn't happen since we checked), close splash and show main
+    console.log('[Solari] No update found during manual check. Restoring main window.');
+    if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.close();
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show();
+    }
+});
+
 
 // Check for updates via GitHub releases API
 async function checkForUpdates(labels) {
