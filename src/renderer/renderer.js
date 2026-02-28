@@ -877,34 +877,67 @@ ipcRenderer.on('presets-updated', (event, presets) => {
     renderPresets(presets);
 });
 
-// --- RPC Status Updates (Connection Indicator in Header) ---
+// --- RPC Status Updates (Connection Indicator in Header + Server Status Section) ---
 ipcRenderer.on('rpc-status', (event, data) => {
     const statusIndicator = document.querySelector('.status-indicator');
     const statusText = document.querySelector('.status-text');
-
-    if (!statusIndicator || !statusText) return;
+    const rpcStatusEl = document.getElementById('rpcStatus');
+    const rpcStatusDot = document.getElementById('rpcStatusDot');
 
     // Remove data-i18n to prevent applyTranslations from overwriting
-    statusText.removeAttribute('data-i18n');
+    if (statusText) statusText.removeAttribute('data-i18n');
 
     if (data.connected) {
         isRpcActuallyConnected = true;
-        statusIndicator.style.background = '#22c55e'; // Green
-        statusIndicator.style.boxShadow = '0 0 8px #22c55e';
-        statusText.textContent = t('app.connected') || 'Conectado';
-        statusText.style.color = '#22c55e';
+
+        // Header indicator
+        if (statusIndicator && statusText && statusToggle && statusToggle.checked) {
+            statusIndicator.style.background = '#22c55e';
+            statusIndicator.style.boxShadow = '0 0 8px #22c55e';
+            statusText.textContent = t('app.connected') || 'Conectado';
+            statusText.style.color = '#22c55e';
+        }
+
+        // Server Status section (Settings tab)
+        if (rpcStatusEl) {
+            rpcStatusEl.textContent = t('server.connected') || 'Conectado';
+            rpcStatusEl.style.color = '#4ade80';
+        }
+        if (rpcStatusDot) rpcStatusDot.style.background = '#4ade80';
     } else if (data.reconnecting) {
         isRpcActuallyConnected = false;
-        statusIndicator.style.background = '#f59e0b'; // Orange
-        statusIndicator.style.boxShadow = '0 0 8px #f59e0b';
-        statusText.textContent = t('app.reconnecting') !== 'app.reconnecting' ? t('app.reconnecting') : 'Reconectando...';
-        statusText.style.color = '#f59e0b';
+
+        // Header indicator
+        if (statusIndicator && statusText && statusToggle && statusToggle.checked) {
+            statusIndicator.style.background = '#f59e0b';
+            statusIndicator.style.boxShadow = '0 0 8px #f59e0b';
+            statusText.textContent = t('app.reconnecting') !== 'app.reconnecting' ? t('app.reconnecting') : 'Reconectando...';
+            statusText.style.color = '#f59e0b';
+        }
+
+        // Server Status section
+        if (rpcStatusEl) {
+            rpcStatusEl.textContent = t('app.reconnecting') !== 'app.reconnecting' ? t('app.reconnecting') : 'Reconectando...';
+            rpcStatusEl.style.color = '#f59e0b';
+        }
+        if (rpcStatusDot) rpcStatusDot.style.background = '#f59e0b';
     } else {
         isRpcActuallyConnected = false;
-        statusIndicator.style.background = '#ef4444'; // Red
-        statusIndicator.style.boxShadow = '0 0 8px #ef4444';
-        statusText.textContent = t('app.disconnected') || 'Desconectado';
-        statusText.style.color = '#ef4444';
+
+        // Header indicator
+        if (statusIndicator && statusText && statusToggle && statusToggle.checked) {
+            statusIndicator.style.background = '#ef4444';
+            statusIndicator.style.boxShadow = '0 0 8px #ef4444';
+            statusText.textContent = t('app.disconnected') || 'Desconectado';
+            statusText.style.color = '#ef4444';
+        }
+
+        // Server Status section
+        if (rpcStatusEl) {
+            rpcStatusEl.textContent = t('server.disconnected') || 'Desconectado';
+            rpcStatusEl.style.color = '#ef4444';
+        }
+        if (rpcStatusDot) rpcStatusDot.style.background = '#ef4444';
     }
 });
 
@@ -1745,15 +1778,26 @@ statusToggle?.addEventListener('change', (e) => {
 
 function updateStatusDisplay(isEnabled) {
     if (isEnabled) {
-        statusIndicator.style.background = '#4ade80';
-        statusIndicator.style.animation = 'pulse 2s infinite';
-        statusText.textContent = t('app.connected');
+        // When enabled: show actual RPC state instead of always "Connected"
+        if (isRpcActuallyConnected) {
+            statusIndicator.style.background = '#22c55e';
+            statusIndicator.style.animation = 'pulse 2s infinite';
+            statusText.textContent = t('app.connected');
+            statusText.style.color = '#22c55e';
+        } else {
+            // Enabled but not yet connected — show "Connecting..." (orange)
+            statusIndicator.style.background = '#f59e0b';
+            statusIndicator.style.animation = 'pulse 2s infinite';
+            statusText.textContent = t('app.connecting') !== 'app.connecting' ? t('app.connecting') : 'Conectando...';
+            statusText.style.color = '#f59e0b';
+        }
         document.querySelector('.rpc-config').style.opacity = '1';
         document.querySelector('.rpc-config').style.pointerEvents = 'all';
     } else {
         statusIndicator.style.background = '#ef4444';
         statusIndicator.style.animation = 'none';
         statusText.textContent = t('app.disconnected');
+        statusText.style.color = '#ef4444';
         document.querySelector('.rpc-config').style.opacity = '0.5';
         document.querySelector('.rpc-config').style.pointerEvents = 'none';
     }
@@ -2305,7 +2349,8 @@ ipcRenderer.on('preset-auto-loaded', (event, presetName) => {
     statusText.textContent = `Auto: ${presetName}`;
     setTimeout(() => {
         if (statusToggle.checked) {
-            statusText.textContent = t('app.connected');
+            // Use actual RPC state instead of always "Connected"
+            updateStatusDisplay(true);
         }
     }, 3000);
 });
@@ -2885,8 +2930,24 @@ var PluginsTabManager = {
 
         this.initialized = true;
         this.checkBD();
+        this.startBDPolling();
         await this.loadPlugins();
         this.startAutoRefresh();
+    },
+
+    // ===== Real-Time BD Detection (v1.7.0) =====
+    startBDPolling() {
+        this.stopBDPolling(); // Clear any existing interval
+        this._bdPollInterval = setInterval(() => this.checkBD(), 5000);
+        console.log('[Plugins] BD polling started (every 5s)');
+    },
+
+    stopBDPolling() {
+        if (this._bdPollInterval) {
+            clearInterval(this._bdPollInterval);
+            this._bdPollInterval = null;
+            console.log('[Plugins] BD polling stopped');
+        }
     },
 
     startAutoRefresh() {
@@ -2970,12 +3031,12 @@ var PluginsTabManager = {
                 "changelog": "### v1.1.2 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop (\\\"zombie connection\\\") when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.1.1 (2026-01-20)\n- \ud83d\udc1b **Fixed:** Custom status sync with Discord servers when cleared\n- \ud83d\udc1b **Fixed:** Status persistence on other devices fixed\n- \u26a1 **Improved:** Reliability with new retry mechanism\n\n### v1.1.0 (2024-12-24)\n- \ud83d\udc1b **Fixed:** Status no longer gets stuck on 'Idle' when opening Discord on mobile/browser\n- \u26a1 **New:** Patches Discord's native idle timeout instead of manually setting status\n- \u26a1 Discord now handles idle detection natively, syncing correctly across devices\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Auto-detect mouse/keyboard inactivity\n- \u2705 Customizable timeout settings\n- \u2705 Syncs with Solari app via WebSocket"
             },
             "spotifysync": {
-                "version": "2.0.2",
+                "version": "2.1.1",
                 "author": "TheDroid",
                 "description": "Sync Spotify with Discord Rich Presence and Controls.",
-                "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js",
+                "downloadUrl": "https://solarirpc.com/downloads/SpotifySync.plugin.js",
                 "fileName": "SpotifySync.plugin.js",
-                "changelog": "### v2.0.2 (2026-02-15)\n- \ud83d\ude80 **Critical Fix:** Solved persistent \\\"Token Expirado (401)\\\" errors by scanning for CONNECTION_ACCESS_TOKEN.\n- \ud83d\udc1b **Fix:** Library button now opens playlist view correctly.\n- \u26a1 **Improvement:** Smarter local module detection.\n- \ud83d\udc1e **Fix:** Removed triple-notification on Share.\n- \ud83d\udee0\ufe0f **Fix:** Added startup delay for better reliability.\n\n### v2.0.1 (2026-02-15) - The Ghost Fix \ud83d\udc7b\n- \ud83d\ude80 **Fix:** Resolved misleading \\\"Local Control failed\\\" error toast when Web API fallback is successful.\n- \ud83d\udc1b **Fix:** Fixed Next, Previous, and Pause controls by correctly passing accountId to local modules.\n- \ud83d\udd0d **Improvement:** Enhanced local module search strategy.\n- \ud83d\udd17 **Improvement:** Made the developer.spotify.com link clickable in the settings panel.\n- \ud83d\udee0\ufe0f **Dev:** Added version check log for easier troubleshooting.\n\n### v2.0.0 (The Complete Rebirth)\n- \ud83d\ude80 **Total Architecture Rewrite**: Built from the ground up for stability, speed, and premium features.\n- \ud83d\udd10 **Premium Auth System**: Integrated Spotify PKCE authentication for secure access to advanced player controls.\n- \ud83c\udfae **Advanced Player Controls**: Added Shuffle, Repeat, Like/Unlike, real-time Volume Slider, and Seek Bar.\n- \ud83d\udccf **New List Views**: Library and Queue views with Auto-Expanding Height (450px).\n- \ud83d\udee1\ufe0f **Security & Privacy**: Added Editable Client ID field with a visibility toggle.\n- \u2728 **Premium Glassmorphic Design**: Redesigned with card-based layouts and blur effects.\n- \u26a1 **Performance & Sync**: Reliable WebSocket communication with Solari APP.\n\n### v1.0.1 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Play/Pause controls\n- \u2705 Next/Previous track buttons\n- \u2705 Now Playing display in Discord"
+                "changelog": "### v2.1.1 (2026-02-25)\n- \ud83d\udee1\ufe0f **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data.\n- \ud83c\udfb5 **Improvement:** **Lyrics Search** rewritten with 4-tier fallback. Strips (Remastered), (feat. X), [Deluxe], etc. Prioritizes synced (LRC) lyrics.\n\n### v2.1.0 (2026-02-25)\n- \ud83d\ude80 **New:** **Lyrics Viewer** with synced LRC support, auto-scrolling, and premium blur effects.\n- \ud83d\udcf1 **New:** **Device Picker** (Spotify Connect) to instantly transfer playback between your PC, Phone, TV, or Echo directly from Discord.\n- \ud83d\udee1\ufe0f **Critical Fix:** **AFK Premium Fallback**. The plugin now seamlessly switches to the Spotify Web API when Discord stores go idle, ensuring the widget never disappears again.\n- \u26a1 **Improvement:** **Real-Time Volume Sync**. Added a dedicated high-speed background poll. If you change the volume on your phone, the slider updates instantly.\n\n### v2.0.2 (2026-02-15)\n- \ud83d\ude80 **Critical Fix:** Solved persistent \\\"Token Expirado (401)\\\" errors by scanning for CONNECTION_ACCESS_TOKEN.\n- \ud83d\udc1b **Fix:** Library button now opens playlist view correctly.\n- \u26a1 **Improvement:** Smarter local module detection.\n- \ud83d\udc1e **Fix:** Removed triple-notification on Share.\n- \ud83d\udee0\ufe0f **Fix:** Added startup delay for better reliability.\n\n### v2.0.1 (2026-02-15) - The Ghost Fix \ud83d\udc7b\n- \ud83d\ude80 **Fix:** Resolved misleading \\\"Local Control failed\\\" error toast when Web API fallback is successful.\n- \ud83d\udc1b **Fix:** Fixed Next, Previous, and Pause controls by correctly passing accountId to local modules.\n- \ud83d\udd0d **Improvement:** Enhanced local module search strategy.\n- \ud83d\udd17 **Improvement:** Made the developer.spotify.com link clickable in the settings panel.\n- \ud83d\udee0\ufe0f **Dev:** Added version check log for easier troubleshooting.\n\n### v2.0.0 (The Complete Rebirth)\n- \ud83d\ude80 **Total Architecture Rewrite**: Built from the ground up for stability, speed, and premium features.\n- \ud83d\udd10 **Premium Auth System**: Integrated Spotify PKCE authentication for secure access to advanced player controls.\n- \ud83c\udfae **Advanced Player Controls**: Added Shuffle, Repeat, Like/Unlike, real-time Volume Slider, and Seek Bar.\n- \ud83d\udccf **New List Views**: Library and Queue views with Auto-Expanding Height (450px).\n- \ud83d\udee1\ufe0f **Security & Privacy**: Added Editable Client ID field with a visibility toggle.\n- \u2728 **Premium Glassmorphic Design**: Redesigned with card-based layouts and blur effects.\n- \u26a1 **Performance & Sync**: Reliable WebSocket communication with Solari APP.\n\n### v1.0.1 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Play/Pause controls\n- \u2705 Next/Previous track buttons\n- \u2705 Now Playing display in Discord"
             }
         };
 
@@ -4346,3 +4407,39 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
         }, i * 800); // Stagger toasts
     });
 });
+
+// ===== IN-APP UPDATE BUTTON (v1.7.0) =====
+(function initInAppUpdateCheck() {
+    const updateBtn = document.getElementById('updateAvailableBtn');
+    const updateLabel = document.getElementById('updateVersionLabel');
+    if (!updateBtn) return;
+
+    async function checkForUpdateSilently() {
+        try {
+            const result = await ipcRenderer.invoke('check-update-silent');
+            if (result && result.hasUpdate) {
+                updateLabel.textContent = `v${result.latestVersion}`;
+                updateBtn.title = `${t('settings.updateAvailableTitle') || 'Update available!'} v${result.latestVersion}`;
+                updateBtn.style.display = 'inline-flex';
+                console.log(`[Solari] Update available: v${result.latestVersion}`);
+            } else {
+                updateBtn.style.display = 'none';
+            }
+        } catch (e) {
+            console.error('[Solari] Silent update check failed:', e);
+        }
+    }
+
+    // Check on load (with a small delay to not block startup)
+    setTimeout(checkForUpdateSilently, 5000);
+
+    // Re-check every 10 minutes
+    setInterval(checkForUpdateSilently, 600000);
+
+    // Button click → restart with splash to update
+    updateBtn.addEventListener('click', () => {
+        updateBtn.textContent = '⏳';
+        updateBtn.disabled = true;
+        ipcRenderer.send('trigger-update-via-splash');
+    });
+})();

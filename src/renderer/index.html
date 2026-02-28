@@ -13,7 +13,10 @@
     <header>
       <div class="brand">
         <h1>Solari</h1>
-        <span class="version">v1.6.0</span>
+        <span class="version">v1.6.1</span>
+        <button id="updateAvailableBtn" class="update-available-btn" style="display: none;" title="Update available!">
+          <span class="update-icon">⬇️</span> <span id="updateVersionLabel"></span>
+        </button>
       </div>
       <div class="header-controls">
         <div class="toggle-container">
@@ -239,6 +242,62 @@
                     ℹ️ <span data-i18n="menu.about">Sobre o Solari</span>
                   </button>
                 </div>
+              </div>
+            </div>
+
+            <!-- Server Status Section (Redesigned v1.7.0) -->
+            <div class="settings-card server-status-card">
+              <div class="settings-header">
+                <div class="settings-icon-box" style="background: rgba(0,212,255, 0.15); color: #00d4ff;">📡</div>
+                <div class="settings-info">
+                  <h3 data-i18n="server.title"
+                    style="background: var(--text-gradient, linear-gradient(135deg, #fff, #a1a1aa)); -webkit-background-clip: text; background-clip: text; color: transparent;">
+                    Status do Servidor</h3>
+                  <p data-i18n="server.subtitle">Monitoramento em tempo real dos serviços do Solari</p>
+                </div>
+              </div>
+              <div class="settings-content">
+                <!-- Services Grid -->
+                <div class="server-status-grid">
+                  <div class="server-status-item">
+                    <div class="server-status-dot" id="wsStatusDot" style="background: #4ade80;"></div>
+                    <div class="server-status-info">
+                      <span class="server-status-label">WebSocket</span>
+                      <span class="server-status-value" id="wsStatus" data-i18n="server.running">Rodando</span>
+                    </div>
+                  </div>
+                  <div class="server-status-item">
+                    <div class="server-status-dot" id="rpcStatusDot" style="background: #ef4444;"></div>
+                    <div class="server-status-info">
+                      <span class="server-status-label">Discord RPC</span>
+                      <span class="server-status-value" id="rpcStatus" data-i18n="server.connected">Conectado</span>
+                    </div>
+                  </div>
+                  <div class="server-status-item">
+                    <div class="server-status-dot" id="spotifyStatusDot" style="background: #ef4444;"></div>
+                    <div class="server-status-info">
+                      <span class="server-status-label">SpotifySync</span>
+                      <span class="server-status-value" id="spotifyPluginStatus">Desconectado</span>
+                    </div>
+                  </div>
+                  <div class="server-status-item">
+                    <div class="server-status-dot" id="smartAfkStatusDot" style="background: #ef4444;"></div>
+                    <div class="server-status-info">
+                      <span class="server-status-label">SmartAFK</span>
+                      <span class="server-status-value" id="smartAfkPluginStatus">Desconectado</span>
+                    </div>
+                  </div>
+                </div>
+                <!-- Actions -->
+                <div class="server-status-actions">
+                  <button id="testConnectionBtn" class="btn btn-secondary btn-small">
+                    🔌 <span data-i18n="server.testConnection">Testar Conexão</span>
+                  </button>
+                  <button id="exportLogsBtn" class="btn btn-secondary btn-small">
+                    📋 <span data-i18n="server.exportLogs">Exportar Logs</span>
+                  </button>
+                </div>
+                <p id="testResult" style="margin-top: 8px; font-size: 0.8em; color: #aaa;"></p>
               </div>
             </div>
 
@@ -805,36 +864,7 @@
               </div>
             </section>
 
-            <!-- Server Status -->
-            <section class="server-info">
-              <h2 data-i18n="server.title">Status do Servidor</h2>
-              <div class="info-card">
-                <p><strong>WebSocket:</strong> <span id="wsStatus" data-i18n="server.running">Rodando</span></p>
-                <p><strong>Discord RPC:</strong> <span id="rpcStatus" data-i18n="server.connected">Conectado</span></p>
-              </div>
-              <!-- Plugin Status -->
-              <div class="info-card" style="margin-top: 10px;">
-                <p style="display: flex; align-items: center; gap: 8px;">
-                  <strong>SpotifySync:</strong>
-                  <span id="spotifyStatusDot"
-                    style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
-                  <span id="spotifyPluginStatus" style="color: #ef4444;">Desconectado</span>
-                </p>
-                <p style="display: flex; align-items: center; gap: 8px;">
-                  <strong>SmartAFK:</strong>
-                  <span id="smartAfkStatusDot"
-                    style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
-                  <span id="smartAfkPluginStatus" style="color: #ef4444;">Desconectado</span>
-                </p>
-              </div>
-              <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button id="testConnectionBtn" class="btn btn-secondary" style="font-size: 0.8em;"
-                  data-i18n="server.testConnection">Testar Conexão</button>
-                <button id="exportLogsBtn" class="btn btn-secondary" style="font-size: 0.8em;">📋 <span
-                    data-i18n="server.exportLogs">Exportar Logs</span></button>
-              </div>
-              <p id="testResult" style="margin-top: 5px; font-size: 0.8em; color: #aaa;"></p>
-            </section>
+            <!-- Server Status: Moved to Settings Tab in v1.7.0 -->
 
             <!-- Plugin Manager Removed from here -->
           </div>

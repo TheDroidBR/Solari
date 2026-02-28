@@ -1,3 +1,29 @@
+## [1.6.1] - 2026-02-27
+### 🔧 Hotfix & Improvements
+
+---
+
+### 🐛 Critical Fix
+- **Auto-Updater Fix**: Fixed a critical bug in the update batch script where the `echo "%~nx2" | find /I "Setup"` command crashed silently because no arguments were passed, causing the old executable to be deleted but the new version never copied. This affected all previous versions attempting to auto-update.
+
+### ✨ In-App Update Button
+- **Download Button**: A new animated button now appears next to the version badge when a newer version is available on GitHub. Clicking it triggers the same splash-screen update flow as the automatic updater.
+- **Silent Check**: The app silently checks for updates on startup (after 5s) and every 10 minutes, showing the button only when an update is found.
+
+### 🔌 Real-Time BetterDiscord Detection
+- **Live Polling**: BetterDiscord status (installed, broken, uninstalled) is now polled every 5 seconds while the Plugins tab is open, updating the indicator in real time.
+- **Smart Polling**: Polling automatically stops when you leave the Plugins tab to save resources.
+
+### 🎯 RPC Connection Status Fix
+- **Accurate Header Indicator**: The status indicator in the header now reflects the **actual** RPC connection state instead of just showing "Connected" whenever the toggle is on. It shows "Conectando..." (orange) while attempting to connect and "Conectado" (green) only when truly connected.
+- **Unified Status**: The `rpc-status` IPC events now update both the header indicator and the Server Status section simultaneously.
+
+### 📡 Server Status Redesign
+- **Moved to Settings Tab**: The "Status do Servidor" section has been relocated from the Rich Presence tab to the bottom of the Settings tab.
+- **Modern Grid Layout**: Redesigned with a 2x2 service grid featuring animated status dots, service labels, and connection values for WebSocket, Discord RPC, SpotifySync, and SmartAFK.
+
+---
+
 ## [1.6.0] - 2026-02-20
 ### 🌐 The Clickable Links & Plugin Overhaul
 

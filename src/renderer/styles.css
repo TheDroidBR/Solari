@@ -210,6 +210,49 @@ h1 {
   border: 1px solid var(--glass-border);
 }
 
+/* ===== In-App Update Button (v1.7.0) ===== */
+.update-available-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #ff6b35, #ff2d92);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  animation: update-glow 2s ease-in-out infinite;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.update-available-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 107, 53, 0.6), 0 0 40px rgba(255, 45, 146, 0.3);
+}
+
+.update-available-btn:active {
+  transform: scale(0.95);
+}
+
+.update-available-btn .update-icon {
+  font-size: 0.85rem;
+}
+
+@keyframes update-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(255, 107, 53, 0.4), 0 0 16px rgba(255, 45, 146, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 16px rgba(255, 107, 53, 0.6), 0 0 32px rgba(255, 45, 146, 0.4);
+  }
+}
+
 .header-controls {
   display: flex;
   align-items: center;
@@ -6190,4 +6233,65 @@ body.eco-mode .neon-btn {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.15);
   transform: translateY(-1px);
+}
+
+/* ===== Server Status Grid (v1.7.0) ===== */
+.server-status-card {
+  border: 1px solid rgba(0, 212, 255, 0.15) !important;
+}
+
+.server-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.server-status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.3s ease;
+}
+
+.server-status-item:hover {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.server-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.server-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.server-status-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.server-status-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.server-status-actions {
+  display: flex;
+  gap: 10px;
 }
