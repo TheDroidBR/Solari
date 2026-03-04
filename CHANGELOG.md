@@ -1,3 +1,57 @@
+## [1.7.0] - 2026-03-04
+### 🎛️ The SoundBoard & Extension Overhaul
+
+The SoundBoard has received a massive redesign from the ground up — premium UI, powerful new features, and a polished experience.
+
+### 🎨 UI Redesign
+- **Sidebar + Grid Layout**: Replaced the flat controls row with a dedicated left sidebar (Audio Routing, Mic & Effects, Volumes) and a spacious sound grid area
+- **Glassmorphic Toolbar**: New top toolbar with integrated search, category filter (All / Favorites / Recent), view toggle, and action buttons
+- **Duration Badges**: Each sound card now displays its duration in a sleek badge overlay
+- **Progress Bars**: Playing sounds show a gradient progress bar at the bottom of the card
+- **Context Menu**: Right-click any sound for a premium context menu (Play, Queue, Edit, Hotkey, Rename, Favorite, Duplicate, Delete)
+
+### 📋 Sound Queue
+- **Queue Panel**: Add sounds to a queue and they play automatically in sequence
+- **Auto-Advance**: When a sound finishes, the next queued sound plays automatically
+- **Queue Management**: Clear all or remove individual items from the queue
+
+### 🔀 New Features
+- **Overlap Playback**: Toggle to allow multiple sounds to play simultaneously
+- **Recent Filter**: New "Recent" category shows your most recently played sounds
+- **Duplicate Sound**: Right-click to instantly duplicate any sound with all metadata preserved
+- **Per-Sound Volume**: Individual volume control for each sound (via Edit)
+
+### 🛡️ Solari Extension v2.0.0 Compatibility & Safety Engine
+- **Deduplication Engine Rewrite**: Rewrote the internal RPC rate-limiting engine for deep change detection
+- **Discord API Schema Compliance**: Fixed streaming payload validation for Twitch
+- **Browser Disconnect Safety Net**: Auto-clear RPC sources if browser disconnects for 3+ seconds
+
+## [Solari Extension v2.0.0] - 2026-03-01
+### 🚀 The Standalone & Resilience Update
+
+The Solari Browser Extension has been completely overhauled with a premium design, bulletproof background resilience, new connection modes, and full localization!
+
+### 🔮 Standalone Mode (No App Required!)
+- **Total Independence**: An entirely new operation mode that bypasses the Solari App completely. The extension can now connect directly to Discord's local RPC WebSockets (`ws://127.0.0.1:6463` - `6472`).
+- **Custom Client IDs**: When in Standalone Mode, you can provide your own Discord Client IDs for YouTube, Netflix, and Twitch directly in the extension popup.
+- **Native Assets**: It automatically handles specific animated GIFs for the Rich Presence `large_image` asset based on each platform, offering a premium visual experience out-of-the-box.
+
+### 🎨 Premium UI & Experience
+- **Glassmorphism Design**: A complete UI rewrite featuring a stunning, modern "vidro fosco" (frosted glass) aesthetic.
+- **Live Activity Card**: A beautiful new card in the popup that shows exactly what is currently playing, complete with an animated equalizer that pauses when your video pauses.
+- **Inline Settings**: The old, separate settings page has been eradicated. All configuration options (Platform Toggles, Incognito Mode, Privacy Settings) are now cleanly accessible directly inside the popup.
+- **Session Stats**: A new statistics section that tracks your session duration and visualizes how much time you've spent on each platform using progress bars.
+
+### 🛡️ Service Worker Resilience
+- **Heartbeat System**: Implemented a robust "ping" system between content scripts and the background service worker, ensuring the extension never falls asleep while you're watching media.
+- **Session Storage Persistence**: The extension now saves active tabs into `chrome.storage.session`. If Google Chrome forcefully suspends the Service Worker to save RAM, Solari instantly restores its exact tracking state the moment it wakes up.
+- **Flawless Cleanup**: Connected `MEDIA_CLEAR` and `chrome.tabs.onRemoved` events so that closing a media tab instantly wipes your Discord Presence instead of waiting for a 10-second timeout.
+
+### 🌍 Global Localization
+- **Spanish & German Support**: Solari Extension is now fully localized into Spanish (es) and German (de), alongside English (en) and Portuguese (pt_BR). All new v2.0.0 strings are perfectly translated.
+
+---
+
 ## [1.6.1] - 2026-02-27
 ### 🔧 Hotfix & Improvements
 

@@ -125,6 +125,51 @@ class SoundBoard {
         }
     }
 
+    duplicateSound(soundId) {
+        const sound = this.sounds.find(s => s.id === soundId);
+        if (!sound) return null;
+
+        try {
+            const ext = path.extname(sound.filename);
+            const baseName = path.basename(sound.filename, ext);
+            const newName = `${baseName}_copy`;
+            const newFilename = `${newName}${ext}`;
+            const targetDir = sound.category === 'default' ? this.defaultSoundsDir : this.customSoundsDir;
+            let targetPath = path.join(targetDir, newFilename);
+
+            // Avoid overwriting existing files
+            let counter = 1;
+            while (fs.existsSync(targetPath)) {
+                targetPath = path.join(targetDir, `${baseName}_copy${counter}${ext}`);
+                counter++;
+            }
+
+            fs.copyFileSync(sound.path, targetPath);
+
+            const newSound = {
+                id: uuidv4(),
+                name: newName,
+                filename: path.basename(targetPath),
+                category: sound.category,
+                customCategory: sound.customCategory,
+                path: targetPath,
+                size: fs.statSync(targetPath).size,
+                shortcut: null, // Don't copy shortcut
+                volume: sound.volume,
+                favorite: false,
+                color: sound.color,
+                loop: sound.loop,
+                dateAdded: new Date()
+            };
+
+            this.sounds.push(newSound);
+            return newSound;
+        } catch (e) {
+            console.error('[SoundBoard] Error duplicating sound:', e);
+            return null;
+        }
+    }
+
     updateSound(soundId, updates) {
         const sound = this.sounds.find(s => s.id === soundId);
         if (!sound) return null;
@@ -302,16 +347,23 @@ class SoundBoard {
             this.playHistory = data.playHistory;
         }
         if (data.sounds) {
-            // Reconstruct sounds with full paths
+            // Reconstruct sounds with full paths, filtering out missing files
             this.sounds = data.sounds.map(s => {
                 const dir = s.category === 'default' ? this.defaultSoundsDir : this.customSoundsDir;
                 const filePath = path.join(dir, s.filename);
                 return {
                     ...s,
                     path: filePath,
+                    exists: fs.existsSync(filePath),
                     size: fs.existsSync(filePath) ? fs.statSync(filePath).size : 0,
                     dateAdded: new Date()
                 };
+            }).filter(s => {
+                if (!s.exists) {
+                    console.warn(`[SoundBoard] Skipping sound "${s.name}" — file missing: ${s.path}`);
+                    return false;
+                }
+                return true;
             });
         }
     }

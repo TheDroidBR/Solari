@@ -25,8 +25,16 @@ class SoundServer {
             const { soundId } = req.params;
             const sound = this.soundBoard.getSoundById(soundId);
 
-            if (!sound || !fs.existsSync(sound.path)) {
-                return res.status(404).json({ error: 'Sound not found' });
+            if (!sound) {
+                console.error(`[SoundServer] Sound NOT FOUND by ID: ${soundId}`);
+                console.error(`[SoundServer] Total sounds in memory: ${this.soundBoard.sounds.length}`);
+                console.error(`[SoundServer] Available IDs:`, this.soundBoard.sounds.slice(0, 5).map(s => `${s.id} (${s.name})`));
+                return res.status(404).json({ error: 'Sound not found', requestedId: soundId });
+            }
+
+            if (!fs.existsSync(sound.path)) {
+                console.error(`[SoundServer] File NOT on disk: ${sound.path}`);
+                return res.status(404).json({ error: 'Sound file missing', path: sound.path });
             }
 
             res.sendFile(sound.path);

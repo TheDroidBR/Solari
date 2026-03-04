@@ -2115,7 +2115,10 @@ function setActivity(activity, presetClientId = null) {
     if (currentActivity && rpcConnected && currentClientId === targetClientId) {
         const isContentSame =
             finalActivity.details === currentActivity.details &&
+            finalActivity.detailsUrl === currentActivity.detailsUrl &&
             finalActivity.state === currentActivity.state &&
+            finalActivity.stateUrl === currentActivity.stateUrl &&
+            finalActivity.url === currentActivity.url &&
             finalActivity.largeImageKey === currentActivity.largeImageKey &&
             finalActivity.largeImageText === currentActivity.largeImageText &&
             finalActivity.smallImageKey === currentActivity.smallImageKey &&
@@ -2207,6 +2210,7 @@ function setActivity(activity, presetClientId = null) {
         // Build the activity object with proper Discord RPC format
         const rpcActivity = {
             type: activityType,
+            url: finalActivity.url,
             details: finalActivity.details,
             details_url: finalActivity.detailsUrl,
             state: finalActivity.state,
@@ -2659,10 +2663,37 @@ function handleBrowserMediaUpdate(message, ws) {
         console.log(`[Solari Extension] Preserving existing timestamp for ${platform}:`, presenceSources.browserExtension.startTimestamp);
     }
 
+    let activityType = presetToUse.type || 3; // Default to Watching
+    let activityState = data.subtitle || presetToUse.state;
+    let detailsUrl = undefined;
+    let stateUrl = undefined;
+    let streamUrl = undefined;
+
+    // Special handling for Twitch streams to make the streamer name natively clickable
+    if (platform.toLowerCase() === 'twitch' && data.activity === 'live') {
+        const rawChannelName = data.extra?.channel || data.title;
+        const displayName = data.title || rawChannelName;
+
+        if (rawChannelName && rawChannelName !== 'Twitch') {
+            streamUrl = `https://twitch.tv/${rawChannelName.toLowerCase().replace(/\s+/g, '')}`;
+
+            // Swap so Streamer Name becomes the top line (details) and Category becomes bottom line (state)
+            // Just like the Solari App native UI handles it
+            finalDetails = displayName;
+            activityState = data.subtitle || 'Twitch';
+
+            // Apply URLs to make text clickable natively in Discord
+            detailsUrl = streamUrl;
+            stateUrl = streamUrl;
+        }
+    }
+
     const activity = {
-        type: presetToUse.type || 3, // Watching
+        type: activityType,
         details: finalDetails,
-        state: data.subtitle || presetToUse.state,
+        detailsUrl: detailsUrl,
+        state: activityState,
+        stateUrl: stateUrl,
         largeImageKey: presetToUse.largeImageKey || 'logo',
         // largeImageText intentionally omitted for extension (causes duplicate text in Discord)
         smallImageKey: data.state === 'paused' ? 'pause' : (presetToUse.smallImageKey || 'play'),
@@ -3515,6 +3546,18 @@ ipcMain.handle('soundboard:delete-sound', async (event, soundId) => {
     }
 });
 
+ipcMain.handle('soundboard:duplicate-sound', async (event, soundId) => {
+    try {
+        if (!soundBoard) throw new Error('SoundBoard not initialized');
+        const newSound = soundBoard.duplicateSound(soundId);
+        if (newSound) saveData();
+        return { success: !!newSound, sound: newSound };
+    } catch (e) {
+        console.error('[SoundBoard IPC] Error duplicating sound:', e);
+        return { success: false, error: e.message };
+    }
+});
+
 ipcMain.handle('soundboard:update-sound', async (event, soundId, updates) => {
     try {
         if (!soundBoard) throw new Error('SoundBoard not initialized');
@@ -3724,6 +3767,11 @@ function initializeWebSocketServer() {
         WebSocket = require('ws');
     }
     wss = new WebSocket.Server({ host: CONSTANTS.WS_HOST, port: CONSTANTS.WS_PORT });
+
+    // Track the browser extension's WebSocket for disconnect safety net
+    let extensionWsId = null;
+    let extensionDisconnectTimeout = null;
+
     wss.on('connection', (ws) => {
         const wsId = `ws_${Date.now()}`;
         ws.on('message', (message) => {
@@ -3744,6 +3792,20 @@ function initializeWebSocketServer() {
                         }
                         const pluginInfo = { id: pluginIdCounter++, name: pluginName, ws };
                         connectedPlugins.set(wsId, pluginInfo);
+
+                        // Track browser extension connection for disconnect safety net
+                        if (pluginName === 'Solari Extension') {
+                            extensionWsId = wsId;
+                            console.log('[Solari WSS] Browser extension connected (wsId:', wsId, ')');
+
+                            // Cancel any pending disconnect clear (extension reconnected in time)
+                            if (extensionDisconnectTimeout) {
+                                clearTimeout(extensionDisconnectTimeout);
+                                extensionDisconnectTimeout = null;
+                                console.log('[Solari WSS] Extension reconnected — cancelled pending RPC clear');
+                            }
+                        }
+
                         broadcastPluginList();
                         break;
 
@@ -3868,6 +3930,33 @@ function initializeWebSocketServer() {
             const disconnectedPlugin = connectedPlugins.get(wsId);
             console.log('[Solari WSS] WebSocket closed for:', disconnectedPlugin?.name || wsId);
             connectedPlugins.delete(wsId);
+
+            // SAFETY NET: If the browser extension disconnected, clear its presence after timeout
+            if (wsId === extensionWsId) {
+                console.log('[Solari WSS] Browser extension disconnected — will clear RPC in 3 seconds if no reconnection...');
+                extensionWsId = null;
+
+                extensionDisconnectTimeout = setTimeout(() => {
+                    extensionDisconnectTimeout = null;
+                    // Only clear if extension hasn't reconnected (extensionWsId would be set again)
+                    if (extensionWsId === null && presenceSources.browserExtension.active) {
+                        console.log('[Solari WSS] Extension did not reconnect — clearing browser extension presence');
+                        presenceSources.browserExtension.active = false;
+                        presenceSources.browserExtension.data = null;
+                        presenceSources.browserExtension.platform = null;
+                        presenceSources.browserExtension.clientId = null;
+                        presenceSources.browserExtension.presetName = null;
+                        presenceSources.browserExtension.timestamp = 0;
+                        updatePresence();
+
+                        // Notify renderer
+                        if (mainWindow && !mainWindow.isDestroyed()) {
+                            mainWindow.webContents.send('ws-status', { type: 'extensionDisconnected' });
+                        }
+                    }
+                }, 3000);
+            }
+
             broadcastPluginList();
         });
     });
@@ -4366,6 +4455,54 @@ ipcMain.handle('soundboard:get-settings', async () => {
         return { enabled: false, globalVolume: 1.0, previewVolume: 0.5 };
     }
     return soundBoard.settings;
+});
+
+// IPC handler for get-categories
+ipcMain.removeHandler('soundboard:get-categories');
+ipcMain.handle('soundboard:get-categories', async () => {
+    if (!soundBoard) return ['default', 'custom'];
+    return soundBoard.categories || ['default', 'custom'];
+});
+
+// IPC handler for get-history (play history)
+ipcMain.removeHandler('soundboard:get-history');
+ipcMain.handle('soundboard:get-history', async () => {
+    if (!soundBoard) return [];
+    return soundBoard.playHistory || [];
+});
+
+// IPC handler for sound server port
+ipcMain.removeHandler('soundboard:get-server-port');
+ipcMain.handle('soundboard:get-server-port', async () => {
+    if (!soundServer) return 6465; // default fallback
+    return soundServer.port;
+});
+
+// IPC handler for direct sound data (bypasses HTTP server)
+ipcMain.removeHandler('soundboard:get-sound-data');
+ipcMain.handle('soundboard:get-sound-data', async (event, soundId) => {
+    if (!soundBoard) {
+        console.error('[SoundBoard IPC] get-sound-data: soundBoard is null');
+        return null;
+    }
+    const sound = soundBoard.getSoundById(soundId);
+    if (!sound) {
+        console.error(`[SoundBoard IPC] get-sound-data: Sound not found by ID: ${soundId}`);
+        console.error(`[SoundBoard IPC] Total sounds: ${soundBoard.sounds.length}, IDs: ${soundBoard.sounds.slice(0, 5).map(s => s.id).join(', ')}`);
+        return null;
+    }
+    if (!fs.existsSync(sound.path)) {
+        console.error(`[SoundBoard IPC] get-sound-data: File missing: ${sound.path}`);
+        return null;
+    }
+    try {
+        const data = fs.readFileSync(sound.path);
+        console.log(`[SoundBoard IPC] get-sound-data: Serving ${sound.name} (${data.length} bytes)`);
+        return data;
+    } catch (e) {
+        console.error(`[SoundBoard IPC] get-sound-data error:`, e);
+        return null;
+    }
 });
 
 // IPC handler for re-registering shortcuts after sound update

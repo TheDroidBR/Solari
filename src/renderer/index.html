@@ -13,7 +13,7 @@
     <header>
       <div class="brand">
         <h1>Solari</h1>
-        <span class="version">v1.6.1</span>
+        <span class="version">v1.7.0</span>
         <button id="updateAvailableBtn" class="update-available-btn" style="display: none;" title="Update available!">
           <span class="update-icon">⬇️</span> <span id="updateVersionLabel"></span>
         </button>
@@ -464,152 +464,152 @@
 
           <!-- Driver Installed - SoundBoard Ready -->
           <div id="soundboard-ready" style="display: none;">
-            <section class="soundboard-section">
-              <!-- Section Header -->
-              <div class="section-header">
-                <h2>🔊 <span data-i18n="tabs.soundboard">SoundBoard</span></h2>
-                <div class="section-header-controls">
-                  <span class="connection-badge connected">
-                    <span class="status-dot"></span>
-                    <span data-i18n="soundboard.ready">Pronto</span>
-                  </span>
+
+            <!-- Top Toolbar -->
+            <div class="sb-toolbar">
+              <div class="sb-toolbar-left">
+                <div class="sb-search-box">
+                  <input type="text" id="soundboard-search" placeholder="🔍  Search sounds..." class="sb-search-input"
+                    data-i18n-placeholder="soundboard.searchPlaceholder">
                 </div>
+                <select id="soundboard-category-filter" class="sb-category-select">
+                  <option value="all">📁 All</option>
+                  <option value="favorites">⭐ Favorites</option>
+                  <option value="recent">🕐 Recent</option>
+                </select>
               </div>
+              <div class="sb-toolbar-right">
+                <button id="soundboard-view-mode" class="sb-tool-btn" title="Grid/List View">
+                  <span id="view-mode-icon">▦</span>
+                </button>
+                <button id="soundboard-stop-all" class="sb-tool-btn sb-tool-btn-danger" title="Stop All">⏹️</button>
+                <div class="sb-toolbar-divider"></div>
+                <button id="soundboard-export-btn" class="sb-tool-btn" title="Export Library">📤</button>
+                <button id="soundboard-import-btn" class="sb-tool-btn" title="Import Library">📥</button>
+                <div id="drop-zone" class="sb-drop-zone-mini" title="Drag files here">
+                  <span class="drop-icon">📁</span>
+                </div>
+                <button id="soundboard-add-btn" class="sb-add-btn">
+                  <span>➕</span>
+                  <span data-i18n="soundboard.addSound">Add Sound</span>
+                </button>
+              </div>
+            </div>
 
-              <!-- Quick Controls Row -->
-              <div class="soundboard-quick-controls">
-                <!-- Search and Filters -->
-                <div class="control-group-row">
-                  <div class="search-box">
-                    <input type="text" id="soundboard-search" placeholder="🔍 Search sounds..." class="search-input">
+            <!-- Main Layout: Sidebar + Grid -->
+            <div class="sb-main-layout">
+
+              <!-- Left Sidebar -->
+              <aside class="sb-sidebar">
+
+                <!-- Audio Routing Section -->
+                <div class="sb-sidebar-section">
+                  <div class="sb-sidebar-section-header">
+                    <span class="sb-sidebar-icon">🎚️</span>
+                    <span data-i18n="soundboard.audioRouting">Audio Routing</span>
                   </div>
-                  <select id="soundboard-category-filter" class="category-select">
-                    <option value="all">📁 All</option>
-                    <option value="favorites">⭐ Favorites</option>
-                  </select>
-                </div>
-
-                <!-- Output Device Selector -->
-                <div class="control-group">
-                  <label class="control-label">
-                    <span class="control-icon">🎚️</span>
-                    <span data-i18n="soundboard.outputDevice">Saída</span>
-                  </label>
-                  <select id="soundboard-output-device" class="device-select">
-                    <option value="">🔊 Default</option>
-                  </select>
-                </div>
-
-                <!-- Microphone Input Selector -->
-                <div class="control-group">
-                  <label class="control-label">
-                    <span class="control-icon">🎤</span>
-                    <span data-i18n="soundboard.inputDevice">Microfone</span>
-                  </label>
-                  <select id="soundboard-input-device" class="device-select">
-                    <option value="">🎤 Default</option>
-                  </select>
-                </div>
-
-                <!-- Mic Passthrough Toggle -->
-                <div class="control-group mic-passthrough-control">
-                  <label class="control-label">
-                    <span class="control-icon">🔄</span>
-                    <span data-i18n="soundboard.micPassthrough">Mic + Sons</span>
-                  </label>
-                  <label class="toggle-switch-mini">
-                    <input type="checkbox" id="soundboard-mic-passthrough" checked>
-                    <span class="toggle-slider-mini"></span>
-                  </label>
-                </div>
-
-                <!-- Noise Suppression Toggle (RNNoise) -->
-                <div class="control-group noise-suppression-control" style="margin-left: 10px;">
-                  <label class="control-label" title="Enables RNNoise noise suppression">
-                    <span class="control-icon">🔇</span>
-                    <span data-i18n="soundboard.noiseSuppression">Supressão Ruído</span>
-                  </label>
-                  <label class="toggle-switch-mini">
-                    <input type="checkbox" id="soundboard-noise-suppression" checked>
-                    <span class="toggle-slider-mini"></span>
-                  </label>
-                </div>
-
-                <!-- Loudness Equalization Toggle (NEW) -->
-                <div class="control-group loudness-eq-control" style="margin-left: 10px;">
-                  <label class="control-label" title="Normalizes volume levels for consistent loudness">
-                    <span class="control-icon">📈</span>
-                    <span data-i18n="soundboard.loudnessEq">Equalização Vol.</span>
-                  </label>
-                  <label class="toggle-switch-mini">
-                    <input type="checkbox" id="soundboard-loudness-eq">
-                    <span class="toggle-slider-mini"></span>
-                  </label>
-                </div>
-
-                <!-- Mic Volume -->
-                <div class="control-group">
-                  <label class="control-label">
-                    <span class="control-icon">🎙️</span>
-                    <span data-i18n="soundboard.micVolume">Vol. Mic</span>
-                  </label>
-                  <input type="range" id="soundboard-mic-volume" min="0" max="100" value="100"
-                    class="volume-slider-mini">
-                </div>
-
-                <!-- Sound Volume Control -->
-                <div class="control-group">
-                  <label class="control-label">
-                    <span class="control-icon">🔊</span>
-                    <span data-i18n="soundboard.globalVolume">Vol. Sons</span>
-                  </label>
-                  <div class="volume-control-inline">
-                    <input type="range" id="global-volume" min="0" max="100" value="80" class="volume-slider-modern">
-                    <span id="global-volume-value" class="volume-value-badge">80%</span>
+                  <div class="sb-sidebar-content">
+                    <label class="sb-sidebar-label" data-i18n="soundboard.outputDevice">Output</label>
+                    <select id="soundboard-output-device" class="sb-device-select">
+                      <option value="">🔊 Default</option>
+                    </select>
+                    <label class="sb-sidebar-label" data-i18n="soundboard.inputDevice">Microphone</label>
+                    <select id="soundboard-input-device" class="sb-device-select">
+                      <option value="">🎤 Default</option>
+                    </select>
                   </div>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="control-actions">
-                  <!-- Small Drop Zone Square -->
-                  <div id="drop-zone" class="drop-zone-mini" title="Arraste arquivos aqui">
-                    <span class="drop-icon">📁</span>
-                    <span class="drop-text">Drop</span>
+                <!-- Mic & Effects Section -->
+                <div class="sb-sidebar-section">
+                  <div class="sb-sidebar-section-header">
+                    <span class="sb-sidebar-icon">🎤</span>
+                    <span data-i18n="soundboard.micEffects">Mic & Effects</span>
                   </div>
-                  <button id="soundboard-view-mode" class="btn-icon" title="Grid/List View">
-                    <span id="view-mode-icon">▦</span>
-                  </button>
-                  <button id="soundboard-stop-all" class="btn-icon btn-danger" title="Stop All Sounds">
-                    <span>⏹️</span>
-                  </button>
-                  <button id="soundboard-export-btn" class="btn-icon" title="Export Library">
-                    <span>📤</span>
-                  </button>
-                  <button id="soundboard-import-btn" class="btn-icon" title="Import Library">
-                    <span>📥</span>
-                  </button>
-                  <button id="soundboard-add-btn" class="btn-modern btn-gradient">
-                    <span>➕</span>
-                    <span data-i18n="soundboard.addSound">Add Sound</span>
-                  </button>
+                  <div class="sb-sidebar-content">
+                    <div class="sb-toggle-row">
+                      <span data-i18n="soundboard.micPassthrough">Mic + Sounds</span>
+                      <label class="toggle-switch-mini">
+                        <input type="checkbox" id="soundboard-mic-passthrough" checked>
+                        <span class="toggle-slider-mini"></span>
+                      </label>
+                    </div>
+                    <div class="sb-toggle-row">
+                      <span data-i18n="soundboard.noiseSuppression">Noise Suppression</span>
+                      <label class="toggle-switch-mini">
+                        <input type="checkbox" id="soundboard-noise-suppression" checked>
+                        <span class="toggle-slider-mini"></span>
+                      </label>
+                    </div>
+                    <div class="sb-toggle-row">
+                      <span data-i18n="soundboard.loudnessEq">Loudness EQ</span>
+                      <label class="toggle-switch-mini">
+                        <input type="checkbox" id="soundboard-loudness-eq">
+                        <span class="toggle-slider-mini"></span>
+                      </label>
+                    </div>
+                    <div class="sb-toggle-row">
+                      <span data-i18n="soundboard.allowOverlap">Allow Overlap</span>
+                      <label class="toggle-switch-mini">
+                        <input type="checkbox" id="soundboard-allow-overlap">
+                        <span class="toggle-slider-mini"></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Volume Controls Section -->
+                <div class="sb-sidebar-section">
+                  <div class="sb-sidebar-section-header">
+                    <span class="sb-sidebar-icon">🔊</span>
+                    <span data-i18n="soundboard.volumes">Volumes</span>
+                  </div>
+                  <div class="sb-sidebar-content">
+                    <label class="sb-sidebar-label">🎙️ <span data-i18n="soundboard.micVolume">Mic</span></label>
+                    <input type="range" id="soundboard-mic-volume" min="0" max="100" value="100"
+                      class="sb-volume-slider">
+                    <label class="sb-sidebar-label">🔊 <span data-i18n="soundboard.globalVolume">Sounds</span></label>
+                    <div class="sb-volume-row">
+                      <input type="range" id="global-volume" min="0" max="100" value="80" class="sb-volume-slider">
+                      <span id="global-volume-value" class="sb-volume-badge">80%</span>
+                    </div>
+                  </div>
+                </div>
+
+
+              </aside>
+
+              <!-- Main Content Area -->
+              <div class="sb-content-area">
+                <!-- Discord Setup Reminder -->
+                <div class="sb-discord-reminder" id="discord-reminder">
+                  <span>💡</span>
+                  <span data-i18n="soundboard.discordReminder">Remember: In Discord, select "CABLE Output" as your input
+                    device!</span>
+                  <button class="sb-reminder-close"
+                    onclick="document.getElementById('discord-reminder').style.display='none'">✕</button>
+                </div>
+
+                <!-- Sounds Grid -->
+                <div class="soundboard-grid-modern view-grid" id="soundboard-grid">
+                  <!-- Sound cards rendered dynamically -->
+                </div>
+
+                <!-- Sound Queue Panel -->
+                <div class="sb-queue-panel" id="sb-queue-panel" style="display: none;">
+                  <div class="sb-queue-header">
+                    <span class="sb-queue-title">📋 <span data-i18n="soundboard.queue">Queue</span> (<span
+                        id="sb-queue-count">0</span>)</span>
+                    <button class="sb-queue-clear-btn" id="sb-queue-clear" title="Clear Queue">🗑️</button>
+                  </div>
+                  <div class="sb-queue-list" id="sb-queue-list">
+                    <!-- Queue items rendered dynamically -->
+                  </div>
                 </div>
               </div>
 
-              <!-- Discord Setup Reminder -->
-              <div class="discord-reminder" id="discord-reminder">
-                <span>💡</span>
-                <span data-i18n="soundboard.discordReminder">Lembre-se: No Discord, selecione "CABLE Output" como
-                  dispositivo de entrada!</span>
-                <button class="btn-text"
-                  onclick="document.getElementById('discord-reminder').style.display='none'">✕</button>
-              </div>
+            </div> <!-- end sb-main-layout -->
 
-              <!-- Sounds Grid -->
-              <div class="soundboard-grid-modern view-grid" id="soundboard-grid">
-                <!-- Sound cards will be rendered here dynamically -->
-              </div>
-
-            </section>
           </div> <!-- end soundboard-ready -->
         </div> <!-- end soundboard-wrapper-final -->
       </div> <!-- end soundboard-tab -->
@@ -1009,7 +1009,7 @@
   <div id="aboutModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px; text-align: center;">
       <h2 style="font-size: 2em; margin-bottom: 5px; color: var(--primary);">Solari RPC</h2>
-      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.6.0</p>
+      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.7.0</p>
       <div style="text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
         <p style="margin-bottom: 15px;">
           <span data-i18n="about.description">Premium Discord Rich Presence Manager</span><br>
@@ -1430,15 +1430,33 @@
       document.addEventListener('DOMContentLoaded', function () {
         var dz = document.getElementById('drop-zone');
         if (dz) {
+          var picking = false;
           dz.style.cursor = 'pointer';
           dz.title = 'Drop audio files here or click to browse';
           dz.addEventListener('click', function () {
+            if (picking) return; // Prevent double-open
+            picking = true;
             ipc.invoke('soundboard:pick-file').then(function (result) {
-              if (result && result.success) {
-                if (typeof showToast === 'function') showToast('✅', 'Added sound: ' + (result.sound ? result.sound.name : 'audio'), 'success');
-                window.dispatchEvent(new CustomEvent('soundboard-files-added', { detail: { count: 1 } }));
-              }
+              picking = false;
+              if (!result || result.canceled || !result.filePaths || result.filePaths.length === 0) return;
+              var added = 0;
+              var pending = result.filePaths.length;
+              result.filePaths.forEach(function (filePath) {
+                var name = filePath.split(/[/\\]/).pop().replace(/\.[^/.]+$/, '');
+                ipc.invoke('soundboard:add-sound', filePath, name, 'custom').then(function (addResult) {
+                  if (addResult && addResult.success) added++;
+                  pending--;
+                  if (pending <= 0 && added > 0) {
+                    if (typeof showToast === 'function') showToast('✅', 'Added ' + added + ' sound(s)', 'success');
+                    window.dispatchEvent(new CustomEvent('soundboard-files-added', { detail: { count: added } }));
+                  }
+                }).catch(function (err) {
+                  console.error('[DnD] Click add error:', err);
+                  pending--;
+                });
+              });
             }).catch(function (err) {
+              picking = false;
               console.error('[DnD] Click fallback error:', err);
             });
           });

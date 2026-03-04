@@ -34,6 +34,8 @@
     // State
     let sounds = [];
     let categories = ['default', 'custom'];
+    let playHistory = [];
+    let soundServerPort = 6465; // Dynamic, fetched from main process
     let driverInstalled = false;
     let audioDevices = [];
     let inputDevices = []; // Microphone devices
@@ -102,7 +104,8 @@
             // Containers
             driverNotInstalledContainer: document.getElementById('soundboard-driver-not-installed'),
             soundboardReadyContainer: document.getElementById('soundboard-ready'),
-            quickControls: document.querySelector('.soundboard-quick-controls')
+            toolbar: document.querySelector('.sb-toolbar'),
+            sidebar: document.querySelector('.sb-sidebar')
         };
     }
 
@@ -485,31 +488,13 @@
             if (elements.soundboardReadyContainer) {
                 elements.soundboardReadyContainer.style.display = 'none';
             }
-            if (elements.quickControls) {
-                elements.quickControls.style.display = 'none';
-            }
-            if (elements.dropZone) {
-                elements.dropZone.style.display = 'none';
-            }
-            if (elements.soundboardGrid) {
-                elements.soundboardGrid.style.display = 'none';
-            }
         } else {
-            // Show SoundBoard UI
+            // Show SoundBoard UI (toolbar, sidebar, grid are all children of soundboard-ready)
             if (elements.driverNotInstalledContainer) {
                 elements.driverNotInstalledContainer.style.display = 'none';
             }
             if (elements.soundboardReadyContainer) {
                 elements.soundboardReadyContainer.style.display = 'block';
-            }
-            if (elements.quickControls) {
-                elements.quickControls.style.display = 'flex';
-            }
-            if (elements.dropZone) {
-                elements.dropZone.style.display = 'flex';
-            }
-            if (elements.soundboardGrid) {
-                elements.soundboardGrid.style.display = 'grid';
             }
         }
     }
@@ -517,15 +502,21 @@
     // Load data from main process
     async function loadData() {
         try {
-            const [soundsResult, settingsResult, categoriesResult] = await Promise.all([
+            const [soundsResult, settingsResult, categoriesResult, historyResult, portResult] = await Promise.all([
                 sbIpcRenderer.invoke('soundboard:get-sounds'),
                 sbIpcRenderer.invoke('soundboard:get-settings'),
-                sbIpcRenderer.invoke('soundboard:get-categories')
+                sbIpcRenderer.invoke('soundboard:get-categories'),
+                sbIpcRenderer.invoke('soundboard:get-history'),
+                sbIpcRenderer.invoke('soundboard:get-server-port')
             ]);
 
             if (soundsResult && Array.isArray(soundsResult)) sounds = soundsResult;
             if (settingsResult) settings = { ...settings, ...settingsResult };
             if (categoriesResult) categories = categoriesResult;
+            if (historyResult && Array.isArray(historyResult)) playHistory = historyResult;
+            if (portResult) soundServerPort = portResult;
+
+            console.log('[SoundBoard] Data loaded. Sounds:', sounds.length, 'Port:', soundServerPort);
 
             applySettings();
             renderSounds();
@@ -594,6 +585,12 @@
         // Apply category filter
         if (selectedCategory === 'favorites') {
             filtered = filtered.filter(s => s.favorite);
+        } else if (selectedCategory === 'recent') {
+            // Show sounds from play history
+            const historyIds = (playHistory || []).map(h => h.id);
+            filtered = filtered.filter(s => historyIds.includes(s.id));
+            // Sort by recency
+            filtered.sort((a, b) => historyIds.indexOf(a.id) - historyIds.indexOf(b.id));
         } else if (selectedCategory && selectedCategory !== 'all') {
             filtered = filtered.filter(s => s.customCategory === selectedCategory);
         }
@@ -617,11 +614,14 @@
         elements.soundboardGrid.innerHTML = filtered.map(sound => {
             const isPlaying = currentlyPlaying === sound.id;
             const colorStyle = sound.color ? `border-left: 4px solid ${sound.color};` : '';
+            const durationText = sound.duration ? formatDuration(sound.duration) : '';
 
             return `
                 <div class="sound-card glass-card hover-lift ${isPlaying ? 'playing' : ''} ${sound.favorite ? 'favorite' : ''}" 
                      data-sound-id="${sound.id}" 
-                     style="${colorStyle}">
+                     style="${colorStyle}"
+                     oncontextmenu="window.sbContextMenu(event, '${sound.id}')">
+                    ${durationText ? `<span class="sb-duration-badge">${durationText}</span>` : ''}
                     <div class="sound-card-header">
                         <span class="sound-icon">${sound.loop ? '🔁' : '🎵'}</span>
                         <button class="fav-btn btn-glass" onclick="window.sbToggleFavorite('${sound.id}')" title="Toggle Favorite">
@@ -642,9 +642,17 @@
                             🗑️
                         </button>
                     </div>
+                    ${isPlaying ? `<div class="sb-progress-bar"><div class="sb-progress-fill" id="sb-progress-${sound.id}" style="width: 0%"></div></div>` : ''}
                 </div>
             `;
         }).join('');
+    }
+
+    function formatDuration(seconds) {
+        if (!seconds || seconds <= 0) return '';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
     function formatFileSize(bytes) {
@@ -664,17 +672,30 @@
     // ===== AUDIO PLAYBACK =====
 
     // Play sound through selected output device (mixed with mic if passthrough is on)
-    async function playSoundToDevice(soundUrl, volume = 1.0, loop = false) {
+    async function playSoundToDevice(soundId, volume = 1.0, loop = false) {
         try {
             // Initialize the mixer (sets up audioContext and output device)
-            await initAudioMixer();
+            console.log('[SoundBoard] Step 1: Initializing audio mixer...');
+            const mixerOk = await initAudioMixer();
+            if (!mixerOk) {
+                console.error('[SoundBoard] Audio mixer init failed');
+                return false;
+            }
 
             // Stop any currently playing sound
             stopCurrentSound();
 
-            // Fetch and decode audio
-            const response = await fetch(soundUrl);
-            const arrayBuffer = await response.arrayBuffer();
+            // Get audio data directly from main process via IPC (bypasses HTTP server)
+            console.log('[SoundBoard] Step 2: Loading audio via IPC for sound:', soundId);
+            const buffer = await sbIpcRenderer.invoke('soundboard:get-sound-data', soundId);
+            if (!buffer) {
+                console.error('[SoundBoard] No audio data returned for sound:', soundId);
+                return false;
+            }
+
+            // Convert Electron Buffer to ArrayBuffer
+            const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+            console.log('[SoundBoard] Step 3: Decoding audio buffer, size:', arrayBuffer.byteLength);
             const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
             // Create source and gain nodes
@@ -683,6 +704,9 @@
 
             source.buffer = audioBuffer;
             source.loop = loop;
+
+
+
             gainNode.gain.value = volume * settings.globalVolume;
 
             // Connect nodes - route through masterGainNode for proper mixing
@@ -691,6 +715,7 @@
 
             // Start playback
             source.start(0);
+            console.log('[SoundBoard] Step 4: Playback started successfully');
 
             // Track current source
             currentAudioSource = source;
@@ -703,6 +728,11 @@
                     currentAudioSource = null;
                     currentGainNode = null;
                     renderSounds();
+
+                    // Queue auto-advance
+                    if (soundQueue.length > 0) {
+                        playNextInQueue();
+                    }
                 }
             };
 
@@ -791,23 +821,24 @@
             const sound = sounds.find(s => s.id === soundId);
             if (!sound) return;
 
-            // Get sound URL from server
-            const serverUrl = `http://127.0.0.1:6465/sounds/${soundId}`;
+            console.log('[SoundBoard] Playing:', sound.name, '(ID:', soundId, ')');
 
-            // Play sound
+            // Play sound via IPC (no HTTP server needed)
             currentlyPlaying = soundId;
             renderSounds();
 
-            const success = await playSoundToDevice(serverUrl, sound.volume || 1.0, sound.loop || false);
+            const success = await playSoundToDevice(soundId, sound.volume || 1.0, sound.loop || false);
 
             if (!success) {
                 currentlyPlaying = null;
                 renderSounds();
-                safeShowToast('❌', 'Error playing sound', 'error');
+                safeShowToast('❌', 'Error playing sound — check console (F12)', 'error');
             }
         } catch (e) {
             console.error('[SoundBoard] Play error:', e);
-            safeShowToast('❌', 'Error playing sound', 'error');
+            currentlyPlaying = null;
+            renderSounds();
+            safeShowToast('❌', `Play error: ${e.message || e}`, 'error');
         }
     };
 
@@ -1003,6 +1034,159 @@
         }
     };
 
+    // ===== PHASE B: NEW FEATURES =====
+
+    // --- B6: Context Menu ---
+    let contextMenuEl = null;
+
+    window.sbContextMenu = function (event, soundId) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Remove existing context menu
+        if (contextMenuEl) contextMenuEl.remove();
+
+        const sound = sounds.find(s => s.id === soundId);
+        if (!sound) return;
+
+        const isPlaying = currentlyPlaying === soundId;
+
+        contextMenuEl = document.createElement('div');
+        contextMenuEl.className = 'sb-context-menu';
+        contextMenuEl.innerHTML = `
+            <div class="sb-ctx-item" data-action="play">${isPlaying ? '⏹️ Stop' : '▶️ Play'}</div>
+            <div class="sb-ctx-item" data-action="queue">📋 Add to Queue</div>
+            <div class="sb-ctx-divider"></div>
+            <div class="sb-ctx-item" data-action="edit">⚙️ Edit</div>
+            <div class="sb-ctx-item" data-action="hotkey">⌨️ Set Hotkey</div>
+            <div class="sb-ctx-item" data-action="rename">✏️ Rename</div>
+            <div class="sb-ctx-item" data-action="favorite">${sound.favorite ? '☆ Unfavorite' : '⭐ Favorite'}</div>
+            <div class="sb-ctx-item" data-action="duplicate">📄 Duplicate</div>
+            <div class="sb-ctx-divider"></div>
+            <div class="sb-ctx-item sb-ctx-danger" data-action="delete">🗑️ Delete</div>
+        `;
+
+        // Position
+        contextMenuEl.style.cssText = `
+            position: fixed; z-index: 9999;
+            left: ${event.clientX}px; top: ${event.clientY}px;
+            background: linear-gradient(135deg, rgba(26, 26, 62, 0.98), rgba(15, 12, 41, 0.98));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px; padding: 6px;
+            min-width: 180px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            animation: modalSlideIn 0.15s ease;
+        `;
+
+        document.body.appendChild(contextMenuEl);
+
+        // Keep in viewport
+        const rect = contextMenuEl.getBoundingClientRect();
+        if (rect.right > window.innerWidth) contextMenuEl.style.left = (window.innerWidth - rect.width - 8) + 'px';
+        if (rect.bottom > window.innerHeight) contextMenuEl.style.top = (window.innerHeight - rect.height - 8) + 'px';
+
+        // Handle click
+        contextMenuEl.addEventListener('click', async (e) => {
+            const action = e.target.closest('.sb-ctx-item')?.dataset.action;
+            if (!action) return;
+
+            switch (action) {
+                case 'play': window.sbPlaySound(soundId); break;
+                case 'queue': addToQueue(soundId); break;
+                case 'edit': window.sbEditSound(soundId); break;
+                case 'hotkey': window.sbBindHotkey(soundId); break;
+                case 'rename': window.sbRenameSound(soundId); break;
+                case 'favorite': window.sbToggleFavorite(soundId); break;
+                case 'duplicate':
+                    try {
+                        await sbIpcRenderer.invoke('soundboard:duplicate-sound', soundId);
+                        await loadData();
+                        safeShowToast('📄', 'Sound duplicated', 'success');
+                    } catch (e) { console.error('[SoundBoard] Duplicate error:', e); }
+                    break;
+                case 'delete': window.sbDeleteSound(soundId); break;
+            }
+            contextMenuEl.remove();
+            contextMenuEl = null;
+        });
+
+        // Close on outside click
+        const closeCtx = () => {
+            if (contextMenuEl) { contextMenuEl.remove(); contextMenuEl = null; }
+            document.removeEventListener('click', closeCtx);
+            document.removeEventListener('contextmenu', closeCtx);
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closeCtx);
+            document.addEventListener('contextmenu', closeCtx);
+        }, 10);
+    };
+
+    // --- B2: Sound Queue ---
+    let soundQueue = [];
+
+    function addToQueue(soundId) {
+        const sound = sounds.find(s => s.id === soundId);
+        if (!sound) return;
+        soundQueue.push(soundId);
+        renderQueue();
+        safeShowToast('📋', `"${sound.name}" added to queue`, 'info');
+    }
+
+    function removeFromQueue(index) {
+        soundQueue.splice(index, 1);
+        renderQueue();
+    }
+
+    function clearQueue() {
+        soundQueue = [];
+        renderQueue();
+    }
+
+    function playNextInQueue() {
+        if (soundQueue.length === 0) return;
+        const nextId = soundQueue.shift();
+        renderQueue();
+        window.sbPlaySound(nextId);
+    }
+
+    function renderQueue() {
+        const panel = document.getElementById('sb-queue-panel');
+        const list = document.getElementById('sb-queue-list');
+        const count = document.getElementById('sb-queue-count');
+        if (!panel || !list) return;
+
+        panel.style.display = soundQueue.length > 0 ? 'block' : 'none';
+        if (count) count.textContent = soundQueue.length;
+
+        list.innerHTML = soundQueue.map((id, idx) => {
+            const sound = sounds.find(s => s.id === id);
+            if (!sound) return '';
+            return `
+                <div class="sb-queue-item" data-idx="${idx}">
+                    <span>🎵</span>
+                    <span class="sb-queue-item-name">${sound.name}</span>
+                    <button class="sb-queue-item-remove" onclick="window.sbRemoveFromQueue(${idx})">✕</button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    window.sbRemoveFromQueue = function (index) {
+        removeFromQueue(index);
+    };
+
+    // --- B5: Overlap Playback ---
+    let overlapEnabled = false;
+    let activeSources = []; // Track multiple simultaneous sources
+
+    function cleanupFinishedSources() {
+        activeSources = activeSources.filter(s => !s.finished);
+    }
+
+
+
     // Setup event listeners
     function setupEventListeners() {
         // Search
@@ -1116,7 +1300,7 @@
         }
 
         // Drag and drop is now handled by the self-executing setupGlobalDragDrop() at script load time.
-        // No need to call setupDropTarget here.
+        // Drop zone click is handled by the inline DnD script in index.html (line 1464+).
 
         // Output device selector
         if (elements.outputDeviceSelect) {
@@ -1188,6 +1372,24 @@
                 }
 
                 await sbIpcRenderer.invoke('soundboard:update-settings', settings);
+            });
+        }
+
+        // Overlap Toggle
+        const overlapToggle = document.getElementById('soundboard-allow-overlap');
+        if (overlapToggle) {
+            overlapToggle.addEventListener('change', (e) => {
+                overlapEnabled = e.target.checked;
+                safeShowToast(overlapEnabled ? '🔀' : '🔁', `Overlap: ${overlapEnabled ? 'ON' : 'OFF'}`, 'info');
+            });
+        }
+
+        // Queue Clear Button
+        const queueClearBtn = document.getElementById('sb-queue-clear');
+        if (queueClearBtn) {
+            queueClearBtn.addEventListener('click', () => {
+                clearQueue();
+                safeShowToast('🗑️', 'Queue cleared', 'info');
             });
         }
 
@@ -1273,23 +1475,25 @@
         const sound = sounds.find(s => s.id === soundId);
         if (!sound) return;
 
-        // Create modal overlay
+        // Create modal overlay (use unique class to avoid .modal-overlay CSS conflicts)
         const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
+        modal.className = 'sb-hotkey-overlay';
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 10000;
-            display: flex; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+            z-index: 10000; display: flex; justify-content: center; align-items: center;
+            opacity: 1; pointer-events: all;
         `;
 
         modal.innerHTML = `
-            <div class="modal-content" style="background: #1a1a3e; padding: 30px; border-radius: 12px; text-align: center; border: 1px solid #5865f2; min-width: 300px;">
-                <h3 style="color: #fff; margin-bottom: 20px;">Bind Hotkey for "${sound.name}"</h3>
-                <div id="hotkey-display" style="font-size: 24px; color: #5865f2; margin: 20px 0; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 6px;">Press any key combo...</div>
-                <div style="font-size: 12px; color: #aaa; margin-bottom: 20px;">Supported: Ctrl, Shift, Alt + Key</div>
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button id="btn-cancel" style="padding: 10px 20px; border-radius: 6px; border: none; background: #4a4a6a; color: white; cursor: pointer;">Cancel</button>
-                    <button id="btn-clear" style="padding: 10px 20px; border-radius: 6px; border: none; background: #ef4444; color: white; cursor: pointer;">Unbind</button>
+            <div style="background: linear-gradient(135deg, #1a1a3e, #2a2a5e); padding: 30px 40px; border-radius: 16px; text-align: center; border: 1px solid rgba(88,101,242,0.4); min-width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                <h3 style="color: #fff; margin: 0 0 8px 0; font-size: 18px;">⌨️ Bind Hotkey</h3>
+                <p style="color: rgba(255,255,255,0.5); margin: 0 0 20px 0; font-size: 13px;">"${sound.name}"</p>
+                <div id="hotkey-display" style="font-size: 22px; color: #5865f2; margin: 16px 0; padding: 16px; background: rgba(0,0,0,0.4); border-radius: 10px; border: 2px solid rgba(88,101,242,0.3); font-family: monospace;">Press any key combo...</div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 24px;">Supported: Ctrl, Shift, Alt + Key</div>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button id="btn-cancel" style="padding: 10px 24px; border-radius: 8px; border: none; background: rgba(255,255,255,0.1); color: white; cursor: pointer; font-size: 14px; transition: background 0.2s;">Cancel</button>
+                    <button id="btn-clear" style="padding: 10px 24px; border-radius: 8px; border: none; background: #ef4444; color: white; cursor: pointer; font-size: 14px; transition: background 0.2s;">Unbind</button>
                 </div>
             </div>
         `;
