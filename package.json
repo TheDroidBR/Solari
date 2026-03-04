@@ -1,7 +1,7 @@
 {
   "name": "solari",
   "productName": "Solari",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Solari - Advanced Discord Rich Presence",
   "main": "src/main/index.js",
   "scripts": {
