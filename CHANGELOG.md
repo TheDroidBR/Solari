@@ -1,5 +1,5 @@
-## [1.7.1] - 2026-03-04
-### 🎛️ Solari v1.7.1 — The SoundBoard & Synergy Update
+## [1.7.0] - 2026-03-04
+### 🎛️ Solari v1.7.0 — The SoundBoard & Synergy Update
 
 The SoundBoard has received a massive redesign from the ground up — premium UI, powerful new features, and a polished experience.
 
