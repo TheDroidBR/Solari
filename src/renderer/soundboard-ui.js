@@ -546,6 +546,13 @@
             const icon = settings.viewMode === 'grid' ? '📊' : '📋';
             elements.viewModeBtn.innerHTML = `<span>${icon}</span>`;
         }
+
+        // Apply Allow Overlap setting
+        const overlapToggle = document.getElementById('soundboard-allow-overlap');
+        if (overlapToggle) {
+            overlapToggle.checked = settings.allowOverlap === true;
+            overlapEnabled = settings.allowOverlap === true;
+        }
     }
 
     // Render category filter
@@ -613,7 +620,7 @@
 
         elements.soundboardGrid.innerHTML = filtered.map(sound => {
             const isPlaying = currentlyPlaying === sound.id;
-            const colorStyle = sound.color ? `border-left: 4px solid ${sound.color};` : '';
+            const colorStyle = sound.color ? `border: 2px solid ${sound.color} !important; border-image: none !important; box-shadow: 0 4px 15px ${sound.color}60, inset 0 0 20px ${sound.color}20 !important;` : '';
             const durationText = sound.duration ? formatDuration(sound.duration) : '';
 
             return `
@@ -818,7 +825,7 @@
             }
 
             // Get sound info
-            const sound = sounds.find(s => s.id === soundId);
+            const sound = sounds.find(s => String(s.id) === String(soundId));
             if (!sound) return;
 
             console.log('[SoundBoard] Playing:', sound.name, '(ID:', soundId, ')');
@@ -868,7 +875,7 @@
 
     // Rename sound
     window.sbRenameSound = async function (soundId) {
-        const sound = sounds.find(s => s.id === soundId);
+        const sound = sounds.find(s => String(s.id) === String(soundId));
         if (!sound) return;
 
         const newName = prompt('Enter new name:', sound.name);
@@ -886,36 +893,41 @@
 
     // Edit sound
     window.sbEditSound = async function (soundId) {
-        const sound = sounds.find(s => s.id === soundId);
+        const sound = sounds.find(s => String(s.id) === String(soundId));
         if (!sound) return;
 
-        // Simple edit modal
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+            z-index: 99999; display: flex; justify-content: center; align-items: center;
+            opacity: 1; pointer-events: all;
+        `;
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 400px;">
-                <h3>⚙️ Edit Sound</h3>
-                <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" id="edit-sound-name" class="input-field" value="${sound.name}">
+            <div class="modal-content" style="max-width: 400px; position: relative; z-index: 100000; background: linear-gradient(135deg, #1a1a3e, #2a2a5e); padding: 30px; border-radius: 16px; border: 1px solid rgba(88,101,242,0.4); box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+                <h3 style="color: #fff; margin-bottom: 20px;">⚙️ Edit Sound</h3>
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="color: #aaa; font-size: 13px;">Name</label>
+                    <input type="text" id="edit-sound-name" class="input-field" value="${sound.name}" style="width: 100%; border-radius: 6px; padding: 10px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.1);">
                 </div>
-                <div class="form-group">
-                    <label>Volume</label>
-                    <input type="range" id="edit-sound-volume" min="0" max="100" value="${(sound.volume || 1) * 100}" class="volume-slider-modern">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="color: #aaa; font-size: 13px;">Volume</label>
+                    <input type="range" id="edit-sound-volume" min="0" max="100" value="${(sound.volume || 1) * 100}" class="volume-slider-modern" style="width: 100%;">
                 </div>
-                <div class="form-group">
-                    <label>Color</label>
-                    <input type="color" id="edit-sound-color" value="${sound.color || '#ff9966'}" class="color-input">
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label style="color: #aaa; font-size: 13px;">Color</label>
+                    <input type="color" id="edit-sound-color" value="${sound.color || '#ff9966'}" class="color-input" style="width: 100%; height: 40px; border: none; border-radius: 6px; cursor: pointer;">
                 </div>
-                <div class="form-group checkbox-group">
-                    <label>
-                        <input type="checkbox" id="edit-sound-loop" ${sound.loop ? 'checked' : ''}>
-                        Loop
+                <div class="form-group checkbox-group" style="margin-bottom: 25px; display: flex; align-items: center; gap: 8px;">
+                    <label style="color: #fff; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="edit-sound-loop" ${sound.loop ? 'checked' : ''} style="width: 18px; height: 18px;">
+                        Loop Playback
                     </label>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn-secondary" id="edit-cancel">Cancel</button>
-                    <button class="btn-primary" id="edit-save">Save</button>
+                <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn-secondary" id="edit-cancel" style="padding: 10px 20px;">Cancel</button>
+                    <button class="btn-primary" id="edit-save" style="padding: 10px 20px;">Save</button>
                 </div>
             </div>
         `;
@@ -947,7 +959,7 @@
 
         try {
             await sbIpcRenderer.invoke('soundboard:delete-sound', soundId);
-            sounds = sounds.filter(s => s.id !== soundId);
+            sounds = sounds.filter(s => String(s.id) !== String(soundId));
             renderSounds();
             safeShowToast('🗑️', 'Sound deleted', 'success');
         } catch (e) {
@@ -1378,8 +1390,10 @@
         // Overlap Toggle
         const overlapToggle = document.getElementById('soundboard-allow-overlap');
         if (overlapToggle) {
-            overlapToggle.addEventListener('change', (e) => {
+            overlapToggle.addEventListener('change', async (e) => {
                 overlapEnabled = e.target.checked;
+                settings.allowOverlap = overlapEnabled;
+                await sbIpcRenderer.invoke('soundboard:update-settings', settings);
                 safeShowToast(overlapEnabled ? '🔀' : '🔁', `Overlap: ${overlapEnabled ? 'ON' : 'OFF'}`, 'info');
             });
         }
@@ -1472,7 +1486,7 @@
 
     // Hotkey Binding Logic
     window.sbBindHotkey = async (soundId) => {
-        const sound = sounds.find(s => s.id === soundId);
+        const sound = sounds.find(s => String(s.id) === String(soundId));
         if (!sound) return;
 
         // Create modal overlay (use unique class to avoid .modal-overlay CSS conflicts)
@@ -1571,128 +1585,7 @@
         };
     };
 
-    // Audio Editor with WaveSurfer.js
-    window.sbEditSound = async (soundId) => {
-        const WaveSurfer = require('wavesurfer.js').default;
 
-        const sound = sounds.find(s => s.id === soundId);
-        if (!sound) return;
-
-        const serverUrl = `http://127.0.0.1:6465/sounds/${soundId}`;
-
-        // Create modal overlay
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.style.cssText = `
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 10000;
-            display: flex; justify-content: center; align-items: center;
-        `;
-
-        modal.innerHTML = `
-            <div class="audio-editor-modal" style="background: #1a1a3e; padding: 30px; border-radius: 16px; border: 1px solid #5865f2; width: 80%; max-width: 700px;">
-                <h3 style="color: #fff; margin-bottom: 15px;">🎵 Editor: ${sound.name}</h3>
-                <div id="waveform" style="background: rgba(0,0,0,0.4); border-radius: 8px; min-height: 128px;"></div>
-                <div id="editor-time" style="text-align: center; margin-top: 10px; color: #aaa;">00:00 / 00:00</div>
-                
-                <div style="display: flex; justify-content: center; gap: 10px; margin: 15px 0;">
-                    <button id="btn-play-pause" class="btn-modern" style="padding: 10px 20px;">▶️ Play</button>
-                    <button id="btn-stop" class="btn-modern btn-secondary" style="padding: 10px 20px;">⏹️ Stop</button>
-                </div>
-
-                <div style="margin-top: 20px;">
-                    <label style="color: #fff;">🔊 Volume: <span id="editor-volume-value">100%</span></label>
-                    <input type="range" id="editor-volume" min="0" max="100" value="${(sound.volume || 1) * 100}" style="width: 100%;">
-                </div>
-                
-                <div style="margin-top: 15px;">
-                    <label style="color: #fff;">🔁 Loop</label>
-                    <input type="checkbox" id="editor-loop" ${sound.loop ? 'checked' : ''}>
-                </div>
-
-                <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
-                    <button id="btn-cancel-editor" class="btn-modern btn-secondary" style="padding: 10px 20px;">Cancel</button>
-                    <button id="btn-save-editor" class="btn-modern btn-primary" style="padding: 10px 20px; background: #5865f2;">💾 Save</button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        // Initialize WaveSurfer
-        const wavesurfer = WaveSurfer.create({
-            container: '#waveform',
-            waveColor: '#5865f2',
-            progressColor: '#8b5cf6',
-            cursorColor: '#fff',
-            barWidth: 2,
-            barRadius: 3,
-            responsive: true,
-            height: 128,
-            normalize: true
-        });
-
-        wavesurfer.load(serverUrl);
-
-        wavesurfer.on('ready', () => {
-            const duration = wavesurfer.getDuration();
-            modal.querySelector('#editor-time').textContent = `00:00 / ${formatTime(duration)}`;
-        });
-
-        wavesurfer.on('audioprocess', () => {
-            const current = wavesurfer.getCurrentTime();
-            const duration = wavesurfer.getDuration();
-            modal.querySelector('#editor-time').textContent = `${formatTime(current)} / ${formatTime(duration)}`;
-        });
-
-        function formatTime(seconds) {
-            const min = Math.floor(seconds / 60);
-            const sec = Math.floor(seconds % 60);
-            return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
-        }
-
-        // Controls
-        modal.querySelector('#btn-play-pause').onclick = () => {
-            wavesurfer.playPause();
-            modal.querySelector('#btn-play-pause').textContent = wavesurfer.isPlaying() ? '⏸️ Pause' : '▶️ Play';
-        };
-
-        modal.querySelector('#btn-stop').onclick = () => {
-            wavesurfer.stop();
-            modal.querySelector('#btn-play-pause').textContent = '▶️ Play';
-        };
-
-        modal.querySelector('#editor-volume').oninput = (e) => {
-            const val = e.target.value / 100;
-            modal.querySelector('#editor-volume-value').textContent = `${e.target.value}%`;
-            wavesurfer.setVolume(val);
-        };
-
-        // Cleanup
-        const cleanup = () => {
-            wavesurfer.destroy();
-            if (document.body.contains(modal)) document.body.removeChild(modal);
-        };
-
-        modal.querySelector('#btn-cancel-editor').onclick = cleanup;
-
-        modal.querySelector('#btn-save-editor').onclick = async () => {
-            const newVolume = modal.querySelector('#editor-volume').value / 100;
-            const newLoop = modal.querySelector('#editor-loop').checked;
-
-            await sbIpcRenderer.invoke('soundboard:update-sound', soundId, {
-                volume: newVolume,
-                loop: newLoop
-            });
-
-            sound.volume = newVolume;
-            sound.loop = newLoop;
-            renderSounds();
-
-            safeShowToast('💾', 'Sound settings saved!', 'success');
-            cleanup();
-        };
-    };
 
     // Export for use in renderer.js
     window.soundBoardDriverInstalled = () => driverInstalled;

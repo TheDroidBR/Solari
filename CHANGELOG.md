@@ -1,5 +1,5 @@
-## [1.7.0] - 2026-03-04
-### 🎛️ The SoundBoard & Extension Overhaul
+## [1.7.1] - 2026-03-04
+### 🎛️ Solari v1.7.1 — The SoundBoard & Synergy Update
 
 The SoundBoard has received a massive redesign from the ground up — premium UI, powerful new features, and a polished experience.
 
@@ -27,14 +27,9 @@ The SoundBoard has received a massive redesign from the ground up — premium UI
 - **Browser Disconnect Safety Net**: Auto-clear RPC sources if browser disconnects for 3+ seconds
 
 ## [Solari Extension v2.0.0] - 2026-03-01
-### 🚀 The Standalone & Resilience Update
+### 🚀 The UI & Resilience Update
 
 The Solari Browser Extension has been completely overhauled with a premium design, bulletproof background resilience, new connection modes, and full localization!
-
-### 🔮 Standalone Mode (No App Required!)
-- **Total Independence**: An entirely new operation mode that bypasses the Solari App completely. The extension can now connect directly to Discord's local RPC WebSockets (`ws://127.0.0.1:6463` - `6472`).
-- **Custom Client IDs**: When in Standalone Mode, you can provide your own Discord Client IDs for YouTube, Netflix, and Twitch directly in the extension popup.
-- **Native Assets**: It automatically handles specific animated GIFs for the Rich Presence `large_image` asset based on each platform, offering a premium visual experience out-of-the-box.
 
 ### 🎨 Premium UI & Experience
 - **Glassmorphism Design**: A complete UI rewrite featuring a stunning, modern "vidro fosco" (frosted glass) aesthetic.
