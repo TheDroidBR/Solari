@@ -1,5 +1,13 @@
 # Plugins Changelog
 
+## SpotifySync v2.1.2 (2026-03-18)
+- ⚡ **Play/Pause Responsiveness**: Reduced internal debounce from 800ms to 400ms for snappier playback controls.
+- 💾 **Connection Persistence**: Added "Safe Merge" logic to prevent Solari App from wiping plugin tokens on restart.
+- 🛑 **Rate Limiting**: Added support for Spotify's updated API limits (429 handling with Retry-After).
+- ⚠️ **Explicit Premium Warning**: Added prominent UI alerts (styled boxes and text) to clarify that Spotify Premium is required for full functionality.
+- 🔍 **Improved Detection**: Enhanced account resolution engine for more reliable Discord local control.
+
+
 ## SpotifySync v2.1.1 (2026-02-25)
 - 🛡️ **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data (e.g., Spotify not linked to Discord).
 - 🎵 **Improvement:** **Lyrics Search** completely rewritten with 4-tier fallback. Strips suffixes like (Remastered), (feat. X), [Deluxe], etc. Prioritizes synced (LRC) lyrics.
