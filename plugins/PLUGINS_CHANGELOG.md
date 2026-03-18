@@ -8,7 +8,7 @@
 - 🔍 **Improved Detection**: Enhanced account resolution engine for more reliable Discord local control.
 
 
-## SpotifySync v2.1.1 (2026-02-25)
+## SpotifySync v2.1.2 (2026-03-18)
 - 🛡️ **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data (e.g., Spotify not linked to Discord).
 - 🎵 **Improvement:** **Lyrics Search** completely rewritten with 4-tier fallback. Strips suffixes like (Remastered), (feat. X), [Deluxe], etc. Prioritizes synced (LRC) lyrics.
 

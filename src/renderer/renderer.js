@@ -715,6 +715,15 @@ ipcRenderer.on('data-loaded', async (event, data) => {
     // Apply translations to UI (function is defined at end of file)
     setTimeout(() => updateUILanguage(), 100);
 
+    // CRITICAL: Await identities before hydrating forms so the dropdown options exist!
+    if (identities.length === 0) {
+        try {
+            await loadIdentities();
+        } catch (e) {
+            console.error('[Solari] Pre-load identities failed', e);
+        }
+    }
+
     // Load cached AFK config from plugin (fix for tiers reset bug)
     if (data.afkConfig) {
         console.log('[Solari] Loaded cached AFK config from plugin:', data.afkConfig);
@@ -765,6 +774,32 @@ ipcRenderer.on('data-loaded', async (event, data) => {
         if (data.lastFormState.button1Url) button1UrlInput.value = data.lastFormState.button1Url;
         if (data.lastFormState.button2Label) button2LabelInput.value = data.lastFormState.button2Label;
         if (data.lastFormState.button2Url) button2UrlInput.value = data.lastFormState.button2Url;
+        
+        if (data.lastFormState.partyCurrent && partyCurrentInput) partyCurrentInput.value = data.lastFormState.partyCurrent;
+        if (data.lastFormState.partyMax && partyMaxInput) partyMaxInput.value = data.lastFormState.partyMax;
+        
+        if (data.lastFormState.timestampMode && timestampRadios) {
+            timestampRadios.forEach(radio => radio.checked = (radio.value === data.lastFormState.timestampMode));
+            if (customTimestampGroup) customTimestampGroup.style.display = data.lastFormState.timestampMode === 'custom' ? 'block' : 'none';
+        }
+        
+        if (data.lastFormState.customTimestamp && customTimestampInput) {
+            const date = new Date(data.lastFormState.customTimestamp);
+            const pad = (n) => n.toString().padStart(2, '0');
+            customTimestampInput.value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        }
+        
+        if (data.lastFormState.useEndTimestamp !== undefined && useEndTimestamp) {
+            useEndTimestamp.checked = data.lastFormState.useEndTimestamp;
+        }
+
+        if (data.lastFormState.clientId !== undefined) {
+            const presetClientIdSelect = document.getElementById('presetClientId');
+            if (presetClientIdSelect) {
+                presetClientIdSelect.value = data.lastFormState.clientId;
+            }
+        }
+
         if (data.lastFormState.statusEnabled !== undefined) {
             statusToggle.checked = data.lastFormState.statusEnabled;
             updateStatusDisplay(data.lastFormState.statusEnabled);
@@ -1149,6 +1184,11 @@ function renderPresets(presets) {
                         button1Url: button1UrlInput.value,
                         button2Label: button2LabelInput.value,
                         button2Url: button2UrlInput.value,
+                        partyCurrent: parseInt(partyCurrentInput?.value) || 0,
+                        partyMax: parseInt(partyMaxInput?.value) || 0,
+                        timestampMode: Array.from(timestampRadios || []).find(r => r.checked)?.value || 'normal',
+                        customTimestamp: customTimestampInput?.value && (Array.from(timestampRadios || []).find(r => r.checked)?.value === 'custom') ? new Date(customTimestampInput.value).getTime() : null,
+                        useEndTimestamp: useEndTimestamp?.checked || false,
                         clientId: presetClientIdSelect ? presetClientIdSelect.value : ''
                     };
 
@@ -1249,7 +1289,30 @@ function loadPreset(preset) {
     button1LabelInput.value = preset.button1Label || '';
     button1UrlInput.value = preset.button1Url || '';
     button2LabelInput.value = preset.button2Label || '';
+    button2LabelInput.value = preset.button2Label || '';
     button2UrlInput.value = preset.button2Url || '';
+    
+    // Restore party fields
+    if (partyCurrentInput) partyCurrentInput.value = preset.partyCurrent || '';
+    if (partyMaxInput) partyMaxInput.value = preset.partyMax || '';
+    
+    // Restore timestamp settings
+    if (timestampRadios) {
+        const mode = preset.timestampMode || 'normal';
+        timestampRadios.forEach(radio => radio.checked = (radio.value === mode));
+        if (customTimestampGroup) customTimestampGroup.style.display = mode === 'custom' ? 'block' : 'none';
+    }
+    
+    if (customTimestampInput && preset.customTimestamp) {
+        // Convert timestamp number back to datetime-local format (YYYY-MM-DDTHH:mm)
+        const date = new Date(preset.customTimestamp);
+        const pad = (n) => n.toString().padStart(2, '0');
+        customTimestampInput.value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    } else if (customTimestampInput) {
+        customTimestampInput.value = '';
+    }
+    
+    if (useEndTimestamp) useEndTimestamp.checked = preset.useEndTimestamp || false;
 
     // Restore Client ID selection for this preset
     const presetClientIdSelect = document.getElementById('presetClientId');
@@ -1296,6 +1359,7 @@ function loadPreset(preset) {
 
 // --- Checkpoint: Auto-save form state ---
 function saveFormState() {
+    const presetClientIdSelect = document.getElementById('presetClientId');
     const formState = {
         activityType: activityTypeSelect.value,
         details: detailsInput.value,
@@ -1310,7 +1374,13 @@ function saveFormState() {
         button1Url: button1UrlInput.value,
         button2Label: button2LabelInput.value,
         button2Url: button2UrlInput.value,
-        statusEnabled: statusToggle.checked
+        partyCurrent: parseInt(partyCurrentInput?.value) || 0,
+        partyMax: parseInt(partyMaxInput?.value) || 0,
+        timestampMode: Array.from(timestampRadios || []).find(r => r.checked)?.value || 'normal',
+        customTimestamp: customTimestampInput?.value ? new Date(customTimestampInput.value).getTime() : null,
+        useEndTimestamp: useEndTimestamp?.checked || false,
+        statusEnabled: statusToggle.checked,
+        clientId: presetClientIdSelect ? presetClientIdSelect.value : ''
     };
     ipcRenderer.send('save-form-state', formState);
 }
@@ -1330,6 +1400,12 @@ function debouncedSaveFormState() {
     el.addEventListener('input', updatePreview);
     el.addEventListener('change', updatePreview);
 });
+
+// Save client ID on dropdown change
+const presetClientIdSelect = document.getElementById('presetClientId');
+if (presetClientIdSelect) {
+    presetClientIdSelect.addEventListener('change', debouncedSaveFormState);
+}
 statusToggle?.addEventListener('change', saveFormState);
 ecoModeToggle?.addEventListener('change', (e) => {
     if (e.target.checked) {
@@ -1360,14 +1436,18 @@ let appNameReceived = false;
 
 ipcRenderer.on('app-name-loaded', (event, appName) => {
     console.log('[Solari] Discord app name loaded:', appName);
-    discordAppName = appName;
     globalDefaultAppName = appName; // Store as global default
     appNameReceived = true;
-    if (previewAppName) {
-        previewAppName.textContent = appName;
+    
+    if (typeof updatePreviewAppNameFromDropdown === 'function') {
+        updatePreviewAppNameFromDropdown();
+    } else {
+        discordAppName = appName;
+        if (previewAppName) {
+            previewAppName.textContent = appName;
+        }
+        updatePreview();
     }
-    // Update the full preview to ensure everything is in sync
-    updatePreview();
 });
 
 const activityTypeLabels = {
@@ -1656,9 +1736,16 @@ resetBtn?.addEventListener('click', () => {
 // Save Default (if fallback section exists)
 if (saveDefaultBtn) {
     saveDefaultBtn?.addEventListener('click', () => {
+        let timestampMode = 'normal';
+        timestampRadios?.forEach(r => { if (r.checked) timestampMode = r.value; });
         const defaultActivity = {
             details: defDetailsInput?.value || '',
-            state: defStateInput?.value || ''
+            state: defStateInput?.value || '',
+            partyCurrent: parseInt(partyCurrentInput?.value) || 0,
+            partyMax: parseInt(partyMaxInput?.value) || 0,
+            timestampMode: timestampMode,
+            customTimestamp: (timestampMode === 'custom' && customTimestampInput?.value) ? new Date(customTimestampInput.value).getTime() : null,
+            useEndTimestamp: useEndTimestamp?.checked || false
         };
         ipcRenderer.send('save-default', defaultActivity);
         showToast('💾', t('fallback.saved') || 'Default saved!', 'success');
@@ -1687,6 +1774,11 @@ savePresetBtn?.addEventListener('click', () => {
         button1Url: button1UrlInput.value,
         button2Label: button2LabelInput.value,
         button2Url: button2UrlInput.value,
+        partyCurrent: parseInt(partyCurrentInput?.value) || 0,
+        partyMax: parseInt(partyMaxInput?.value) || 0,
+        timestampMode: Array.from(timestampRadios || []).find(r => r.checked)?.value || 'normal',
+        customTimestamp: customTimestampInput?.value && (Array.from(timestampRadios || []).find(r => r.checked)?.value === 'custom') ? new Date(customTimestampInput.value).getTime() : null,
+        useEndTimestamp: useEndTimestamp?.checked || false,
         clientId: presetClientIdSelect ? presetClientIdSelect.value : '' // Per-preset Client ID
     };
     ipcRenderer.send('save-preset', preset);
@@ -2928,6 +3020,145 @@ var PluginsTabManager = {
         const updateAllBtn = document.getElementById('plugins-update-all-btn');
         if (updateAllBtn) updateAllBtn?.addEventListener('click', () => this.handleUpdateAll());
 
+        // 1-Click BetterDiscord Install/Repair
+        const bd1ClickHandler = async (btn) => {
+            const labelEl = btn.querySelector('.bd-split-label');
+            const originalLabel = labelEl ? labelEl.textContent : '';
+            btn.disabled = true;
+            if (labelEl) labelEl.textContent = 'Instalando...';
+            btn.style.opacity = '0.7';
+            try {
+                const result = await ipcRenderer.invoke('plugin:install-bd');
+                if (result && result.success) {
+                    showToast('✅', 'BetterDiscord instalado com sucesso! Discord reiniciando...', 'success');
+                    if (labelEl) labelEl.textContent = 'Reinstalar BD';
+                    // Cooldown: block auto-repair for 30s during Discord restart
+                    this._bdActionCooldown = Date.now() + 30000;
+                    this._bdBrokenCount = 0;
+                    setTimeout(() => this.checkBD(), 5000);
+                } else {
+                    showToast('❌', `Erro: ${result?.error || 'Falha desconhecida'}`, 'error');
+                    if (labelEl) labelEl.textContent = originalLabel;
+                }
+            } catch (e) {
+                showToast('❌', `Erro: ${e.message}`, 'error');
+                if (labelEl) labelEl.textContent = originalLabel;
+            }
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        };
+
+        // Banner buttons (inside warning banners)
+        const installBannerBtn = document.getElementById('bd-1click-install-btn');
+        if (installBannerBtn) installBannerBtn.addEventListener('click', () => {
+            // Banner buttons don't have .bd-split-label, use direct install
+            installBannerBtn.disabled = true;
+            installBannerBtn.textContent = 'Instalando...';
+            ipcRenderer.invoke('plugin:install-bd').then(result => {
+                if (result?.success) {
+                    showToast('✅', 'BetterDiscord instalado!', 'success');
+                    this._bdActionCooldown = Date.now() + 30000;
+                    this._bdBrokenCount = 0;
+                    setTimeout(() => this.checkBD(), 5000);
+                } else {
+                    showToast('❌', `Erro: ${result?.error}`, 'error');
+                }
+                installBannerBtn.textContent = 'Instalar Automático';
+                installBannerBtn.disabled = false;
+            });
+        });
+        const repairBannerBtn = document.getElementById('bd-1click-repair-btn');
+        if (repairBannerBtn) repairBannerBtn.addEventListener('click', () => {
+            repairBannerBtn.disabled = true;
+            repairBannerBtn.textContent = 'Reparando...';
+            ipcRenderer.invoke('plugin:install-bd').then(result => {
+                if (result?.success) {
+                    showToast('✅', 'BetterDiscord reparado!', 'success');
+                    this._bdActionCooldown = Date.now() + 30000;
+                    this._bdBrokenCount = 0;
+                    setTimeout(() => this.checkBD(), 5000);
+                } else {
+                    showToast('❌', `Erro: ${result?.error}`, 'error');
+                }
+                repairBannerBtn.textContent = 'Reparar Automático';
+                repairBannerBtn.disabled = false;
+            });
+        });
+
+        // Header split button - main action
+        const headerInstallBtn = document.getElementById('bd-1click-header-btn');
+        if (headerInstallBtn) headerInstallBtn.addEventListener('click', () => bd1ClickHandler(headerInstallBtn));
+
+        // Header split button - dropdown toggle
+        const splitArrow = document.getElementById('bd-split-arrow');
+        const splitDropdown = document.getElementById('bd-split-dropdown');
+        if (splitArrow && splitDropdown) {
+            splitArrow.addEventListener('click', (e) => {
+                e.stopPropagation();
+                splitDropdown.style.display = splitDropdown.style.display !== 'none' ? 'none' : 'block';
+            });
+            document.addEventListener('click', (e) => {
+                if (!splitArrow.contains(e.target) && !splitDropdown.contains(e.target)) {
+                    splitDropdown.style.display = 'none';
+                }
+            });
+        }
+
+        // Dropdown: Uninstall BD
+        const uninstallBtn = document.getElementById('bd-action-uninstall');
+        if (uninstallBtn) {
+            uninstallBtn.addEventListener('click', async () => {
+                if (splitDropdown) splitDropdown.style.display = 'none';
+                const headerBtn = document.getElementById('bd-1click-header-btn');
+                const labelEl = headerBtn ? headerBtn.querySelector('.bd-split-label') : null;
+                const origLabel = labelEl ? labelEl.textContent : '';
+                if (headerBtn) {
+                    headerBtn.disabled = true;
+                    if (labelEl) labelEl.textContent = 'Desinstalando...';
+                    headerBtn.style.opacity = '0.7';
+                    try {
+                        const result = await ipcRenderer.invoke('plugin:uninstall-bd');
+                        if (result && result.success) {
+                            showToast('✅', 'BetterDiscord desinstalado! Plugins e temas preservados.', 'success');
+                            if (labelEl) labelEl.textContent = 'Instalar BD';
+                            // Cooldown: block auto-repair for 30s
+                            this._bdActionCooldown = Date.now() + 30000;
+                            this._bdBrokenCount = 0;
+                            setTimeout(() => this.checkBD(), 5000);
+                        } else {
+                            showToast('❌', `Erro: ${result?.error || 'Falha'}`, 'error');
+                            if (labelEl) labelEl.textContent = origLabel;
+                        }
+                    } catch (e) {
+                        showToast('❌', `Erro: ${e.message}`, 'error');
+                        if (labelEl) labelEl.textContent = origLabel;
+                    }
+                    headerBtn.disabled = false;
+                    headerBtn.style.opacity = '1';
+                }
+            });
+        }
+
+        // Dropdown: Auto-Repair toggle
+        const autoRepairToggle = document.getElementById('bd-action-repair');
+        if (autoRepairToggle) {
+            // Load saved state
+            const autoRepairEnabled = localStorage.getItem('solari-bd-auto-repair') === 'true';
+            this._bdAutoRepair = autoRepairEnabled;
+            this._updateAutoRepairUI(autoRepairToggle, autoRepairEnabled);
+
+            autoRepairToggle.addEventListener('click', () => {
+                this._bdAutoRepair = !this._bdAutoRepair;
+                localStorage.setItem('solari-bd-auto-repair', String(this._bdAutoRepair));
+                this._updateAutoRepairUI(autoRepairToggle, this._bdAutoRepair);
+                if (this._bdAutoRepair) {
+                    showToast('🔧', 'Auto-Repair ativado! BD será reparado automaticamente.', 'success');
+                } else {
+                    showToast('ℹ️', 'Auto-Repair desativado.', 'info');
+                }
+            });
+        }
+
         this.initialized = true;
         this.checkBD();
         this.startBDPolling();
@@ -2961,10 +3192,20 @@ var PluginsTabManager = {
         });
     },
 
+    _updateAutoRepairUI(btn, enabled) {
+        if (!btn) return;
+        const icon = enabled ? '✅' : '🔧';
+        const label = enabled ? 'Auto-Repair: ON' : 'Auto-Repair: OFF';
+        btn.innerHTML = `<span>${icon}</span> ${label}`;
+        btn.style.opacity = enabled ? '1' : '0.7';
+    },
+
     async checkBD() {
         const indicator = document.getElementById('bd-status-indicator');
         const dot = indicator ? indicator.querySelector('.bd-status-dot') : null;
         const text = indicator ? indicator.querySelector('.bd-status-text') : null;
+        const headerBtn = document.getElementById('bd-1click-header-btn');
+        const labelEl = headerBtn ? headerBtn.querySelector('.bd-split-label') : null;
 
         try {
             const result = await ipcRenderer.invoke('plugin:check-bd');
@@ -2985,6 +3226,9 @@ var PluginsTabManager = {
                     indicator.title = 'BetterDiscord not installed';
                     if (text) text.textContent = t('pluginStore.bdStatusMissing') || 'Not Installed';
                 }
+                if (labelEl) labelEl.textContent = 'Instalar BD';
+                // Reset broken counter — "not installed" is NOT "broken"
+                this._bdBrokenCount = 0;
             } else if (result && result.status === 'broken') {
                 if (brokenBanner) brokenBanner.style.display = 'flex';
                 if (indicator) {
@@ -2992,12 +3236,43 @@ var PluginsTabManager = {
                     indicator.title = 'BetterDiscord broken';
                     if (text) text.textContent = t('pluginStore.bdStatusBroken') || 'Broken';
                 }
+                if (labelEl) labelEl.textContent = 'Reparar BD';
+
+                // Auto-Repair: only trigger if toggle is ON, not cooling down,
+                // and broken has been detected 3+ consecutive times (15s debounce)
+                this._bdBrokenCount = (this._bdBrokenCount || 0) + 1;
+                const inCooldown = this._bdActionCooldown && Date.now() < this._bdActionCooldown;
+                console.log(`[Plugins] Auto-Repair check: enabled=${this._bdAutoRepair}, brokenCount=${this._bdBrokenCount}, cooldown=${inCooldown}, repairing=${this._bdAutoRepairing}`);
+
+                if (this._bdAutoRepair && !this._bdAutoRepairing && !inCooldown && this._bdBrokenCount >= 3) {
+                    this._bdAutoRepairing = true;
+                    this._bdBrokenCount = 0;
+                    console.log('[Plugins] Auto-Repair: BD broken persisted 3 checks, auto-repairing...');
+                    showToast('🔧', 'Auto-Repair: Reparando BetterDiscord automaticamente...', 'info');
+                    try {
+                        const installResult = await ipcRenderer.invoke('plugin:install-bd');
+                        if (installResult && installResult.success) {
+                            showToast('✅', 'Auto-Repair: BetterDiscord reparado!', 'success');
+                            this._bdActionCooldown = Date.now() + 30000;
+                        } else {
+                            showToast('❌', `Auto-Repair falhou: ${installResult?.error}`, 'error');
+                        }
+                    } catch (err) {
+                        showToast('❌', `Auto-Repair erro: ${err.message}`, 'error');
+                    }
+                    this._bdAutoRepairing = false;
+                    setTimeout(() => this.checkBD(), 10000);
+                    return;
+                }
             } else {
+                // Reset broken counter when status is OK
+                this._bdBrokenCount = 0;
                 if (indicator) {
                     indicator.classList.add('bd-status-ok');
                     indicator.title = 'BetterDiscord installed';
                     if (text) text.textContent = t('pluginStore.bdStatusInstalled') || 'Installed';
                 }
+                if (labelEl) labelEl.textContent = 'Reinstalar BD';
             }
         } catch (e) {
             console.error('[Plugins] Error checking BD:', e);
@@ -3031,12 +3306,12 @@ var PluginsTabManager = {
                 "changelog": "### v1.1.2 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop (\\\"zombie connection\\\") when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.1.1 (2026-01-20)\n- \ud83d\udc1b **Fixed:** Custom status sync with Discord servers when cleared\n- \ud83d\udc1b **Fixed:** Status persistence on other devices fixed\n- \u26a1 **Improved:** Reliability with new retry mechanism\n\n### v1.1.0 (2024-12-24)\n- \ud83d\udc1b **Fixed:** Status no longer gets stuck on 'Idle' when opening Discord on mobile/browser\n- \u26a1 **New:** Patches Discord's native idle timeout instead of manually setting status\n- \u26a1 Discord now handles idle detection natively, syncing correctly across devices\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Auto-detect mouse/keyboard inactivity\n- \u2705 Customizable timeout settings\n- \u2705 Syncs with Solari app via WebSocket"
             },
             "spotifysync": {
-                "version": "2.1.1",
+                "version": "2.1.2",
                 "author": "TheDroid",
                 "description": "Sync Spotify with Discord Rich Presence and Controls.",
                 "downloadUrl": "https://solarirpc.com/downloads/SpotifySync.plugin.js",
                 "fileName": "SpotifySync.plugin.js",
-                "changelog": "### v2.1.1 (2026-02-25)\n- \ud83d\udee1\ufe0f **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data.\n- \ud83c\udfb5 **Improvement:** **Lyrics Search** rewritten with 4-tier fallback. Strips (Remastered), (feat. X), [Deluxe], etc. Prioritizes synced (LRC) lyrics.\n\n### v2.1.0 (2026-02-25)\n- \ud83d\ude80 **New:** **Lyrics Viewer** with synced LRC support, auto-scrolling, and premium blur effects.\n- \ud83d\udcf1 **New:** **Device Picker** (Spotify Connect) to instantly transfer playback between your PC, Phone, TV, or Echo directly from Discord.\n- \ud83d\udee1\ufe0f **Critical Fix:** **AFK Premium Fallback**. The plugin now seamlessly switches to the Spotify Web API when Discord stores go idle, ensuring the widget never disappears again.\n- \u26a1 **Improvement:** **Real-Time Volume Sync**. Added a dedicated high-speed background poll. If you change the volume on your phone, the slider updates instantly.\n\n### v2.0.2 (2026-02-15)\n- \ud83d\ude80 **Critical Fix:** Solved persistent \\\"Token Expirado (401)\\\" errors by scanning for CONNECTION_ACCESS_TOKEN.\n- \ud83d\udc1b **Fix:** Library button now opens playlist view correctly.\n- \u26a1 **Improvement:** Smarter local module detection.\n- \ud83d\udc1e **Fix:** Removed triple-notification on Share.\n- \ud83d\udee0\ufe0f **Fix:** Added startup delay for better reliability.\n\n### v2.0.1 (2026-02-15) - The Ghost Fix \ud83d\udc7b\n- \ud83d\ude80 **Fix:** Resolved misleading \\\"Local Control failed\\\" error toast when Web API fallback is successful.\n- \ud83d\udc1b **Fix:** Fixed Next, Previous, and Pause controls by correctly passing accountId to local modules.\n- \ud83d\udd0d **Improvement:** Enhanced local module search strategy.\n- \ud83d\udd17 **Improvement:** Made the developer.spotify.com link clickable in the settings panel.\n- \ud83d\udee0\ufe0f **Dev:** Added version check log for easier troubleshooting.\n\n### v2.0.0 (The Complete Rebirth)\n- \ud83d\ude80 **Total Architecture Rewrite**: Built from the ground up for stability, speed, and premium features.\n- \ud83d\udd10 **Premium Auth System**: Integrated Spotify PKCE authentication for secure access to advanced player controls.\n- \ud83c\udfae **Advanced Player Controls**: Added Shuffle, Repeat, Like/Unlike, real-time Volume Slider, and Seek Bar.\n- \ud83d\udccf **New List Views**: Library and Queue views with Auto-Expanding Height (450px).\n- \ud83d\udee1\ufe0f **Security & Privacy**: Added Editable Client ID field with a visibility toggle.\n- \u2728 **Premium Glassmorphic Design**: Redesigned with card-based layouts and blur effects.\n- \u26a1 **Performance & Sync**: Reliable WebSocket communication with Solari APP.\n\n### v1.0.1 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Play/Pause controls\n- \u2705 Next/Previous track buttons\n- \u2705 Now Playing display in Discord"
+                "changelog": "### v2.1.2 (2026-03-18)\n- ⚡ **Play/Pause Responsiveness**: Reduced internal debounce from 800ms to 400ms for snappier playback controls.\n- 💾 **Connection Persistence**: Added \"Safe Merge\" logic to prevent Solari App from wiping plugin tokens on restart.\n- 🛑 **Rate Limiting**: Added support for Spotify's updated API limits (429 handling with Retry-After).\n- ⚠️ **Explicit Premium Warning**: Added prominent UI alerts (styled boxes and text) to clarify that Spotify Premium is required for full functionality.\n- 🔍 **Improved Detection**: Enhanced account resolution engine for more reliable Discord local control.\n\n### v2.1.1 (2026-02-25)\n- \ud83d\udee1\ufe0f **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data.\n- \ud83c\udfb5 **Improvement:** **Lyrics Search** rewritten with 4-tier fallback. Strips (Remastered), (feat. X), [Deluxe], etc. Prioritizes synced (LRC) lyrics.\n\n### v2.1.0 (2026-02-25)\n- \ud83d\ude80 **New:** **Lyrics Viewer** with synced LRC support, auto-scrolling, and premium blur effects.\n- \ud83d\udcf1 **New:** **Device Picker** (Spotify Connect) to instantly transfer playback between your PC, Phone, TV, or Echo directly from Discord.\n- \ud83d\udee1\ufe0f **Critical Fix:** **AFK Premium Fallback**. The plugin now seamlessly switches to the Spotify Web API when Discord stores go idle, ensuring the widget never disappears again.\n- \u26a1 **Improvement:** **Real-Time Volume Sync**. Added a dedicated high-speed background poll. If you change the volume on your phone, the slider updates instantly.\n\n### v2.0.2 (2026-02-15)\n- \ud83d\ude80 **Critical Fix:** Solved persistent \\\"Token Expirado (401)\\\" errors by scanning for CONNECTION_ACCESS_TOKEN.\n- \ud83d\udc1b **Fix:** Library button now opens playlist view correctly.\n- \u26a1 **Improvement:** Smarter local module detection.\n- \ud83d\udc1e **Fix:** Removed triple-notification on Share.\n- \ud83d\udee0\ufe0f **Fix:** Added startup delay for better reliability.\n\n### v2.0.1 (2026-02-15) - The Ghost Fix \ud83d\udc7b\n- \ud83d\ude80 **Fix:** Resolved misleading \\\"Local Control failed\\\" error toast when Web API fallback is successful.\n- \ud83d\udc1b **Fix:** Fixed Next, Previous, and Pause controls by correctly passing accountId to local modules.\n- \ud83d\udd0d **Improvement:** Enhanced local module search strategy.\n- \ud83d\udd17 **Improvement:** Made the developer.spotify.com link clickable in the settings panel.\n- \ud83d\udee0\ufe0f **Dev:** Added version check log for easier troubleshooting.\n\n### v2.0.0 (The Complete Rebirth)\n- \ud83d\ude80 **Total Architecture Rewrite**: Built from the ground up for stability, speed, and premium features.\n- \ud83d\udd10 **Premium Auth System**: Integrated Spotify PKCE authentication for secure access to advanced player controls.\n- \ud83c\udfae **Advanced Player Controls**: Added Shuffle, Repeat, Like/Unlike, real-time Volume Slider, and Seek Bar.\n- \ud83d\udccf **New List Views**: Library and Queue views with Auto-Expanding Height (450px).\n- \ud83d\udee1\ufe0f **Security & Privacy**: Added Editable Client ID field with a visibility toggle.\n- \u2728 **Premium Glassmorphic Design**: Redesigned with card-based layouts and blur effects.\n- \u26a1 **Performance & Sync**: Reliable WebSocket communication with Solari APP.\n\n### v1.0.1 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Play/Pause controls\n- \u2705 Next/Previous track buttons\n- \u2705 Now Playing display in Discord"
             }
         };
 
