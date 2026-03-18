@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Spotify controller for Discord. Album art, progress bar with seek, like/unlike, volume, shuffle, repeat — all from Discord. Integrates with Solari RPC.
- * @version 2.1.1
+ * @version 2.1.2
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
@@ -32,17 +32,18 @@ module.exports = class SpotifySync {
             devices: 'Devices', noDevices: 'No devices found', transferring: 'Transferring...', activeDevice: 'Active',
             // Premium Auth
             premiumTitle: 'Premium Connection',
-            premiumHelp: 'Connect your Spotify account to enable Like, Seek, Volume, and Playlist management. This requires a one-time setup.',
+            premiumHelp: '<b>Required: Spotify Premium Account.</b> Connect your account to enable Like, Volume, Seek, and Playlists. Without Premium, these features will not work via Web API.',
             step1: '1. Create App', step1Help: 'Go to <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1DB954;text-decoration:none;border-bottom:1px solid #1DB954;">developer.spotify.com</a>, create an app, and copy the Client ID.',
             step2: '2. Config App', step2Help: 'In your Spotify App settings, add this exact Redirect URI:',
-            step3: '3. Authorize', step3Help: 'Click the button below to open the Spotify login page.',
+            step3: '3. Authorize', step3Help: 'Click the button below to open the Spotify login page (Requires **Spotify Premium** account).',
             step4: '4. Finish', step4Help: 'After logging in, you will see a "Connection Refused" error page. Copy the URL from your browser address bar and paste it below.',
             clientId: 'Client ID',
             authorize: 'Authorize in Browser',
             pasteUrl: 'Paste Redirect URL',
             connect: 'Connect Account', connectedAs: 'Connected', status: 'Status', howTo: 'Guide',
             redirectUri: 'Redirect URI',
-            recommended: 'Recommended', contextq: 'From Context'
+            recommended: 'Recommended', contextq: 'From Context',
+            premiumRequired: 'Note: Premium Connection requires an active **Spotify Premium** subscription.'
         },
         'pt-BR': {
             title: 'SpotifySync Configurações', solari: 'Solari', connected: 'Conectado', disconnected: 'Desconectado',
@@ -63,17 +64,18 @@ module.exports = class SpotifySync {
             devices: 'Dispositivos', noDevices: 'Nenhum dispositivo encontrado', transferring: 'Transferindo...', activeDevice: 'Ativo',
             // Premium Auth
             premiumTitle: 'Conexão Premium',
-            premiumHelp: 'Conecte sua conta Spotify para habilitar Curtir, Volume, Seek e Playlists. Configuração única necessária.',
+            premiumHelp: '<b>Obrigatório: Conta Spotify Premium.</b> Conecte sua conta para habilitar Curtir, Volume, Seek e Playlists. Sem Premium, estas funções não funcionarão via Web API.',
             step1: '1. Criar App', step1Help: 'Vá em <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1DB954;text-decoration:none;border-bottom:1px solid #1DB954;">developer.spotify.com</a>, crie um app e copie o Client ID.',
             step2: '2. Configurar App', step2Help: 'Nas configurações do seu App no Spotify, adicione exatamente esta Redirect URI:',
-            step3: '3. Autorizar', step3Help: 'Clique no botão abaixo para abrir o login do Spotify.',
+            step3: '3. Autorizar', step3Help: 'Clique no botão abaixo para abrir o login do Spotify (Exige conta **Spotify Premium**).',
             step4: '4. Finalizar', step4Help: 'Após logar, você verá uma página de "Conexão Recusada". Copie a URL inteira do navegador e cole abaixo.',
             clientId: 'Client ID',
             authorize: 'Autorizar no Navegador',
             pasteUrl: 'Cole a URL de Redirecionamento',
             connect: 'Conectar Conta', connectedAs: 'Conectado', status: 'Status', howTo: 'Guia',
             redirectUri: 'Redirect URI',
-            recommended: 'Recomendado', contextq: 'Do Contexto'
+            recommended: 'Recomendado', contextq: 'Do Contexto',
+            premiumRequired: 'Nota: A Conexão Premium requer uma assinatura ativa do **Spotify Premium**.'
         },
         es: {
             title: 'SpotifySync Configuración', solari: 'Solari', connected: 'Conectado', disconnected: 'Desconectado',
@@ -152,7 +154,7 @@ module.exports = class SpotifySync {
             showShuffleRepeat: true,
             controlsVisibility: 'whenPlaying',
             language: 'pt-BR',
-            serverUrl: 'ws://http://127.0.0.1:8888/callback',
+            serverUrl: 'ws://127.0.0.1:8888/callback',
             // Premium Auth
             spotifyClientId: '',
             spotifyAccessToken: '',
@@ -240,7 +242,7 @@ module.exports = class SpotifySync {
     getSettingsSchema() {
         const premiumStatus = this.hasPremium() ? 'connected' : 'disconnected';
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v2.1.1' },
+            { type: 'custom_header', title: this.t('title'), version: 'v2.1.2' },
             { type: 'status_card', id: 'solariStatus', label: this.t('solari'), status: this.isConnectedToSolari ? 'connected' : 'disconnected' },
 
             {
@@ -265,7 +267,7 @@ module.exports = class SpotifySync {
                 title: this.t('premiumTitle'),
                 status: premiumStatus,
                 statusLabel: premiumStatus === 'connected' ? this.t('connected') : this.t('disconnected'),
-                description: this.t('premiumHelp'),
+                description: `<div style="background: rgba(255, 204, 0, 0.1); border-left: 4px solid #ffcc00; padding: 10px; margin-bottom: 15px; color: #ffcc00; font-weight: bold;">⚠️ ${this.t('premiumRequired')}</div>${this.t('premiumHelp')}`,
                 children: [
                     {
                         type: 'step_card',
@@ -446,13 +448,21 @@ module.exports = class SpotifySync {
 
             if (data.error) {
                 console.error('[SpotifySync] Premium Refresh Error API:', data);
-                if (data.error === 'invalid_grant' || data.error_description === 'Revoked') {
+                // Only clear if the token is explicitly revoked or invalid
+                // 'invalid_grant' often means revoked, but we check description to be sure
+                const isRevoked = data.error === 'invalid_grant' && (
+                    data.error_description?.toLowerCase().includes('revoked') ||
+                    data.error_description?.toLowerCase().includes('expired') ||
+                    data.error_description?.toLowerCase().includes('refresh token')
+                );
+
+                if (isRevoked) {
                     console.error('[SpotifySync] Token revoked/invalid. Clearing Premium config.');
                     this.config.spotifyAccessToken = '';
-                    this.config.spotifyRefreshToken = ''; // DANGER: This kills the connection entirely
+                    this.config.spotifyRefreshToken = '';
                     this.config.spotifyTokenExpiry = 0;
                     this.saveConfig();
-                    this.safeShowToast('Premium Token Expired. Please reconnect.', { type: 'error' });
+                    this.safeShowToast('Spotify Connection Revoked. Please reconnect.', { type: 'error' });
                 }
                 throw new Error(data.error);
             }
@@ -526,7 +536,7 @@ module.exports = class SpotifySync {
 
     // ═══════════════════ LIFECYCLE ═══════════════════
     start() {
-        console.log('[SpotifySync] v2.1.1 Starting...');
+        console.log('[SpotifySync] v2.1.2 Starting...');
         this.loadConfig();
 
         // Force clear any stale internal caches
@@ -604,7 +614,20 @@ module.exports = class SpotifySync {
 
     handleMessage(data) {
         if (data.type === 'update_spotify_settings' || data.type === 'spotify_sync_settings_update') {
-            this.config = { ...this.config, ...data.settings };
+            // Robust Merge: Do NOT allow overwriting existing Premium tokens with empty ones from Solari App
+            // This prevents the "connection loss on restart" issue if the app sends a default config before syncing.
+            const incoming = data.settings || {};
+            const cleanSettings = { ...incoming };
+
+            if (!cleanSettings.spotifyRefreshToken && this.config.spotifyRefreshToken) {
+                console.log('[SpotifySync] Ignoring empty refresh token from server to prevent connection loss.');
+                delete cleanSettings.spotifyAccessToken;
+                delete cleanSettings.spotifyRefreshToken;
+                delete cleanSettings.spotifyTokenExpiry;
+                delete cleanSettings.spotifyClientId;
+            }
+
+            this.config = { ...this.config, ...cleanSettings };
             this.saveConfig();
             if (this.config.showControls && !this.widgetElement) this.injectWidget();
             else if (!this.config.showControls && this.widgetElement) this.removeWidget();
@@ -655,12 +678,21 @@ module.exports = class SpotifySync {
                 if (accountStore) {
                     const accounts = accountStore.getAccounts();
                     for (const id in accounts) {
-                        if (accounts[id].type === 'spotify') {
+                        if (accounts[id] && accounts[id].type === 'spotify') {
                             this.accountId = id;
                             resolvedToken = accounts[id].accessToken;
                             break;
                         }
                     }
+                }
+            }
+            // Final fallback: check all internal Spotify modules for an account ID
+            if (!this.accountId) {
+                const spotifyStore = BdApi.Webpack.getModule(m => m?.getAccounts && m?.getActiveSocketAndDevice);
+                if (spotifyStore) {
+                    const accounts = spotifyStore.getAccounts?.() || {};
+                    const firstId = Object.keys(accounts).find(id => accounts[id]?.type === 'spotify');
+                    if (firstId) this.accountId = firstId;
                 }
             }
         } catch (e) { console.error('[SpotifySync] Error resolving account:', e); }
@@ -830,6 +862,14 @@ module.exports = class SpotifySync {
         try {
             let res = await makeRequest(token);
 
+            // 429 Too Many Requests: Respect Retry-After
+            if (res.status === 429) {
+                const retryAfter = parseInt(res.headers.get('Retry-After') || '2');
+                console.warn(`[SpotifySync] Rate limited (429). Retrying after ${retryAfter}s...`);
+                await new Promise(r => setTimeout(r, (retryAfter + 1) * 1000));
+                res = await makeRequest(token);
+            }
+
             // Universal 401 Handling (Premium OR Discord Token)
             if (res.status === 401) {
                 console.warn(`[SpotifySync] Token expired (401). Retrying... (Token Type: ${token === this.config.spotifyAccessToken ? 'Premium' : 'Discord'})`);
@@ -852,6 +892,13 @@ module.exports = class SpotifySync {
                 if (newToken && newToken !== token) {
                     console.log('[SpotifySync] Retrying request with new token...');
                     res = await makeRequest(newToken);
+
+                    // Handle 429 on retry too
+                    if (res.status === 429) {
+                        const retryAfter = parseInt(res.headers.get('Retry-After') || '2');
+                        await new Promise(r => setTimeout(r, (retryAfter + 1) * 1000));
+                        res = await makeRequest(newToken);
+                    }
                 } else {
                     console.error('[SpotifySync] Could not refresh token for retry.');
                 }
@@ -876,7 +923,7 @@ module.exports = class SpotifySync {
     }
 
     executeControl(action) {
-        if (Date.now() - this.lastControlTime < 800) return; // Debounce 800ms
+        if (Date.now() - this.lastControlTime < 400) return; // Debounce 400ms for better responsiveness
         this.lastControlTime = Date.now();
 
         // 1. Get real-time state from Discord Store to avoid command inversion (Pause vs Play)
@@ -1379,7 +1426,7 @@ module.exports = class SpotifySync {
         const cacheKey = this._trackId;
         if (cacheKey && this._lyricsCache[cacheKey]) return this._lyricsCache[cacheKey];
 
-        const UA = { 'User-Agent': 'SpotifySync/2.1.1 (https://solarirpc.com)' };
+        const UA = { 'User-Agent': 'SpotifySync/2.1.2 (https://solarirpc.com)' };
         // Clean track name: remove common suffixes that prevent matching
         const cleanTrack = (trackName || '').replace(/\s*[-–]\s*(Remaster(ed)?|Deluxe|Bonus Track|Anniversary|Edition|Mix|Version|Live|Acoustic|Demo|Radio Edit).*$/i, '')
             .replace(/\s*\((?:feat\.|ft\.|with |Remaster|Deluxe|Bonus|Anniversary|Edition|Live|Acoustic|Demo|Radio Edit)[^)]*\)\s*/gi, '')
@@ -2272,7 +2319,7 @@ module.exports = class SpotifySync {
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px;">
                         <span style="color:#1DB954;">🎵</span> ${this.t('title')}
-                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.1.1</span>
+                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.1.2</span>
                     </h2>
                     <select id="ss2-lang" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:5px 8px;">
                         <option value="en" ${this.config.language === 'en' ? 'selected' : ''}>English</option>
