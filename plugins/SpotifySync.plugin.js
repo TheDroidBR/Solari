@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Spotify controller for Discord. Album art, progress bar with seek, like/unlike, volume, shuffle, repeat — all from Discord. Integrates with Solari RPC.
- * @version 2.1.2
+ * @version 2.1.3
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
@@ -242,7 +242,7 @@ module.exports = class SpotifySync {
     getSettingsSchema() {
         const premiumStatus = this.hasPremium() ? 'connected' : 'disconnected';
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v2.1.2' },
+            { type: 'custom_header', title: this.t('title'), version: 'v2.1.3' },
             { type: 'status_card', id: 'solariStatus', label: this.t('solari'), status: this.isConnectedToSolari ? 'connected' : 'disconnected' },
 
             {
@@ -427,57 +427,69 @@ module.exports = class SpotifySync {
             return false;
         }
 
-        console.log('[SpotifySync] Refreshing Premium Token...');
-        try {
-            const body = new URLSearchParams({
-                grant_type: 'refresh_token',
-                refresh_token: this.config.spotifyRefreshToken,
-                client_id: this.config.spotifyClientId
-            });
-
-            // PKCE: If we have a verifier, we might need it (though usually only for auth code)
-            // Ideally we should use the same endpoint we used for auth.
-            // For now assuming standard endpoint or the one configured.
-
-            const res = await fetch('https://accounts.spotify.com/api/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: body
-            });
-            const data = await res.json();
-
-            if (data.error) {
-                console.error('[SpotifySync] Premium Refresh Error API:', data);
-                // Only clear if the token is explicitly revoked or invalid
-                // 'invalid_grant' often means revoked, but we check description to be sure
-                const isRevoked = data.error === 'invalid_grant' && (
-                    data.error_description?.toLowerCase().includes('revoked') ||
-                    data.error_description?.toLowerCase().includes('expired') ||
-                    data.error_description?.toLowerCase().includes('refresh token')
-                );
-
-                if (isRevoked) {
-                    console.error('[SpotifySync] Token revoked/invalid. Clearing Premium config.');
-                    this.config.spotifyAccessToken = '';
-                    this.config.spotifyRefreshToken = '';
-                    this.config.spotifyTokenExpiry = 0;
-                    this.saveConfig();
-                    this.safeShowToast('Spotify Connection Revoked. Please reconnect.', { type: 'error' });
-                }
-                throw new Error(data.error);
-            }
-
-            console.log('[SpotifySync] Premium Token Refreshed Successfully!');
-            this.config.spotifyAccessToken = data.access_token;
-            if (data.refresh_token) this.config.spotifyRefreshToken = data.refresh_token; // Sometimes updated
-            this.config.spotifyTokenExpiry = Date.now() + (data.expires_in * 1000);
-            if (!this.config._userDisplayName) this.fetchUserProfile();
-            this.saveConfig();
-            return true;
-        } catch (e) {
-            console.error('[SpotifySync] Refresh Error:', e);
-            return false;
+        // Prevent concurrent refresh requests (Race Condition Fix)
+        if (this._refreshPromise) {
+            console.log('[SpotifySync] Refresh already in progress. Waiting for existing promise...');
+            return this._refreshPromise;
         }
+
+        this._refreshPromise = (async () => {
+            console.log('[SpotifySync] Refreshing Premium Token...');
+            try {
+                const body = new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: this.config.spotifyRefreshToken,
+                    client_id: this.config.spotifyClientId
+                });
+
+                // PKCE: If we have a verifier, we might need it (though usually only for auth code)
+                // Ideally we should use the same endpoint we used for auth.
+                // For now assuming standard endpoint or the one configured.
+
+                const res = await fetch('https://accounts.spotify.com/api/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    console.error('[SpotifySync] Premium Refresh Error API:', data);
+                    // Only clear if the token is explicitly revoked or invalid
+                    // 'invalid_grant' often means revoked, but we check description to be sure
+                    const isRevoked = data.error === 'invalid_grant' && (
+                        data.error_description?.toLowerCase().includes('revoked') ||
+                        data.error_description?.toLowerCase().includes('expired') ||
+                        data.error_description?.toLowerCase().includes('refresh token')
+                    );
+
+                    if (isRevoked) {
+                        console.error('[SpotifySync] Token revoked/invalid. Clearing Premium config.');
+                        this.config.spotifyAccessToken = '';
+                        this.config.spotifyRefreshToken = '';
+                        this.config.spotifyTokenExpiry = 0;
+                        this.saveConfig();
+                        this.safeShowToast('Spotify Connection Revoked. Please reconnect.', { type: 'error' });
+                    }
+                    throw new Error(data.error);
+                }
+
+                console.log('[SpotifySync] Premium Token Refreshed Successfully!');
+                this.config.spotifyAccessToken = data.access_token;
+                if (data.refresh_token) this.config.spotifyRefreshToken = data.refresh_token; // Sometimes updated
+                this.config.spotifyTokenExpiry = Date.now() + (data.expires_in * 1000);
+                if (!this.config._userDisplayName) this.fetchUserProfile();
+                this.saveConfig();
+                return true;
+            } catch (e) {
+                console.error('[SpotifySync] Refresh Error:', e);
+                return false;
+            } finally {
+                this._refreshPromise = null;
+            }
+        })();
+
+        return this._refreshPromise;
     }
 
     hasPremium() {
@@ -536,7 +548,7 @@ module.exports = class SpotifySync {
 
     // ═══════════════════ LIFECYCLE ═══════════════════
     start() {
-        console.log('[SpotifySync] v2.1.2 Starting...');
+        console.log('[SpotifySync] v2.1.3 Starting...');
         this.loadConfig();
 
         // Force clear any stale internal caches
@@ -619,13 +631,14 @@ module.exports = class SpotifySync {
             const incoming = data.settings || {};
             const cleanSettings = { ...incoming };
 
-            if (!cleanSettings.spotifyRefreshToken && this.config.spotifyRefreshToken) {
-                console.log('[SpotifySync] Ignoring empty refresh token from server to prevent connection loss.');
-                delete cleanSettings.spotifyAccessToken;
-                delete cleanSettings.spotifyRefreshToken;
-                delete cleanSettings.spotifyTokenExpiry;
-                delete cleanSettings.spotifyClientId;
-            }
+            // Prevent Solari App from EVER overwriting the authentication state.
+            // The plugin is the sole source of truth for Spotify Auth and saves it via BdApi.
+            delete cleanSettings.spotifyClientId;
+            delete cleanSettings.spotifyAccessToken;
+            delete cleanSettings.spotifyRefreshToken;
+            delete cleanSettings.spotifyTokenExpiry;
+            delete cleanSettings.spotifyVerifier;
+            delete cleanSettings._userDisplayName;
 
             this.config = { ...this.config, ...cleanSettings };
             this.saveConfig();
@@ -1426,7 +1439,7 @@ module.exports = class SpotifySync {
         const cacheKey = this._trackId;
         if (cacheKey && this._lyricsCache[cacheKey]) return this._lyricsCache[cacheKey];
 
-        const UA = { 'User-Agent': 'SpotifySync/2.1.2 (https://solarirpc.com)' };
+        const UA = { 'User-Agent': 'SpotifySync/2.1.3 (https://solarirpc.com)' };
         // Clean track name: remove common suffixes that prevent matching
         const cleanTrack = (trackName || '').replace(/\s*[-–]\s*(Remaster(ed)?|Deluxe|Bonus Track|Anniversary|Edition|Mix|Version|Live|Acoustic|Demo|Radio Edit).*$/i, '')
             .replace(/\s*\((?:feat\.|ft\.|with |Remaster|Deluxe|Bonus|Anniversary|Edition|Live|Acoustic|Demo|Radio Edit)[^)]*\)\s*/gi, '')
@@ -2319,7 +2332,7 @@ module.exports = class SpotifySync {
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px;">
                         <span style="color:#1DB954;">🎵</span> ${this.t('title')}
-                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.1.2</span>
+                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.1.3</span>
                     </h2>
                     <select id="ss2-lang" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:5px 8px;">
                         <option value="en" ${this.config.language === 'en' ? 'selected' : ''}>English</option>
