@@ -3240,13 +3240,31 @@ ipcMain.on('update-spotify-plugin-settings', (event, settings) => {
 });
 
 ipcMain.on('update-notes-plugin-settings', (event, settings) => {
-    solariNotesSettings = { ...solariNotesSettings, ...settings };
+    // Check if it's a reset action
+    if (settings && settings.action === 'reset_position') {
+        console.log('[Solari] Resetting Solari Notes settings to defaults');
+        solariNotesSettings = {
+            panelOpacity: 100,
+            blurIntensity: 16,
+            fontSize: 14,
+            fontFamily: 'sans',
+            accentColor: '#5865F2',
+            editorPadding: 16,
+            autoSaveDelay: 1000,
+            language: appSettings.language || 'en'
+        };
+        // We don't reset windows position from here to avoid jarring UX if they just wanted to reset styles,
+        // but the plugin's internal reset does it. Let's stay consistent with the plugin's "Reset All".
+    } else {
+        solariNotesSettings = { ...solariNotesSettings, ...settings };
+    }
+
     saveData();
     if (wss) {
         wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 // Not the most efficient but works: broad-broadcast to all clients, plugins filter by type anyway
-                client.send(JSON.stringify({ type: 'update_notes_settings', settings }));
+                client.send(JSON.stringify({ type: 'update_notes_settings', settings: solariNotesSettings }));
             }
         });
     }
