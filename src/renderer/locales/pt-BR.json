@@ -124,6 +124,24 @@
                 "Volume, Seek, Shuffle e Repeat",
                 "Biblioteca e Fila de músicas"
             ]
+        },
+        "solarinotes": {
+            "title": "Solari Notes",
+            "description": "Bloco de notas elegante e sincronizado integrado estritamente à interface do Discord. Salva com segurança no seu PC local através do Solari App.",
+            "features": [
+                "Bloco de notas de alta performance",
+                "Armazenamento local seguro",
+                "Aparência customizável",
+                "Sincronização em tempo real"
+            ],
+            "opacity": "Opacidade do Painel",
+            "fontSize": "Tamanho da Fonte",
+            "fontFamily": "Família da Fonte",
+            "blur": "Desfoque de Fundo",
+            "accent": "Cor de Destaque",
+            "autoSave": "Atraso de Auto-save",
+            "padding": "Espaçamento Interno",
+            "reset": "Resetar Tamanho e Posição"
         }
     },
     "server": {

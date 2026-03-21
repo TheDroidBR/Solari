@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Special handling for Plugins init + Real-Time BD Polling (v1.7.0)
+        // Special handling for Plugins init + Real-Time BD Polling (v1.8.0)
         if (targetId === 'plugins-tab') {
             if (typeof PluginsTabManager !== 'undefined') {
                 PluginsTabManager.init();

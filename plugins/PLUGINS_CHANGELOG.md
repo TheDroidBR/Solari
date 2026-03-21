@@ -3,13 +3,13 @@
 ## SpotifySync v2.1.3 (2026-03-19)
 - 🔒 **Critical Fix: Token Amnesia**: The plugin now completely ignores Auth sync payloads pushed from the Solari Desktop App to prevent Discord from overwriting its valid tokens with empty ones on PC startup.
 - 🛡️ **Critical Fix: Race Condition**: Wrapped the `refresh_token` Spotify Web API OAuth flow inside a JavaScript Promise Mutex. This prevents concurrent background routines (like lyrics fetchers and status pollers) from firing duplicate refresh requests at the exact millisecond the 1-hour token expires. Duplicate requests previously caused Spotify to return an `invalid_grant` error, forcing the plugin to falsely assume access was revoked and wiping your perfectly valid login keys from disk. Your Premium connection is now immortal.
+
 ## SpotifySync v2.1.2 (2026-03-18)
 - ⚡ **Play/Pause Responsiveness**: Reduced internal debounce from 800ms to 400ms for snappier playback controls.
 - 💾 **Connection Persistence**: Added "Safe Merge" logic to prevent Solari App from wiping plugin tokens on restart.
 - 🛑 **Rate Limiting**: Added support for Spotify's updated API limits (429 handling with Retry-After).
 - ⚠️ **Explicit Premium Warning**: Added prominent UI alerts (styled boxes and text) to clarify that Spotify Premium is required for full functionality.
 - 🔍 **Improved Detection**: Enhanced account resolution engine for more reliable Discord local control.
-
 
 ## SpotifySync v2.1.2 (2026-03-18)
 - 🛡️ **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data (e.g., Spotify not linked to Discord).

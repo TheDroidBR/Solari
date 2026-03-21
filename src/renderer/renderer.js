@@ -1255,6 +1255,7 @@ function openPluginConfig(pluginName) {
     let panelId = `config${pluginName.replace(/\s/g, '')}`;
     if (pluginName.toLowerCase() === 'smartafk') panelId = 'configSmartAFKDetector';
     if (pluginName.toLowerCase() === 'spotifysync') panelId = 'configSpotifySync';
+    if (pluginName.toLowerCase() === 'solarinotes') panelId = 'configSolariNotes';
 
     const panel = document.getElementById(panelId);
     if (panel) {
@@ -2486,6 +2487,21 @@ ipcRenderer.on('spotify-config-updated', (event, config) => {
     updateSpotifyConnectionStatus(true);
 });
 
+// ===== SOLARI NOTES =====
+
+// Handle Notes data loaded
+ipcRenderer.on('notes-data-loaded', (event, data) => {
+    console.log('[Solari] Notes data loaded:', data);
+    if (data.settings && data.schema) {
+        renderPluginSettings(data.schema, data.settings, 'notes', 'solari-notes-settings-container');
+    }
+});
+
+// Handle Notes status updates
+ipcRenderer.on('notes-status-update', (event, status) => {
+    console.log('[Solari] Notes status update:', status);
+});
+
 // Update plugin list to check for SpotifySync
 ipcRenderer.on('plugin-list-updated', (event, plugins) => {
     // Original plugin list handler continues...
@@ -2615,18 +2631,18 @@ if (saveSpotifyButtonsBtn) {
 // SpotifySync Plugin Config Panel Handlers
 
 // Dynamic Settings Renderer
-function renderPluginSettings(schema, currentConfig) {
-    const container = document.getElementById('spotify-settings-container');
+function renderPluginSettings(schema, currentConfig, pluginName = 'spotify', containerId = 'spotify-settings-container') {
+    const container = document.getElementById(containerId);
     if (!container) return;
     container.innerHTML = ''; // Clear existing
 
-    // Inject Styles once
-    if (!document.getElementById('spotify-plugin-styles')) {
+    // Inject Styles once (Generic for all plugins using this system)
+    if (!document.getElementById('plugin-dynamic-styles')) {
         const style = document.createElement('style');
-        style.id = 'spotify-plugin-styles';
+        style.id = 'plugin-dynamic-styles';
         style.textContent = `
             .sp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-            .sp-title { font-size: 1.4em; font-weight: 600; background: linear-gradient(90deg, #1DB954, #1ed760); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+            .sp-title { font-size: 1.4em; font-weight: 600; color: #fff; }
             .sp-version { font-size: 0.8em; opacity: 0.6; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; }
             .sp-status-card { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
             .sp-status-dot { width: 10px; height: 10px; border-radius: 50%; }
@@ -2635,25 +2651,29 @@ function renderPluginSettings(schema, currentConfig) {
             .sp-section-title { font-size: 1.1em; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 8px; }
             .sp-section-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; font-weight: bold; }
             .sp-section-desc { font-size: 0.9em; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
-            .sp-step-card { background: rgba(255,255,255,0.03); border-left: 3px solid #1DB954; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+            .sp-step-card { background: rgba(255,255,255,0.03); border-left: 3px solid var(--primary); border-radius: 6px; padding: 12px; margin-bottom: 12px; }
             .sp-step-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
-            .sp-step-num { font-weight: bold; color: #1DB954; font-size: 1.1em; }
+            .sp-step-num { font-weight: bold; color: var(--primary); font-size: 1.1em; }
             .sp-step-title { font-weight: 600; color: #eee; }
             .sp-step-text { font-size: 0.9em; color: rgba(255,255,255,0.7); margin-bottom: 10px; line-height: 1.4; }
             .sp-copy-box { display: flex; gap: 8px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); }
             .sp-copy-input { background: transparent; border: none; color: #fff; flex: 1; font-family: monospace; font-size: 0.9em; }
             .sp-copy-input:focus { outline: none; }
             .sp-btn { border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s; }
-            .sp-btn-primary { background: #1DB954; color: #fff; padding: 12px; width: 100%; font-size: 1em; }
-            .sp-btn-primary:hover { background: #1ed760; }
+            .sp-btn-primary { background: var(--primary); color: #fff; padding: 12px; width: 100%; font-size: 1em; }
+            .sp-btn-primary:hover { opacity: 0.9; }
             .sp-btn-copy { background: rgba(255,255,255,0.1); color: #fff; padding: 4px 10px; font-size: 0.85em; }
-            .sp-btn-copy:hover { background: rgba(255,255,255,0.2); }
+            .sp-slider-label { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 10px; margin-bottom: 8px; }
+            .sp-slider-header { display: flex; justify-content: space-between; align-items: center; }
+            .sp-slider-val { font-family: monospace; color: var(--primary); font-weight: bold; }
+            .sp-slider { -webkit-appearance: none; width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 5px; outline: none; cursor: pointer; }
+            .sp-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--primary); border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
         `;
         document.head.appendChild(style);
     }
 
     schema.forEach(item => {
-        const el = createSettingElement(item, currentConfig);
+        const el = createSettingElement(item, currentConfig, pluginName);
         if (el) container.appendChild(el);
     });
 }
@@ -2663,7 +2683,8 @@ function parseMarkdownLinks(text) {
     return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: #1DB954; text-decoration: none; border-bottom: 1px solid #1DB954;">$1</a>');
 }
 
-function createSettingElement(item, config) {
+function createSettingElement(item, config, pluginName = 'spotify') {
+    const ipcChannel = `update-${pluginName.toLowerCase()}-plugin-settings`;
     const wrapper = document.createElement('div');
     wrapper.style.marginBottom = '12px';
 
@@ -2749,8 +2770,8 @@ function createSettingElement(item, config) {
                     // Auto-save
                     inp?.addEventListener('blur', () => {
                         if (inp.value !== item.inputConfig.value) {
-                            ipcRenderer.send('update-spotify-plugin-settings', { [item.inputConfig.key]: inp.value.trim() });
-                            showToast('💾', 'Client ID Saved', 'success');
+                            ipcRenderer.send(ipcChannel, { [item.inputConfig.key]: inp.value.trim() });
+                            showToast('💾', 'Configuração Salva', 'success');
                         }
                     });
                 }
@@ -2882,7 +2903,7 @@ function createSettingElement(item, config) {
             input.checked = config[item.key] !== false; // Default true if undefined
             input?.addEventListener('change', () => {
                 console.log(`[Solari] Auto-save ${item.key}: ${input.checked}`);
-                ipcRenderer.send('update-spotify-plugin-settings', { [item.key]: input.checked });
+                ipcRenderer.send(ipcChannel, { [item.key]: input.checked });
             });
 
             const slider = document.createElement('span');
@@ -2923,7 +2944,7 @@ function createSettingElement(item, config) {
                     optInput.style.accentColor = '#1DB954';
 
                     optInput?.addEventListener('change', () => {
-                        ipcRenderer.send('update-spotify-plugin-settings', { [item.key]: opt.value });
+                        ipcRenderer.send(ipcChannel, { [item.key]: opt.value });
                     });
 
                     const txtDiv = document.createElement('div');
@@ -2949,6 +2970,50 @@ function createSettingElement(item, config) {
                 });
             }
             return selectContainer;
+
+        case 'slider':
+            const sliderLabel = document.createElement('div');
+            sliderLabel.className = 'sp-slider-label';
+
+            const sliderHeader = document.createElement('div');
+            sliderHeader.className = 'sp-slider-header';
+            sliderHeader.innerHTML = `
+                <span style="font-size: 0.9em; font-weight: 500; color: #ddd;">${item.label}</span>
+                <span class="sp-slider-val" id="val-${item.key}">${config[item.key] || item.defaultValue || 0}${item.suffix || ''}</span>
+            `;
+
+            const sliderInput = document.createElement('input');
+            sliderInput.type = 'range';
+            sliderInput.className = 'sp-slider';
+            sliderInput.min = item.min || 0;
+            sliderInput.max = item.max || 100;
+            sliderInput.step = item.step || 1;
+            sliderInput.value = config[item.key] || item.defaultValue || 0;
+
+            sliderInput?.addEventListener('input', () => {
+                const valEl = document.getElementById(`val-${item.key}`);
+                if (valEl) valEl.textContent = `${sliderInput.value}${item.suffix || ''}`;
+            });
+
+            sliderInput?.addEventListener('change', () => {
+                ipcRenderer.send(ipcChannel, { [item.key]: parseInt(sliderInput.value) });
+            });
+
+            sliderLabel.appendChild(sliderHeader);
+            sliderLabel.appendChild(sliderInput);
+            return sliderLabel;
+
+        case 'button':
+            const btn = document.createElement('button');
+            btn.className = 'sp-btn sp-btn-primary';
+            btn.style.marginTop = '10px';
+            btn.textContent = item.label;
+            btn.onclick = () => {
+                if (item.action) {
+                    ipcRenderer.send(item.action, item.value);
+                }
+            };
+            return btn;
 
         // Fallback for legacy types if still used anywhere (text, action, input_action)
         // I'll keep them minimalistic or remove if schema fully replaced
@@ -3005,6 +3070,17 @@ var PluginsTabManager = {
                 'Volume, Seek, Shuffle e Repeat',
                 'Biblioteca e Fila de músicas'
             ]
+        },
+        solarinotes: {
+            displayName: 'Solari Notes',
+            icon: '📝',
+            requires: 'BetterDiscord',
+            features: [
+                'Bloco de notas de alta performance',
+                'Armazenamento local seguro',
+                'Aparência customizável',
+                'Sincronização em tempo real'
+            ]
         }
     },
 
@@ -3034,8 +3110,6 @@ var PluginsTabManager = {
                     if (labelEl) labelEl.textContent = 'Reinstalar BD';
                     // Cooldown: block auto-repair for 30s during Discord restart
                     this._bdActionCooldown = Date.now() + 30000;
-                    this._bdBrokenCount = 0;
-                    setTimeout(() => this.checkBD(), 5000);
                 } else {
                     showToast('❌', `Erro: ${result?.error || 'Falha desconhecida'}`, 'error');
                     if (labelEl) labelEl.textContent = originalLabel;
@@ -3058,8 +3132,6 @@ var PluginsTabManager = {
                 if (result?.success) {
                     showToast('✅', 'BetterDiscord instalado!', 'success');
                     this._bdActionCooldown = Date.now() + 30000;
-                    this._bdBrokenCount = 0;
-                    setTimeout(() => this.checkBD(), 5000);
                 } else {
                     showToast('❌', `Erro: ${result?.error}`, 'error');
                 }
@@ -3075,8 +3147,6 @@ var PluginsTabManager = {
                 if (result?.success) {
                     showToast('✅', 'BetterDiscord reparado!', 'success');
                     this._bdActionCooldown = Date.now() + 30000;
-                    this._bdBrokenCount = 0;
-                    setTimeout(() => this.checkBD(), 5000);
                 } else {
                     showToast('❌', `Erro: ${result?.error}`, 'error');
                 }
@@ -3123,8 +3193,6 @@ var PluginsTabManager = {
                             if (labelEl) labelEl.textContent = 'Instalar BD';
                             // Cooldown: block auto-repair for 30s
                             this._bdActionCooldown = Date.now() + 30000;
-                            this._bdBrokenCount = 0;
-                            setTimeout(() => this.checkBD(), 5000);
                         } else {
                             showToast('❌', `Erro: ${result?.error || 'Falha'}`, 'error');
                             if (labelEl) labelEl.textContent = origLabel;
@@ -3142,16 +3210,14 @@ var PluginsTabManager = {
         // Dropdown: Auto-Repair toggle
         const autoRepairToggle = document.getElementById('bd-action-repair');
         if (autoRepairToggle) {
-            // Load saved state
-            const autoRepairEnabled = localStorage.getItem('solari-bd-auto-repair') === 'true';
-            this._bdAutoRepair = autoRepairEnabled;
-            this._updateAutoRepairUI(autoRepairToggle, autoRepairEnabled);
-
+            this._updateAutoRepairUI(autoRepairToggle, appSettings.bdAutoRepair);
             autoRepairToggle.addEventListener('click', () => {
-                this._bdAutoRepair = !this._bdAutoRepair;
-                localStorage.setItem('solari-bd-auto-repair', String(this._bdAutoRepair));
-                this._updateAutoRepairUI(autoRepairToggle, this._bdAutoRepair);
-                if (this._bdAutoRepair) {
+                const newState = !appSettings.bdAutoRepair;
+                appSettings.bdAutoRepair = newState;
+                ipcRenderer.send('save-app-settings', { bdAutoRepair: newState });
+                this._updateAutoRepairUI(autoRepairToggle, newState);
+                
+                if (newState) {
                     showToast('🔧', 'Auto-Repair ativado! BD será reparado automaticamente.', 'success');
                 } else {
                     showToast('ℹ️', 'Auto-Repair desativado.', 'info');
@@ -3159,27 +3225,23 @@ var PluginsTabManager = {
             });
         }
 
+        // Listen for background status updates
+        ipcRenderer.on('bd-status-update', (event, data) => {
+            this._handleBDStatusUpdate(data);
+        });
+
+        // Request initial status
+        ipcRenderer.invoke('bd:get-status').then(data => {
+            this._handleBDStatusUpdate(data);
+        });
+
         this.initialized = true;
-        this.checkBD();
-        this.startBDPolling();
+        // Status is now pushed from main process
         await this.loadPlugins();
         this.startAutoRefresh();
     },
 
-    // ===== Real-Time BD Detection (v1.7.0) =====
-    startBDPolling() {
-        this.stopBDPolling(); // Clear any existing interval
-        this._bdPollInterval = setInterval(() => this.checkBD(), 5000);
-        console.log('[Plugins] BD polling started (every 5s)');
-    },
-
-    stopBDPolling() {
-        if (this._bdPollInterval) {
-            clearInterval(this._bdPollInterval);
-            this._bdPollInterval = null;
-            console.log('[Plugins] BD polling stopped');
-        }
-    },
+    // (v1.8.0) Background Polling handled in main process
 
     startAutoRefresh() {
         // Poll remote every 5 minutes
@@ -3200,15 +3262,13 @@ var PluginsTabManager = {
         btn.style.opacity = enabled ? '1' : '0.7';
     },
 
-    async checkBD() {
+    async _handleBDStatusUpdate(result) {
         const indicator = document.getElementById('bd-status-indicator');
-        const dot = indicator ? indicator.querySelector('.bd-status-dot') : null;
         const text = indicator ? indicator.querySelector('.bd-status-text') : null;
         const headerBtn = document.getElementById('bd-1click-header-btn');
         const labelEl = headerBtn ? headerBtn.querySelector('.bd-split-label') : null;
 
         try {
-            const result = await ipcRenderer.invoke('plugin:check-bd');
             const notInstalledBanner = document.getElementById('bd-warning-not-installed');
             const brokenBanner = document.getElementById('bd-warning-broken');
 
@@ -3219,7 +3279,7 @@ var PluginsTabManager = {
                 indicator.className = 'bd-status-badge';
             }
 
-            if (result && result.status === 'not_installed') {
+            if (result.status === 'not_installed') {
                 if (notInstalledBanner) notInstalledBanner.style.display = 'flex';
                 if (indicator) {
                     indicator.classList.add('bd-status-missing');
@@ -3227,9 +3287,7 @@ var PluginsTabManager = {
                     if (text) text.textContent = t('pluginStore.bdStatusMissing') || 'Not Installed';
                 }
                 if (labelEl) labelEl.textContent = 'Instalar BD';
-                // Reset broken counter — "not installed" is NOT "broken"
-                this._bdBrokenCount = 0;
-            } else if (result && result.status === 'broken') {
+            } else if (result.status === 'broken') {
                 if (brokenBanner) brokenBanner.style.display = 'flex';
                 if (indicator) {
                     indicator.classList.add('bd-status-broken');
@@ -3237,36 +3295,15 @@ var PluginsTabManager = {
                     if (text) text.textContent = t('pluginStore.bdStatusBroken') || 'Broken';
                 }
                 if (labelEl) labelEl.textContent = 'Reparar BD';
-
-                // Auto-Repair: only trigger if toggle is ON, not cooling down,
-                // and broken has been detected 3+ consecutive times (15s debounce)
-                this._bdBrokenCount = (this._bdBrokenCount || 0) + 1;
-                const inCooldown = this._bdActionCooldown && Date.now() < this._bdActionCooldown;
-                console.log(`[Plugins] Auto-Repair check: enabled=${this._bdAutoRepair}, brokenCount=${this._bdBrokenCount}, cooldown=${inCooldown}, repairing=${this._bdAutoRepairing}`);
-
-                if (this._bdAutoRepair && !this._bdAutoRepairing && !inCooldown && this._bdBrokenCount >= 3) {
-                    this._bdAutoRepairing = true;
-                    this._bdBrokenCount = 0;
-                    console.log('[Plugins] Auto-Repair: BD broken persisted 3 checks, auto-repairing...');
-                    showToast('🔧', 'Auto-Repair: Reparando BetterDiscord automaticamente...', 'info');
-                    try {
-                        const installResult = await ipcRenderer.invoke('plugin:install-bd');
-                        if (installResult && installResult.success) {
-                            showToast('✅', 'Auto-Repair: BetterDiscord reparado!', 'success');
-                            this._bdActionCooldown = Date.now() + 30000;
-                        } else {
-                            showToast('❌', `Auto-Repair falhou: ${installResult?.error}`, 'error');
-                        }
-                    } catch (err) {
-                        showToast('❌', `Auto-Repair erro: ${err.message}`, 'error');
-                    }
-                    this._bdAutoRepairing = false;
-                    setTimeout(() => this.checkBD(), 10000);
-                    return;
+            } else if (result.status === 'repairing') {
+                if (indicator) {
+                    indicator.classList.add('bd-status-broken');
+                    indicator.title = 'BetterDiscord reparando...';
+                    if (text) text.textContent = 'Reparando...';
                 }
+                if (labelEl) labelEl.textContent = 'Reparando...';
+                showToast('🔧', 'Auto-Repair: BD está sendo reparado agora...', 'info');
             } else {
-                // Reset broken counter when status is OK
-                this._bdBrokenCount = 0;
                 if (indicator) {
                     indicator.classList.add('bd-status-ok');
                     indicator.title = 'BetterDiscord installed';
@@ -3275,11 +3312,7 @@ var PluginsTabManager = {
                 if (labelEl) labelEl.textContent = 'Reinstalar BD';
             }
         } catch (e) {
-            console.error('[Plugins] Error checking BD:', e);
-            if (indicator) {
-                indicator.className = 'bd-status-badge bd-status-missing';
-                if (text) text.textContent = 'Erro';
-            }
+            console.error('[Plugins] Error handling BD status update:', e);
         }
     },
 
@@ -3298,7 +3331,7 @@ var PluginsTabManager = {
 
         const fallbackData = {
             "smartafk": {
-                "version": "1.1.2",
+                "version": "1.0.0",
                 "author": "TheDroid",
                 "description": "Detecta inatividade automaticamente e atualiza seu status no Discord. Sincroniza com o Solari via WebSocket.",
                 "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SmartAFKDetector.plugin.js",
@@ -3306,12 +3339,20 @@ var PluginsTabManager = {
                 "changelog": "### v1.1.2 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop (\\\"zombie connection\\\") when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.1.1 (2026-01-20)\n- \ud83d\udc1b **Fixed:** Custom status sync with Discord servers when cleared\n- \ud83d\udc1b **Fixed:** Status persistence on other devices fixed\n- \u26a1 **Improved:** Reliability with new retry mechanism\n\n### v1.1.0 (2024-12-24)\n- \ud83d\udc1b **Fixed:** Status no longer gets stuck on 'Idle' when opening Discord on mobile/browser\n- \u26a1 **New:** Patches Discord's native idle timeout instead of manually setting status\n- \u26a1 Discord now handles idle detection natively, syncing correctly across devices\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Auto-detect mouse/keyboard inactivity\n- \u2705 Customizable timeout settings\n- \u2705 Syncs with Solari app via WebSocket"
             },
             "spotifysync": {
-                "version": "2.1.2",
+                "version": "2.1.3",
                 "author": "TheDroid",
                 "description": "Sync Spotify with Discord Rich Presence and Controls.",
                 "downloadUrl": "https://solarirpc.com/downloads/SpotifySync.plugin.js",
                 "fileName": "SpotifySync.plugin.js",
-                "changelog": "### v2.1.2 (2026-03-18)\n- ⚡ **Play/Pause Responsiveness**: Reduced internal debounce from 800ms to 400ms for snappier playback controls.\n- 💾 **Connection Persistence**: Added \"Safe Merge\" logic to prevent Solari App from wiping plugin tokens on restart.\n- 🛑 **Rate Limiting**: Added support for Spotify's updated API limits (429 handling with Retry-After).\n- ⚠️ **Explicit Premium Warning**: Added prominent UI alerts (styled boxes and text) to clarify that Spotify Premium is required for full functionality.\n- 🔍 **Improved Detection**: Enhanced account resolution engine for more reliable Discord local control.\n\n### v2.1.1 (2026-02-25)\n- \ud83d\udee1\ufe0f **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data.\n- \ud83c\udfb5 **Improvement:** **Lyrics Search** rewritten with 4-tier fallback. Strips (Remastered), (feat. X), [Deluxe], etc. Prioritizes synced (LRC) lyrics.\n\n### v2.1.0 (2026-02-25)\n- \ud83d\ude80 **New:** **Lyrics Viewer** with synced LRC support, auto-scrolling, and premium blur effects.\n- \ud83d\udcf1 **New:** **Device Picker** (Spotify Connect) to instantly transfer playback between your PC, Phone, TV, or Echo directly from Discord.\n- \ud83d\udee1\ufe0f **Critical Fix:** **AFK Premium Fallback**. The plugin now seamlessly switches to the Spotify Web API when Discord stores go idle, ensuring the widget never disappears again.\n- \u26a1 **Improvement:** **Real-Time Volume Sync**. Added a dedicated high-speed background poll. If you change the volume on your phone, the slider updates instantly.\n\n### v2.0.2 (2026-02-15)\n- \ud83d\ude80 **Critical Fix:** Solved persistent \\\"Token Expirado (401)\\\" errors by scanning for CONNECTION_ACCESS_TOKEN.\n- \ud83d\udc1b **Fix:** Library button now opens playlist view correctly.\n- \u26a1 **Improvement:** Smarter local module detection.\n- \ud83d\udc1e **Fix:** Removed triple-notification on Share.\n- \ud83d\udee0\ufe0f **Fix:** Added startup delay for better reliability.\n\n### v2.0.1 (2026-02-15) - The Ghost Fix \ud83d\udc7b\n- \ud83d\ude80 **Fix:** Resolved misleading \\\"Local Control failed\\\" error toast when Web API fallback is successful.\n- \ud83d\udc1b **Fix:** Fixed Next, Previous, and Pause controls by correctly passing accountId to local modules.\n- \ud83d\udd0d **Improvement:** Enhanced local module search strategy.\n- \ud83d\udd17 **Improvement:** Made the developer.spotify.com link clickable in the settings panel.\n- \ud83d\udee0\ufe0f **Dev:** Added version check log for easier troubleshooting.\n\n### v2.0.0 (The Complete Rebirth)\n- \ud83d\ude80 **Total Architecture Rewrite**: Built from the ground up for stability, speed, and premium features.\n- \ud83d\udd10 **Premium Auth System**: Integrated Spotify PKCE authentication for secure access to advanced player controls.\n- \ud83c\udfae **Advanced Player Controls**: Added Shuffle, Repeat, Like/Unlike, real-time Volume Slider, and Seek Bar.\n- \ud83d\udccf **New List Views**: Library and Queue views with Auto-Expanding Height (450px).\n- \ud83d\udee1\ufe0f **Security & Privacy**: Added Editable Client ID field with a visibility toggle.\n- \u2728 **Premium Glassmorphic Design**: Redesigned with card-based layouts and blur effects.\n- \u26a1 **Performance & Sync**: Reliable WebSocket communication with Solari APP.\n\n### v1.0.1 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Play/Pause controls\n- \u2705 Next/Previous track buttons\n- \u2705 Now Playing display in Discord"
+                "changelog": "### v2.1.3 (2026-03-19)\n- 🔒 **Critical Fix: Token Amnesia**: The plugin now completely ignores Auth sync payloads pushed from the Solari Desktop App to prevent Discord from overwriting its valid tokens with empty ones on PC startup.\n- 🛡️ **Critical Fix: Race Condition**: Wrapped the `refresh_token` Spotify Web API OAuth flow inside a JavaScript Promise Mutex. This prevents concurrent background routines (like lyrics fetchers and status pollers) from firing duplicate refresh requests at the exact millisecond the 1-hour token expires. Duplicate requests previously caused Spotify to return an `invalid_grant` error, forcing the plugin to falsely assume access was revoked and wiping your perfectly valid login keys from disk. Your Premium connection is now immortal.\n\n### v2.1.2 (2026-03-18)\n- ⚡ **Play/Pause Responsiveness**: Reduced internal debounce from 800ms to 400ms for snappier playback controls.\n- 💾 **Connection Persistence**: Added \"Safe Merge\" logic to prevent Solari App from wiping plugin tokens on restart.\n- 🛑 **Rate Limiting**: Added support for Spotify's updated API limits (429 handling with Retry-After).\n- ⚠️ **Explicit Premium Warning**: Added prominent UI alerts (styled boxes and text) to clarify that Spotify Premium is required for full functionality.\n- 🔍 **Improved Detection**: Enhanced account resolution engine for more reliable Discord local control.\n\n### v2.1.1 (2026-02-25)\n- 🛡️ **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data.\n- 🎵 **Improvement:** **Lyrics Search** rewritten with 4-tier fallback. Strips (Remastered), (feat. X), [Deluxe], etc. Prioritizes synced (LRC) lyrics.\n\n### v2.1.0 (2026-02-25)\n- 🚀 **New:** **Lyrics Viewer** with synced LRC support, auto-scrolling, and premium blur effects.\n- 📱 **New:** **Device Picker** (Spotify Connect) to instantly transfer playback between your PC, Phone, TV, or Echo directly from Discord.\n- 🛡️ **Critical Fix:** **AFK Premium Fallback**. The plugin now seamlessly switches to the Spotify Web API when Discord stores go idle, ensuring the widget never disappears again.\n- ⚡ **Improvement:** **Real-Time Volume Sync**. Added a dedicated high-speed background poll. If you change the volume on your phone, the slider updates instantly.\n\n### v2.0.2 (2026-02-15)\n- 🚀 **Critical Fix:** Solved persistent \"Token Expirado (401)\" errors by scanning for CONNECTION_ACCESS_TOKEN.\n- 🐛 **Fix:** Library button now opens playlist view correctly.\n- ⚡ **Improvement:** Smarter local module detection.\n- 🐞 **Fix:** Removed triple-notification on Share.\n- 🛠️ **Fix:** Added startup delay for better reliability.\n\n### v2.0.1 (2026-02-15) - The Ghost Fix 👻\n- 🚀 **Fix:** Resolved misleading \"Local Control failed\" error toast when Web API fallback is successful.\n- 🐛 **Fix:** Fixed Next, Previous, and Pause controls by correctly passing accountId to local modules.\n- 🔍 **Improvement:** Enhanced local module search strategy.\n- 🔗 **Improvement:** Made the developer.spotify.com link clickable in the settings panel.\n- 🛠️ **Dev:** Added version check log for easier troubleshooting.\n\n### v2.0.0 (The Complete Rebirth)\n- 🚀 **Total Architecture Rewrite**: Built from the ground up for stability, speed, and premium features.\n- 🔐 **Premium Auth System**: Integrated Spotify PKCE authentication for secure access to advanced player controls.\n- 🎮 **Advanced Player Controls**: Added Shuffle, Repeat, Like/Unlike, real-time Volume Slider, and Seek Bar.\n- 📏 **New List Views**: Library and Queue views with Auto-Expanding Height (450px).\n- 🛡️ **Security & Privacy**: Added Editable Client ID field with a visibility toggle.\n- ✨ **Premium Glassmorphic Design**: Redesigned with card-based layouts and blur effects.\n- ⚡ **Performance & Sync**: Reliable WebSocket communication with Solari APP.\n\n### v1.0.1 (2026-01-28)\n- 🐛 **Fixed:** Infinite reconnection loop when plugin is disabled\n- ⚡ **Optimized:** Connection cleanup logic\n\n### v1.0.0\n- 🚀 Initial release\n- ✅ Play/Pause controls\n- ✅ Next/Previous track buttons\n- ✅ Now Playing display in Discord"
+            },
+            "solarinotes": {
+                "version": "1.0.0",
+                "author": "TheDroid",
+                "description": "Sleek, synchronized notepad integrated strictly into Discord UI.",
+                "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariNotes.plugin.js",
+                "fileName": "SolariNotes.plugin.js",
+                "changelog": "### v1.0.0 (2026-03-20)\n- 🚀 **Initial Release**: High-performance notepad built for Discord."
             }
         };
 
@@ -3333,27 +3374,69 @@ var PluginsTabManager = {
                 // we just need to re-render to check installed status.
                 // But here we are reloading everything.
 
-                // Let's use the standard fetch logic.
-                const url = `https://solarirpc.com/plugins-meta.json?t=${forceRefresh ? Date.now() : Math.floor(Date.now() / 3600000)}`;
-                // If we already have metaData and it's a file change (isBackground), maybe skip fetch?
-                // But user might have updated a plugin, so we need to re-compare versions. Versions are in metaData.
+                // Optimization: We now fetch strictly from the GitHub Raw CDN, completely bypassing the 
+                // aggressive Javascript Bot Protection checks injected universally by free hosts like InfinityFree/Hostinger.
+                const url = `https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json?v=${Date.now()}`;
 
-                // Optimization: If metaData exists and it's less than 1 hour old, use it?
-                // The URL logic already handles cache busting every hour.
-
-                const response = await fetch(url, { signal: controller.signal, cache: forceRefresh ? 'no-store' : 'default' });
+                const response = await fetch(url, { 
+                    signal: controller.signal, 
+                    cache: 'no-store', // Request the browser network layer to never use cached responses
+                    headers: {
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    }
+                });
                 clearTimeout(timeoutId);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+                
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('text/html')) {
+                    throw new Error(`O servidor retornou uma página HTML em vez do arquivo JSON. Verifique se o arquivo 'plugins-meta.json' realmente foi feito upload na raiz do site solarirpc.com ou se há um bloqueio de Cloudflare.`);
+                }
+                
                 data = await response.json();
             } catch (fetchErr) {
-                if (!isBackground) console.warn('[Plugins] Fetch falhou, usando fallback:', fetchErr.message);
+                if (!isBackground) console.warn('[Plugins] Fetch falhou, modo estrito sem fallbacks ativado:', fetchErr.message);
                 if (this.metaData) {
-                    data = this.metaData; // Keep existing data if fetch fails in background
+                    data = this.metaData; // Keep existing data if fetch fails in background (prevents layout flashing)
                 } else {
-                    data = fallbackData;
+                    // Throw error to trigger the errorEl UI block - guaranteeing website dependency
+                    throw fetchErr;
                 }
             }
             this.metaData = data;
+
+            // Truly Dynamic: Verify actual remote versions from the download links themselves
+            try {
+                const versionChecks = Object.entries(data).map(async ([key, plugin]) => {
+                    if (plugin.downloadUrl) {
+                        const actualVersion = await ipcRenderer.invoke('plugin:get-remote-version', plugin.downloadUrl);
+                        if (actualVersion) {
+                            // If remote file has a newer version than JSON, use it
+                            const isNewer = (v1, v2) => {
+                                const a = v1.split('.').map(Number);
+                                const b = v2.split('.').map(Number);
+                                for (let i = 0; i < Math.max(a.length, b.length); i++) {
+                                    if ((a[i] || 0) > (b[i] || 0)) return true;
+                                    if ((a[i] || 0) < (b[i] || 0)) return false;
+                                }
+                                return false;
+                            };
+                            if (isNewer(actualVersion, plugin.version)) {
+                                console.log(`[Plugins] ${key}: JSON version v${plugin.version} updated to actual remote v${actualVersion}`);
+                                plugin.version = actualVersion;
+                            }
+                        }
+                    }
+                });
+                // Wait for all checks with a timeout-like behavior (effectively)
+                await Promise.all(versionChecks);
+            } catch (vErr) {
+                console.warn('[Plugins] Dynamic version check failed:', vErr);
+            }
+
             await this.renderPlugins(data);
 
             // Show Update All button
@@ -4683,7 +4766,7 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
     });
 });
 
-// ===== IN-APP UPDATE BUTTON (v1.7.0) =====
+// ===== IN-APP UPDATE BUTTON (v1.8.0) =====
 (function initInAppUpdateCheck() {
     const updateBtn = document.getElementById('updateAvailableBtn');
     const updateLabel = document.getElementById('updateVersionLabel');
@@ -4718,3 +4801,192 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
         ipcRenderer.send('trigger-update-via-splash');
     });
 })();
+
+// ===== HARDWARE SYSTEM MONITOR (Renderer) =====
+(function initHWMonitor() {
+    const CIRCUMFERENCE = 2 * Math.PI * 52; // r=52 from SVG
+
+    const toggle = document.getElementById('hw-monitor-toggle');
+    const gaugesContainer = document.getElementById('hw-gauges-container');
+    const rpcPreview = document.getElementById('hw-rpc-preview');
+    const rpcPreviewText = document.getElementById('hw-rpc-preview-text');
+    const card = document.querySelector('.hw-monitor-card');
+
+    // Gauge elements
+    const cpuRing = document.getElementById('hw-cpu-ring');
+    const cpuValue = document.getElementById('hw-cpu-value');
+    const ramRing = document.getElementById('hw-ram-ring');
+    const ramValue = document.getElementById('hw-ram-value');
+    const gpuRing = document.getElementById('hw-gpu-ring');
+    const gpuValue = document.getElementById('hw-gpu-value');
+    const gpuGauge = document.getElementById('hw-gauge-gpu');
+
+    // Individual toggles
+    const toggleCPU = document.getElementById('hw-toggle-cpu');
+    const toggleRAM = document.getElementById('hw-toggle-ram');
+    const toggleGPU = document.getElementById('hw-toggle-gpu');
+
+    // Advanced toggles
+    const toggleGPUTemp = document.getElementById('hw-toggle-gputemp');
+
+    if (!toggle || !gaugesContainer) return;
+
+    function setRingProgress(ring, percent) {
+        const offset = CIRCUMFERENCE - (percent / 100) * CIRCUMFERENCE;
+        ring.style.strokeDashoffset = Math.max(0, offset);
+    }
+
+    function updateGauges(stats) {
+        if (!stats) return;
+
+        // CPU
+        if (stats.cpu && toggleCPU.checked) {
+            setRingProgress(cpuRing, stats.cpu.usage);
+            cpuValue.textContent = `${stats.cpu.usage}%`;
+            document.getElementById('hw-gauge-cpu').classList.remove('disabled');
+        }
+
+        // RAM
+        if (stats.ram && toggleRAM.checked) {
+            setRingProgress(ramRing, stats.ram.usagePercent);
+            ramValue.textContent = `${stats.ram.usedGB}/${stats.ram.totalGB}`;
+            document.getElementById('hw-gauge-ram').classList.remove('disabled');
+        }
+
+        // GPU
+        if (stats.gpu && toggleGPU.checked) {
+            gpuGauge.classList.remove('hw-gauge-gpu-unavailable');
+            const showTemp = toggleGPUTemp.checked && stats.gpu.temp !== null;
+            
+            const gpuPercent = stats.gpu.usage !== null ? stats.gpu.usage : (showTemp ? Math.min(stats.gpu.temp, 100) : 0);
+            setRingProgress(gpuRing, gpuPercent);
+            
+            if (stats.gpu.usage !== null && showTemp) {
+                gpuValue.innerHTML = `${stats.gpu.usage}%<br><span style="font-size: 0.55em; opacity: 0.7; font-weight: 500">${stats.gpu.temp}°C</span>`;
+            } else if (showTemp) {
+                gpuValue.textContent = `${stats.gpu.temp}°C`;
+            } else if (stats.gpu.usage !== null) {
+                gpuValue.textContent = `${stats.gpu.usage}%`;
+            } else {
+                gpuValue.textContent = '--';
+            }
+        } else if (!stats.gpu && toggleGPU.checked) {
+            gpuGauge.classList.add('hw-gauge-gpu-unavailable');
+            gpuValue.textContent = 'N/A';
+            setRingProgress(gpuRing, 0);
+        }
+
+        // Build RPC preview string
+        const parts = [];
+        if (stats.cpu && toggleCPU.checked) {
+            parts.push(`CPU: ${stats.cpu.usage}%`);
+        }
+        if (stats.ram && toggleRAM.checked) parts.push(`RAM: ${stats.ram.usedGB}/${stats.ram.totalGB}GB`);
+        if (stats.gpu && toggleGPU.checked) {
+            const showTemp = toggleGPUTemp.checked && stats.gpu.temp !== null;
+            
+            if (stats.gpu.usage !== null || showTemp) {
+                let gpuStr = `GPU:`;
+                if (stats.gpu.usage !== null) gpuStr += ` ${stats.gpu.usage}%`;
+                if (showTemp) gpuStr += `${stats.gpu.usage !== null ? '' : ' '}(${stats.gpu.temp}°C)`;
+                parts.push(gpuStr.trim());
+            }
+        }
+        rpcPreviewText.textContent = parts.length > 0 ? parts.join(' | ') : '—';
+    }
+
+    // Master toggle
+    toggle.addEventListener('change', async () => {
+        const enabled = toggle.checked;
+        await ipcRenderer.invoke('hw-monitor:toggle', enabled);
+
+        gaugesContainer.style.display = enabled ? 'flex' : 'none';
+        rpcPreview.style.display = enabled ? 'flex' : 'none';
+        card.classList.toggle('active', enabled);
+
+        if (!enabled) {
+            // Reset gauges
+            setRingProgress(cpuRing, 0);
+            setRingProgress(ramRing, 0);
+            setRingProgress(gpuRing, 0);
+            cpuValue.textContent = '0%';
+            ramValue.textContent = '0/0';
+            gpuValue.textContent = '--';
+            rpcPreviewText.textContent = '—';
+        }
+    });
+
+    // Individual toggles
+    function onStatToggle() {
+        const showCPU = toggleCPU.checked;
+        const showRAM = toggleRAM.checked;
+        const showGPU = toggleGPU.checked;
+        const showGPUTemp = toggleGPUTemp.checked;
+
+        document.getElementById('hw-gauge-cpu').classList.toggle('disabled', !showCPU);
+        document.getElementById('hw-gauge-ram').classList.toggle('disabled', !showRAM);
+        document.getElementById('hw-gauge-gpu').classList.toggle('disabled', !showGPU);
+
+        const gpuTempBtn = document.getElementById('hw-mini-toggle-gputemp');
+        if (gpuTempBtn) {
+            gpuTempBtn.classList.toggle('active-gpu', showGPUTemp);
+        }
+
+        ipcRenderer.invoke('hw-monitor:save-settings', { showCPU, showRAM, showGPU, showGPUTemp });
+        
+        // Force an immediate UI re-render with current stats
+        ipcRenderer.invoke('hw-monitor:get-stats').then(stats => updateGauges(stats));
+    }
+
+    toggleCPU.addEventListener('change', onStatToggle);
+    toggleRAM.addEventListener('change', onStatToggle);
+    toggleGPU.addEventListener('change', onStatToggle);
+    toggleGPUTemp.addEventListener('change', onStatToggle);
+
+    // Receive live stats from main process
+    ipcRenderer.on('hw-stats-update', (event, stats) => {
+        if (stats) {
+            updateGauges(stats);
+        }
+    });
+
+    // Initialize on load
+    (async () => {
+        try {
+            const result = await ipcRenderer.invoke('hw-monitor:get-settings');
+            if (result) {
+                toggle.checked = result.enabled;
+                if (result.settings) {
+                    toggleCPU.checked = result.settings.showCPU !== false;
+                    toggleRAM.checked = result.settings.showRAM !== false;
+                    toggleGPU.checked = result.settings.showGPU !== false;
+
+                    toggleGPUTemp.checked = result.settings.showGPUTemp !== false;
+                }
+
+                if (result.enabled) {
+                    gaugesContainer.style.display = 'flex';
+                    rpcPreview.style.display = 'flex';
+                    card.classList.add('active');
+
+                    // Apply initial disabled states
+                    onStatToggle();
+
+                    // Show cached stats immediately if available
+                    if (result.stats) {
+                        updateGauges(result.stats);
+                    }
+                }
+
+                // Handle GPU unavailable
+                if (result.gpuAvailable === false) {
+                    gpuGauge.classList.add('hw-gauge-gpu-unavailable');
+                    gpuValue.textContent = 'N/A';
+                }
+            }
+        } catch (e) {
+            console.error('[HW Monitor] Init error:', e);
+        }
+    })();
+})();
+

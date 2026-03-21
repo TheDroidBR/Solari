@@ -124,6 +124,24 @@
                 "Volume, Seek, Shuffle and Repeat",
                 "Library and Music Queue"
             ]
+        },
+        "solarinotes": {
+            "title": "Solari Notes",
+            "description": "Sleek, synchronized notepad integrated strictly into Discord's UI. Saves securely to your local PC via the Solari App.",
+            "features": [
+                "High-performance notepad",
+                "Secure local storage",
+                "Customizable appearance",
+                "Real-time synchronization"
+            ],
+            "opacity": "Panel Opacity",
+            "fontSize": "Font Size",
+            "fontFamily": "Font Family",
+            "blur": "Backdrop Blur",
+            "accent": "Accent Color",
+            "autoSave": "Auto-save Delay",
+            "padding": "Editor Padding",
+            "reset": "Reset Window Size & Position"
         }
     },
     "server": {
