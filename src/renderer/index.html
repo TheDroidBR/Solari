@@ -13,7 +13,7 @@
     <header>
       <div class="brand">
         <h1>Solari</h1>
-        <span class="version">v1.7.0</span>
+        <span class="version">v1.8.0</span>
         <button id="updateAvailableBtn" class="update-available-btn" style="display: none;" title="Update available!">
           <span class="update-icon">⬇️</span> <span id="updateVersionLabel"></span>
         </button>
@@ -246,6 +246,89 @@
             </div>
 
             <!-- Server Status Section (Redesigned v1.7.0) -->
+
+            <!-- HARDWARE SYSTEM MONITOR CARD -->
+            <div class="settings-card hw-monitor-card">
+              <div class="settings-header">
+                <div class="settings-icon-box" style="background: rgba(139,92,246, 0.15); color: #8b5cf6;">💻</div>
+                <div class="settings-info">
+                  <h3 style="background: linear-gradient(135deg, #8b5cf6, #6366f1); -webkit-background-clip: text; background-clip: text; color: transparent;">
+                    Hardware Monitor</h3>
+                  <p>Exiba CPU, RAM e GPU em tempo real no seu Rich Presence.</p>
+                </div>
+                <label class="switch" style="margin-left: auto;">
+                  <input type="checkbox" id="hw-monitor-toggle">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <!-- Live Gauges -->
+              <div class="hw-gauges-container" id="hw-gauges-container" style="display: none;">
+                <!-- CPU Gauge -->
+                <div class="hw-gauge" id="hw-gauge-cpu">
+                  <svg viewBox="0 0 120 120" class="hw-gauge-ring">
+                    <circle class="hw-gauge-bg" cx="60" cy="60" r="52" />
+                    <circle class="hw-gauge-fill hw-gauge-fill-cpu" cx="60" cy="60" r="52" id="hw-cpu-ring"
+                      stroke-dasharray="326.73" stroke-dashoffset="326.73" />
+                  </svg>
+                  <div class="hw-gauge-label">
+                    <span class="hw-gauge-value" id="hw-cpu-value">0%</span>
+                    <span class="hw-gauge-name">CPU</span>
+                  </div>
+                  <label class="switch hw-gauge-toggle" title="Monitorar CPU no Discord">
+                    <input type="checkbox" id="hw-toggle-cpu" checked>
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <!-- RAM Gauge -->
+                <div class="hw-gauge" id="hw-gauge-ram">
+                  <svg viewBox="0 0 120 120" class="hw-gauge-ring">
+                    <circle class="hw-gauge-bg" cx="60" cy="60" r="52" />
+                    <circle class="hw-gauge-fill hw-gauge-fill-ram" cx="60" cy="60" r="52" id="hw-ram-ring"
+                      stroke-dasharray="326.73" stroke-dashoffset="326.73" />
+                  </svg>
+                  <div class="hw-gauge-label">
+                    <span class="hw-gauge-value" id="hw-ram-value">0/0 GB</span>
+                    <span class="hw-gauge-name">RAM</span>
+                  </div>
+                  <label class="switch hw-gauge-toggle">
+                    <input type="checkbox" id="hw-toggle-ram" checked>
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+
+                <!-- GPU Gauge -->
+                <div class="hw-gauge" id="hw-gauge-gpu">
+                  <svg viewBox="0 0 120 120" class="hw-gauge-ring">
+                    <circle class="hw-gauge-bg" cx="60" cy="60" r="52" />
+                    <circle class="hw-gauge-fill hw-gauge-fill-gpu" cx="60" cy="60" r="52" id="hw-gpu-ring"
+                      stroke-dasharray="326.73" stroke-dashoffset="326.73" />
+                  </svg>
+                  <div class="hw-gauge-label">
+                    <span class="hw-gauge-value" id="hw-gpu-value">--</span>
+                    <span class="hw-gauge-name">GPU</span>
+                  </div>
+                  <label class="switch hw-gauge-toggle" title="Monitorar GPU no Discord">
+                    <input type="checkbox" id="hw-toggle-gpu" checked>
+                    <span class="slider round"></span>
+                  </label>
+                  <label class="hw-mini-toggle" id="hw-mini-toggle-gputemp" title="Incluir Temperatura da GPU">
+                    <input type="checkbox" id="hw-toggle-gputemp" checked>
+                    <div class="hw-mini-toggle-dot"></div>
+                    + Temp
+                  </label>
+                </div>
+              </div>
+
+              <!-- RPC Preview -->
+              <div class="hw-rpc-preview" id="hw-rpc-preview" style="display: none;">
+                <span class="hw-rpc-label">Discord Preview:</span>
+                <span class="hw-rpc-text" id="hw-rpc-preview-text">CPU: 0% | RAM: 0/0GB</span>
+              </div>
+            </div>
+
+            <!-- Server Status Section (Redesigned v1.7.0) -->
             <div class="settings-card server-status-card">
               <div class="settings-header">
                 <div class="settings-icon-box" style="background: rgba(0,212,255, 0.15); color: #00d4ff;">📡</div>
@@ -317,10 +400,15 @@
               <p data-i18n="pluginStore.bdWarningDesc">Para usar os plugins do Solari, você precisa do BetterDiscord
                 instalado no Discord.</p>
             </div>
-            <button class="bd-warning-action-btn"
-              onclick="require('electron').shell.openExternal('https://betterdiscord.app/')">
-              <span>⬇️</span> <span data-i18n="pluginStore.bdDownload">Baixar BetterDiscord</span>
-            </button>
+            <div style="display: flex; gap: 8px;">
+              <button id="bd-1click-install-btn" class="bd-warning-action-btn" style="background: rgba(255,153,102, 0.2); color: #ff9966; border-color: rgba(255,153,102, 0.5);">
+                <span>⚡</span> <span data-i18n="pluginStore.bd1ClickInstall">Instalar Automático</span>
+              </button>
+              <button class="bd-warning-action-btn"
+                onclick="require('electron').shell.openExternal('https://betterdiscord.app/')">
+                <span>⬇️</span> <span data-i18n="pluginStore.bdDownload">Baixar Manualmente</span>
+              </button>
+            </div>
           </div>
 
           <div id="bd-warning-broken" class="bd-warning-banner bd-warning-orange" style="display: none;">
@@ -330,10 +418,15 @@
               <p data-i18n="pluginStore.bdBrokenDesc">Uma atualização do Discord removeu a injeção do BetterDiscord.
                 Reinstale para restaurar os plugins.</p>
             </div>
-            <button class="bd-warning-action-btn bd-warning-action-orange"
-              onclick="require('electron').shell.openExternal('https://betterdiscord.app/')">
-              <span>🔧</span> <span data-i18n="pluginStore.bdReinstall">Reinstalar</span>
-            </button>
+            <div style="display: flex; gap: 8px;">
+              <button id="bd-1click-repair-btn" class="bd-warning-action-btn bd-warning-action-orange" style="background: rgba(245,158,11, 0.2); color: #f59e0b; border-color: rgba(245,158,11, 0.5);">
+                <span>⚡</span> <span data-i18n="pluginStore.bd1ClickRepair">Reparar Automático</span>
+              </button>
+              <button class="bd-warning-action-btn bd-warning-action-orange"
+                onclick="require('electron').shell.openExternal('https://betterdiscord.app/')">
+                <span>🔧</span> <span data-i18n="pluginStore.bdReinstall">Reparar Manualmente</span>
+              </button>
+            </div>
           </div>
 
           <!-- Section Header -->
@@ -380,6 +473,27 @@
                 </svg>
                 <span data-i18n="pluginStore.updateAll">Atualizar Todos</span>
               </button>
+              <!-- BD Split Button Group -->
+              <div class="bd-split-btn-group" style="position: relative;">
+                <button id="bd-1click-header-btn" class="plugins-action-btn bd-split-main"
+                  title="Instalar / Reinstalar BetterDiscord">
+                  <span>⚡</span>
+                  <span class="bd-split-label">Instalar BD</span>
+                </button>
+                <button id="bd-split-arrow" class="plugins-action-btn bd-split-arrow" title="Mais opções">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                    <path d="M2 3.5L5 7L8 3.5H2Z"/>
+                  </svg>
+                </button>
+                <div id="bd-split-dropdown" class="bd-split-dropdown" style="display: none;">
+                  <button id="bd-action-uninstall" class="bd-dropdown-item bd-dropdown-danger">
+                    <span>🗑️</span> Desinstalar BD
+                  </button>
+                  <button id="bd-action-repair" class="bd-dropdown-item">
+                    <span>🔧</span> Reparar BD
+                  </button>
+                </div>
+              </div>
               <!-- BD Download Link -->
               <button class="plugins-action-btn plugins-bd-link" title="BetterDiscord"
                 onclick="require('electron').shell.openExternal('https://betterdiscord.app/')">
@@ -968,6 +1082,23 @@
           <!-- Dynamic Settings Container -->
           <div id="spotify-settings-container"></div>
         </div>
+
+        <!-- Solari Notes Config (Dynamic) -->
+        <div id="configSolariNotes" class="plugin-config-panel" style="display: none;">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+            <div
+              style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);">
+              <span style="font-size: 1.5em;">📝</span>
+            </div>
+            <div>
+              <h2
+                style="margin: 0; padding: 0; font-size: 1.3em; background: linear-gradient(90deg, #f59e0b, #fbbf24); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                Solari Notes</h2>
+              <p style="margin: 2px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.5);">Configurações Dinâmicas</p>
+            </div>
+          </div>
+          <div id="solari-notes-settings-container"></div>
+        </div>
       </div>
 
       <!-- Solari Plugin Config (User Info / Toast) -->
@@ -1009,7 +1140,7 @@
   <div id="aboutModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px; text-align: center;">
       <h2 style="font-size: 2em; margin-bottom: 5px; color: var(--primary);">Solari RPC</h2>
-      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.7.0</p>
+      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.8.0</p>
       <div style="text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
         <p style="margin-bottom: 15px;">
           <span data-i18n="about.description">Premium Discord Rich Presence Manager</span><br>

@@ -46,6 +46,7 @@ const { installUpdateAndRestart } = require('./updater');
 const CONSTANTS = require('./constants');
 let SoundBoard = null;
 let SoundServer = null;
+let si = null; // systeminformation (lazy loaded)
 
 
 let mainWindow;
@@ -112,7 +113,8 @@ let appSettings = {
     theme: 'default', // 'default', 'dark', 'light'
     autoCheckAppUpdates: true,
     autoCheckPluginUpdates: true,
-    showEcoMode: true // Newly added toggle for advanced users
+    showEcoMode: true,
+    bdAutoRepair: true // Background Auto-Repair for BetterDiscord
 };
 
 let connectedPlugins = new Map();
@@ -122,6 +124,19 @@ let blockedPlugins = new Set();
 // SoundBoard
 let soundBoard = null;
 let soundServer = null;
+
+// ===== HARDWARE SYSTEM MONITOR =====
+let hwMonitorEnabled = false;
+let hwMonitorSettings = {
+    showCPU: true,
+    showRAM: true,
+    showGPU: true,
+    intervalMs: 3000,
+    mode: 'overlay' // 'overlay' or 'dedicated'
+};
+let hwMonitorInterval = null;
+let latestHwStats = null;
+let hwGpuAvailable = null; // null = not checked yet, true/false after first check
 
 // System-wide AFK detection
 let systemAFKCheckInterval = null;
@@ -133,6 +148,14 @@ let systemAFKSettings = {
 let lastSystemIdleState = false; // Track state to only send on change
 let cachedPluginAfkConfig = null; // Store last config from plugin to sync with Renderer on load
 
+// Solari Notes Settings
+let solariNotesSettings = {
+    panelOpacity: 100,
+    fontSize: 14,
+    fontFamily: 'sans',
+    language: 'pt-BR'
+};
+
 // Rich Presence Priority System
 // Lower number = higher priority
 let prioritySettings = {
@@ -142,6 +165,12 @@ let prioritySettings = {
 };
 
 let pluginWatcher = null; // Watcher for BetterDiscord plugins folder
+
+// ===== BD AUTO-REPAIR SYSTEM (v1.8.0 BACKGROUND) =====
+let bdStatusPollInterval = null;
+let bdBrokenCount = 0;
+let isRepairing = false;
+let lastKnownBDStatus = 'unknown';
 
 let currentPrioritySource = null; // Track what's currently controlling RPC
 let lastNotifiedPresetName = null; // Track last preset name that triggered a notification
@@ -359,6 +388,13 @@ function loadData() {
 
             if (data.ecoMode !== undefined) global.ecoMode = data.ecoMode;
 
+            // Load Hardware Monitor settings
+            if (data.hwMonitorEnabled !== undefined) hwMonitorEnabled = data.hwMonitorEnabled;
+            if (data.hwMonitorSettings) hwMonitorSettings = { ...hwMonitorSettings, ...data.hwMonitorSettings };
+
+            // Load Solari Notes settings
+            if (data.solariNotesSettings) solariNotesSettings = { ...solariNotesSettings, ...data.solariNotesSettings };
+
 
             // Send Eco Mode state to renderer on load handled via data object passed in 'data-loaded'
             // We just need to make sure it's in the object we send back.
@@ -374,6 +410,12 @@ function loadData() {
             }
 
             applyAppSettings();
+
+            // Auto-start HW Monitor if it was enabled before
+            if (hwMonitorEnabled) {
+                // Delay slightly to let the app fully initialize
+                setTimeout(() => startHWMonitor(), 3000);
+            }
         }
         dataLoadFailed = false;
     } catch (e) {
@@ -395,6 +437,7 @@ function saveData() {
                 clientId, identities, prioritySettings,
                 soundBoardData: soundBoard ? soundBoard.toJSON() : null,
                 trackingUserId,
+                solariNotesSettings,
                 _rescueTimestamp: new Date().toISOString()
             }, null, 2));
         } catch (e) { console.error('Failed to save rescue file', e); }
@@ -427,7 +470,10 @@ function saveData() {
             trackingUserId: trackingUserId, // Persist tracking ID
             ecoMode: global.ecoMode || false,
             setupCompleted: setupCompleted,
-            lastSeenVersion: lastSeenVersion
+            lastSeenVersion: lastSeenVersion,
+            hwMonitorEnabled: hwMonitorEnabled,
+            hwMonitorSettings: hwMonitorSettings,
+            solariNotesSettings: solariNotesSettings
         }));
     } catch (e) {
         console.error('Failed to save data', e);
@@ -617,7 +663,7 @@ ipcMain.on('trigger-update-check', async () => {
     });
 });
 
-// ===== IN-APP UPDATE BUTTON (v1.7.0) =====
+// ===== IN-APP UPDATE BUTTON (v1.8.0) =====
 // Silent update check — returns {hasUpdate, latestVersion} without showing dialogs
 ipcMain.handle('check-update-silent', () => {
     return new Promise((resolve) => {
@@ -1711,10 +1757,18 @@ function initializeDiscordRPC(targetClientId = null) {
                 rpcClient = null;
             }
 
-            rpcClient = new DiscordRPC.Client({ transport: 'ipc' });
+            const connectionClient = new DiscordRPC.Client({ transport: 'ipc' });
 
-            rpcClient.on('ready', async () => {
+            connectionClient.on('ready', async () => {
+                // GUARD: If global Client ID has changed since this connection started, ABORT!
+                if (currentClientId !== useClientId) {
+                    console.log('[Solari] Abandoning client (ready): ID mismatch', useClientId, '!==', currentClientId);
+                    try { connectionClient.destroy(); } catch (e) { }
+                    return;
+                }
+
                 console.log('[Solari] Discord RPC Connected!');
+                rpcClient = connectionClient; // Successfully connected, promote to global!
                 rpcConnected = true;
                 connectionAttempts = 0;
                 if (mainWindow) {
@@ -1756,7 +1810,7 @@ function initializeDiscordRPC(targetClientId = null) {
                     }
                 }
 
-                if (mainWindow) {
+                if (rpcClient === connectionClient && mainWindow) {
                     mainWindow.webContents.send('app-name-loaded', appName);
                 }
 
@@ -1784,7 +1838,10 @@ function initializeDiscordRPC(targetClientId = null) {
                 }
             });
 
-            rpcClient.transport.on('close', () => {
+            connectionClient.transport.on('close', () => {
+                // GUARD: If this client is no longer the active one, ignore
+                if (currentClientId !== useClientId) return;
+
                 // If we are intentionally switching, ignore this close event
                 if (isSwitching) return;
 
@@ -1801,7 +1858,10 @@ function initializeDiscordRPC(targetClientId = null) {
             });
 
             // Handle transport errors (e.g., pipe broken when Discord restarts)
-            rpcClient.transport.on('error', (err) => {
+            connectionClient.transport.on('error', (err) => {
+                // GUARD: If this client is no longer the active one, ignore
+                if (currentClientId !== useClientId) return;
+
                 // If we are intentionally switching, ignore this error
                 if (isSwitching) return;
 
@@ -1817,8 +1877,8 @@ function initializeDiscordRPC(targetClientId = null) {
                 scheduleReconnect(3000); // 3 seconds
             });
 
-            rpcClient.login({ clientId: useClientId }).catch((err) => {
-                // GUARD
+            connectionClient.login({ clientId: useClientId }).catch((err) => {
+                // GUARD: If global Client ID has changed, this failure is irrelevant
                 if (currentClientId !== useClientId) return;
 
                 if (connectionAttempts <= 3 || connectionAttempts % 10 === 0) {
@@ -1865,7 +1925,7 @@ function initializeDiscordRPC(targetClientId = null) {
             return;
         }
 
-        if (rpcConnected && rpcClient && !isReconnecting) {
+        if (rpcConnected && rpcClient && !isReconnecting && currentClientId === useClientId) {
             // Connected: verify transport is alive
             try {
                 const transport = rpcClient.transport;
@@ -1885,7 +1945,7 @@ function initializeDiscordRPC(targetClientId = null) {
                 isReconnecting = false;
                 scheduleReconnect(CONSTANTS.RPC_RETRY_DELAY_MS);
             }
-        } else if (!rpcConnected && !isReconnecting && !reconnectTimeout) {
+        } else if (!rpcConnected && !isReconnecting && !reconnectTimeout && !isSwitching) {
             // SAFETY NET: Not connected, not reconnecting, and no reconnect scheduled.
             // This should NEVER happen, but if it does, force a reconnection attempt.
             console.log('[Solari] RPC safety net: No reconnect scheduled while disconnected! Forcing reconnect...');
@@ -1930,6 +1990,9 @@ async function switchRpcClient(newClientId) {
         } catch (e) { console.error('Error destroying RPC:', e); }
         rpcClient = null;
     }
+
+    // Reset current activity tracking so deduplication doesn't skip the first update on the new connection
+    currentActivity = {};
 
     // 2. Update current ID immediately
     currentClientId = newClientId;
@@ -1977,7 +2040,16 @@ async function switchRpcClient(newClientId) {
                 throw new Error('Post-login validation failed: ' + validationErr.message);
             }
 
-            // Success! Store the client and mark as connected
+            // Success! 
+            // FINAL RACE GUARD: Ensure another switch hasn't started while we were awaiting login
+            if (currentClientId !== newClientId) {
+                console.log('[Solari] Smart switch aborted: newer Client ID is now active');
+                try { newClient.destroy(); } catch (_) { }
+                isSwitching = false;
+                return false;
+            }
+
+            // Store the client and mark as connected
             rpcClient = newClient;
             rpcConnected = true;
             isSwitching = false;
@@ -2063,10 +2135,21 @@ async function switchRpcClient(newClientId) {
     return false;
 }
 
+let coreActivityStartTimestamp = Date.now();
+let lastCoreActivitySignature = '';
+
 function setActivity(activity, presetClientId = null) {
     // Check if we need to switch Client ID for this preset
     // Priority: Explicit Argument > Activity Object Property > Global Default
     let targetClientId = presetClientId || (activity && activity.clientId) || clientId;
+
+    // Preserve the original timestamp if the base activity hasn't changed (ignoring HW Stats)
+    const presetName = presenceSources[currentPrioritySource]?.presetName || activity.details || '';
+    const coreSignature = `${currentPrioritySource}:${presetName}:${activity.details || ''}:${activity.state || ''}:${activity.largeImageKey || ''}`;
+    if (coreSignature !== lastCoreActivitySignature) {
+        coreActivityStartTimestamp = Date.now();
+        lastCoreActivitySignature = coreSignature;
+    }
 
     // RESOLVE IDENTITY ID TO REAL CLIENT ID
     // If the targetClientId looks like an internal identity ID (identity_...), resolve it!
@@ -2104,6 +2187,13 @@ function setActivity(activity, presetClientId = null) {
     // Check if the original activity had these fields - if not provided at all, use fallback
     if (!('details' in activity) && defaultActivity.details) finalActivity.details = defaultActivity.details;
     if (!('state' in activity) && defaultActivity.state) finalActivity.state = defaultActivity.state;
+
+    if (hwMonitorEnabled) {
+        const hwStr = typeof formatHWStatsForRPC === 'function' ? formatHWStatsForRPC() : null;
+        if (hwStr) {
+            finalActivity.state = finalActivity.state ? `${finalActivity.state} | ${hwStr}` : hwStr;
+        }
+    }
 
     // Get activity type (0=Playing, 1=Streaming, 2=Listening, 3=Watching, 5=Competing)
     const activityType = finalActivity.type !== undefined ? finalActivity.type : 0;
@@ -2163,8 +2253,8 @@ function setActivity(activity, presetClientId = null) {
     // Calculate base timestamp
     let baseTimestamp;
     if (timestampMode === 'normal') {
-        // Normal: timer since status was set
-        baseTimestamp = Date.now();
+        // Normal: timer since status was originally set for this exact activity mapping
+        baseTimestamp = coreActivityStartTimestamp;
     } else if (timestampMode === 'local') {
         // Local: sync with Windows clock (show current time as start of day)
         const now = new Date();
@@ -2174,7 +2264,7 @@ function setActivity(activity, presetClientId = null) {
         // Custom: user-defined timestamp (ensure it's a number, not string)
         baseTimestamp = parseInt(finalActivity.customTimestamp, 10) || Date.now();
     } else {
-        baseTimestamp = Date.now();
+        baseTimestamp = coreActivityStartTimestamp;
     }
 
     // Apply start or end timestamp
@@ -3149,6 +3239,19 @@ ipcMain.on('update-spotify-plugin-settings', (event, settings) => {
     });
 });
 
+ipcMain.on('update-notes-plugin-settings', (event, settings) => {
+    solariNotesSettings = { ...solariNotesSettings, ...settings };
+    saveData();
+    if (wss) {
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                // Not the most efficient but works: broad-broadcast to all clients, plugins filter by type anyway
+                client.send(JSON.stringify({ type: 'update_notes_settings', settings }));
+            }
+        });
+    }
+});
+
 // ===== SOUNDBOARD HOTKEY PLAYBACK HELPER =====
 // Play sound via IPC to renderer (called when global hotkey is pressed)
 function playSoundByIdFromHotkey(soundId) {
@@ -3237,12 +3340,14 @@ function setupPluginWatcher() {
 ipcMain.handle('plugin:check-bd', async () => {
     try {
         const bdPath = path.join(app.getPath('appData'), 'BetterDiscord');
-        const bdExists = fs.existsSync(bdPath);
+        const bdDataPath = path.join(bdPath, 'data');
+        const prevNoAsar = process.noAsar;
+        process.noAsar = true;
+        const asarExists = fs.existsSync(path.join(bdDataPath, 'betterdiscord.asar'));
+        process.noAsar = prevNoAsar;
 
-        if (!bdExists) return { status: 'not_installed' };
-
-        // Detectar BD quebrado (atualização do Discord sobrescreve a injeção)
-        // BD injeta via %localappdata%/Discord/app-*/modules/discord_desktop_core-*/discord_desktop_core/index.js
+        // Check injection in Discord's index.js
+        let injectionFound = false;
         const localAppData = process.env.LOCALAPPDATA;
         if (localAppData) {
             const discordBase = path.join(localAppData, 'Discord');
@@ -3250,8 +3355,7 @@ ipcMain.handle('plugin:check-bd', async () => {
                 try {
                     const appDirs = fs.readdirSync(discordBase)
                         .filter(d => d.startsWith('app-'))
-                        .sort()
-                        .reverse(); // Mais recente primeiro
+                        .sort().reverse();
 
                     if (appDirs.length > 0) {
                         const modulesDir = path.join(discordBase, appDirs[0], 'modules');
@@ -3259,7 +3363,6 @@ ipcMain.handle('plugin:check-bd', async () => {
                             const coreDirs = fs.readdirSync(modulesDir)
                                 .filter(d => d.startsWith('discord_desktop_core'));
 
-                            let injectionFound = false;
                             for (const cd of coreDirs) {
                                 const indexJs = path.join(modulesDir, cd, 'discord_desktop_core', 'index.js');
                                 if (fs.existsSync(indexJs)) {
@@ -3270,11 +3373,6 @@ ipcMain.handle('plugin:check-bd', async () => {
                                     }
                                 }
                             }
-
-                            if (!injectionFound && coreDirs.length > 0) {
-                                console.log('[Solari] BetterDiscord detectado como QUEBRADO (injeção ausente após atualização do Discord)');
-                                return { status: 'broken' };
-                            }
                         }
                     }
                 } catch (scanErr) {
@@ -3283,11 +3381,287 @@ ipcMain.handle('plugin:check-bd', async () => {
             }
         }
 
-        return { status: 'ok' };
+        // Decision matrix:
+        // asar exists + injection exists → ok
+        // asar exists + injection missing → broken (Discord update removed hook)
+        // asar missing + injection exists → broken (asar deleted but hook remains)
+        // asar missing + injection missing → not_installed
+        if (asarExists && injectionFound) {
+            return { status: 'ok' };
+        } else if (asarExists && !injectionFound) {
+            console.log('[Solari] BD asar exists but injection missing → broken');
+            return { status: 'broken' };
+        } else if (!asarExists && injectionFound) {
+            console.log('[Solari] BD asar missing but injection exists → broken');
+            return { status: 'broken' };
+        } else {
+            return { status: 'not_installed' };
+        }
     } catch (e) {
         console.error('[Solari] Error checking BetterDiscord:', e);
         return { status: 'not_installed' };
     }
+});
+
+// Uninstall BetterDiscord (remove hook + asar, keep plugins/themes)
+ipcMain.handle('plugin:uninstall-bd', async () => {
+    console.log('[BD UNINSTALLER] Starting uninstall...');
+    try {
+        const { exec, spawn } = require('child_process');
+
+        // 1. Find Discord's index.js
+        const localAppData = process.env.LOCALAPPDATA;
+        const discordBase = path.join(localAppData, 'Discord');
+        let injectionTarget = null;
+
+        if (fs.existsSync(discordBase)) {
+            const appDirs = fs.readdirSync(discordBase)
+                .filter(d => d.startsWith('app-'))
+                .sort().reverse();
+
+            if (appDirs.length > 0) {
+                const modulesDir = path.join(discordBase, appDirs[0], 'modules');
+                if (fs.existsSync(modulesDir)) {
+                    const coreDirs = fs.readdirSync(modulesDir).filter(d => d.startsWith('discord_desktop_core'));
+                    if (coreDirs.length > 0) {
+                        injectionTarget = path.join(modulesDir, coreDirs[0], 'discord_desktop_core', 'index.js');
+                    }
+                }
+            }
+        }
+
+        // 2. Kill Discord
+        console.log('[BD UNINSTALLER] Killing Discord...');
+        await new Promise((resolve) => {
+            exec('taskkill /F /IM Discord.exe /T', () => setTimeout(resolve, 2500));
+        });
+
+        // 3. Restore original index.js (remove BD hook)
+        if (injectionTarget && fs.existsSync(injectionTarget)) {
+            const originalContent = `module.exports = require('./core.asar');`;
+            fs.writeFileSync(injectionTarget, originalContent, 'utf8');
+            console.log('[BD UNINSTALLER] Hook removed from:', injectionTarget);
+        }
+
+        // 4. Delete betterdiscord.asar only (NOT plugins or themes!)
+        const bdAsarPath = path.join(app.getPath('appData'), 'BetterDiscord', 'data', 'betterdiscord.asar');
+        const prevNoAsar = process.noAsar;
+        process.noAsar = true;
+        if (fs.existsSync(bdAsarPath)) {
+            fs.unlinkSync(bdAsarPath);
+            console.log('[BD UNINSTALLER] Deleted asar:', bdAsarPath);
+        }
+        process.noAsar = prevNoAsar;
+
+        // 5. Restart Discord
+        console.log('[BD UNINSTALLER] Restarting Discord...');
+        const updateExe = path.join(discordBase, 'Update.exe');
+        if (fs.existsSync(updateExe)) {
+            const child = spawn(updateExe, ['--processStart', 'Discord.exe'], {
+                detached: true,
+                stdio: 'ignore'
+            });
+            child.unref();
+        }
+
+        console.log('[BD UNINSTALLER] Complete!');
+        broadcastBDStatus('not_installed');
+        return { success: true };
+    } catch (e) {
+        console.error('[BD UNINSTALLER] Error:', e);
+        return { success: false, error: e.message };
+    }
+});
+
+// Helper to broadcast BD status to all renderer windows
+function broadcastBDStatus(status, force = false) {
+    if (!force && lastKnownBDStatus === status && status !== 'repairing') return;
+    lastKnownBDStatus = status;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('bd-status-update', { status });
+    }
+}
+
+ipcMain.handle('bd:get-status', async () => {
+    // If we don't have a status yet, do a quick check
+    if (!lastKnownBDStatus) {
+        lastKnownBDStatus = await checkBDStatus();
+    }
+    return { status: lastKnownBDStatus };
+});
+
+// Reusable logic for BetterDiscord Check
+async function checkBDStatus() {
+    try {
+        const bdPath = path.join(app.getPath('appData'), 'BetterDiscord');
+        const bdDataPath = path.join(bdPath, 'data');
+        const prevNoAsar = process.noAsar;
+        process.noAsar = true;
+        const asarExists = fs.existsSync(path.join(bdDataPath, 'betterdiscord.asar'));
+        process.noAsar = prevNoAsar;
+
+        let injectionFound = false;
+        const localAppData = process.env.LOCALAPPDATA;
+        if (localAppData) {
+            const discordBase = path.join(localAppData, 'Discord');
+            if (fs.existsSync(discordBase)) {
+                try {
+                    const appDirs = fs.readdirSync(discordBase).filter(d => d.startsWith('app-')).sort().reverse();
+                    if (appDirs.length > 0) {
+                        const modulesDir = path.join(discordBase, appDirs[0], 'modules');
+                        if (fs.existsSync(modulesDir)) {
+                            const coreDirs = fs.readdirSync(modulesDir).filter(d => d.startsWith('discord_desktop_core'));
+                            for (const cd of coreDirs) {
+                                const indexJs = path.join(modulesDir, cd, 'discord_desktop_core', 'index.js');
+                                if (fs.existsSync(indexJs)) {
+                                    const content = fs.readFileSync(indexJs, 'utf8');
+                                    if (content.toLowerCase().includes('betterdiscord')) {
+                                        injectionFound = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+
+        if (asarExists && injectionFound) return 'ok';
+        if (asarExists || injectionFound) return 'broken';
+        return 'not_installed';
+    } catch (e) {
+        return 'not_installed';
+    }
+}
+
+// Background poller for Auto-Repair
+function startBDBackgroundPolling() {
+    if (bdStatusPollInterval) clearInterval(bdStatusPollInterval);
+    
+    // Check every 3 seconds for lightning-fast repair
+    bdStatusPollInterval = setInterval(async () => {
+        if (isRepairing) return;
+
+        const status = await checkBDStatus();
+        broadcastBDStatus(status);
+
+        if (status === 'broken' && appSettings.bdAutoRepair) {
+            bdBrokenCount++;
+            console.log(`[BD Repair] Broken detected (${bdBrokenCount}/2)`);
+            if (bdBrokenCount >= 2) { // 6 seconds threshold
+                bdBrokenCount = 0;
+                performBDRepair();
+            }
+        } else {
+            bdBrokenCount = 0;
+        }
+    }, 3000);
+    console.log('[Solari] Background BD Auto-Repair Poller started (3s)');
+}
+
+async function performBDRepair() {
+    if (isRepairing) return;
+    isRepairing = true;
+    broadcastBDStatus('repairing');
+    console.log('[BD Repair] Starting background repair...');
+    
+    try {
+        // Reuse the logic from plugin:install-bd (this would be better if refactored to a standalone function,
+        // but for now I'll call the logic directly to ensure immediate result)
+        // Actually, we can just trigger the existing handler logic
+        const result = await (async () => {
+            // This is a truncated mock of the install logic or I should refactor the real one
+            // Let's refactor the real one below to be callable.
+            return await actualInstallBDLogic();
+        })();
+        
+        if (result.success) {
+            console.log('[BD Repair] Background repair successful!');
+        } else {
+            console.error('[BD Repair] Background repair failed:', result.error);
+        }
+    } catch (e) {
+        console.error('[BD Repair] Uncaught error:', e);
+    } finally {
+        isRepairing = false;
+        // The next poll will update the status to 'ok'
+    }
+}
+
+// Logic extracted from plugin:install-bd
+async function actualInstallBDLogic() {
+    console.log('========== [BD REPAIR LOGIC] START ==========');
+    try {
+        const appDataPath = app.getPath('appData');
+        const bdBasePath = path.join(appDataPath, 'BetterDiscord');
+        const bdDataPath = path.join(bdBasePath, 'data');
+        const bdAsarPath = path.join(bdDataPath, 'betterdiscord.asar');
+        const bdPluginsPath = path.join(bdBasePath, 'plugins');
+
+        for (const p of [bdBasePath, bdDataPath, bdPluginsPath]) {
+            if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
+        }
+
+        const https = require('https');
+        const followRedirects = (url, maxRedirects = 10) => {
+            return new Promise((resolve, reject) => {
+                const doRequest = (currentUrl, redirectsLeft) => {
+                    https.get(currentUrl, { headers: { 'User-Agent': 'Solari/1.8.0' } }, (res) => {
+                        if ((res.statusCode === 302 || res.statusCode === 301) && res.headers.location && redirectsLeft > 0) {
+                            doRequest(res.headers.location, redirectsLeft - 1);
+                        } else if (res.statusCode === 200) resolve(res);
+                        else reject(new Error('HTTP ' + res.statusCode));
+                    }).on('error', reject);
+                };
+                doRequest(url, maxRedirects);
+            });
+        };
+
+        const dlUrl = 'https://github.com/BetterDiscord/BetterDiscord/releases/latest/download/betterdiscord.asar';
+        const response = await followRedirects(dlUrl);
+        const prevNoAsar = process.noAsar;
+        process.noAsar = true;
+        await new Promise((resolve, reject) => {
+            const file = fs.createWriteStream(bdAsarPath);
+            response.pipe(file);
+            file.on('finish', () => { file.close(); resolve(); });
+            file.on('error', reject);
+        });
+        process.noAsar = prevNoAsar;
+
+        const localAppData = process.env.LOCALAPPDATA;
+        const discordBase = path.join(localAppData, 'Discord');
+        const appDirs = fs.readdirSync(discordBase).filter(d => d.startsWith('app-')).sort().reverse();
+        const latestAppDir = path.join(discordBase, appDirs[0]);
+        const coreSubDir = path.join(latestAppDir, 'modules', fs.readdirSync(path.join(latestAppDir, 'modules')).find(d => d.startsWith('discord_desktop_core')), 'discord_desktop_core');
+        const injectionTarget = path.join(coreSubDir, 'index.js');
+
+        const { exec, spawn } = require('child_process');
+        // Use more robust kill command
+        await new Promise((resolve) => exec('taskkill /F /IM Discord.exe /T || powershell -Command "Get-Process Discord -ErrorAction SilentlyContinue | Stop-Process -Force"', () => setTimeout(resolve, 2500)));
+
+        const asarRequirePath = bdAsarPath.replace(/\\/g, '/');
+        const hookScript = `require("${asarRequirePath}");\nmodule.exports = require("./core.asar");`;
+        fs.writeFileSync(injectionTarget, hookScript, 'utf8');
+
+        const updateExe = path.join(discordBase, 'Update.exe');
+        if (fs.existsSync(updateExe)) {
+            // Use more robust spawn/start command
+            const restartCmd = `"${updateExe}" --processStart Discord.exe`;
+            exec(restartCmd, (err) => {
+                if (err) console.error('[BD Repair] Failed to restart Discord:', err);
+                else console.log('[BD Repair] Discord restart command sent');
+            });
+        }
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+ipcMain.handle('plugin:install-bd', async () => {
+    return await actualInstallBDLogic();
 });
 
 ipcMain.handle('plugin:check-installed', async (event, fileName) => {
@@ -3415,6 +3789,55 @@ ipcMain.handle('plugin:get-version', async (event, fileName) => {
     }
 });
 
+// Get remote plugin version by fetching first chunk of the file
+ipcMain.handle('plugin:get-remote-version', async (event, url) => {
+    if (!url) return null;
+    const https = require('https');
+    const http = require('http');
+
+    const fetchVersion = (fetchUrl, maxRedirects = 5) => {
+        return new Promise((resolve) => {
+            if (maxRedirects <= 0) return resolve(null);
+            const protocol = fetchUrl.startsWith('https') ? https : http;
+            
+            try {
+                protocol.get(fetchUrl, (res) => {
+                    if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
+                        const redirectUrl = res.headers.location;
+                        if (!redirectUrl) { res.resume(); return resolve(null); }
+                        res.resume();
+                        return resolve(fetchVersion(redirectUrl, maxRedirects - 1));
+                    }
+                    if (res.statusCode !== 200) { res.resume(); return resolve(null); }
+
+                    let buffer = '';
+                    res.setEncoding('utf8');
+                    res.on('data', (chunk) => {
+                        buffer += chunk;
+                        // Version should be in the first ~2KB
+                        const match = buffer.match(/@version\s+([^\s\n\r]+)/);
+                        if (match) {
+                            res.destroy(); // Kill the stream once found
+                            resolve(match[1]);
+                        }
+                        if (buffer.length > 5000) { // Safety limit
+                            res.destroy();
+                            resolve(null);
+                        }
+                    });
+                    res.on('end', () => {
+                        const match = buffer.match(/@version\s+([^\s\n\r]+)/);
+                        resolve(match ? match[1] : null);
+                    });
+                    res.on('error', () => resolve(null));
+                }).on('error', () => resolve(null));
+            } catch (e) { resolve(null); }
+        });
+    };
+
+    return await fetchVersion(url);
+});
+
 // Delete a plugin file from BD plugins folder
 ipcMain.handle('plugin:delete', async (event, fileName) => {
     try {
@@ -3430,6 +3853,263 @@ ipcMain.handle('plugin:delete', async (event, fileName) => {
         console.error('[Solari] Error deleting plugin:', e);
         return { success: false, error: e.message };
     }
+});
+
+
+// ===== HARDWARE SYSTEM MONITOR =====
+
+const os = require('os');
+let lastCpuInfo = null;
+
+// Lightweight CPU usage calculation using built-in OS module (zero external process cost)
+function getCpuUsage() {
+    const cpus = os.cpus();
+    if (!cpus || cpus.length === 0) return 0;
+    
+    let totalIdle = 0;
+    let totalTick = 0;
+    
+    for (let currentCpu of cpus) {
+        for (let type in currentCpu.times) {
+            totalTick += currentCpu.times[type];
+        }
+        totalIdle += currentCpu.times.idle;
+    }
+    
+    let usage = 0;
+    if (lastCpuInfo) {
+        const idleDifference = totalIdle - lastCpuInfo.idle;
+        const totalDifference = totalTick - lastCpuInfo.total;
+        usage = 100 - ~~(100 * idleDifference / totalDifference);
+    }
+    
+    lastCpuInfo = { idle: totalIdle, total: totalTick };
+    return Math.max(0, Math.min(100, usage));
+}
+
+// Lightweight GPU check (only works for NVIDIA, but doesn't spawn expensive PowerShell)
+async function getGpuUsage() {
+    return new Promise((resolve) => {
+        // Use nvidia-smi if available (fastest C++ utility), otherwise return null
+        exec('nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits', 
+            { timeout: 1000, windowsHide: true }, 
+            (error, stdout) => {
+                if (error || !stdout) {
+                    resolve(null);
+                    return;
+                }
+                try {
+                    const parts = stdout.trim().split(',');
+                    if (parts.length >= 4) {
+                        resolve({
+                            name: 'NVIDIA GPU',
+                            usage: parseInt(parts[0].trim(), 10) || 0,
+                            temp: parseInt(parts[1].trim(), 10) || 0,
+                            vramUsedMB: parseInt(parts[2].trim(), 10) || 0,
+                            vramTotalMB: parseInt(parts[3].trim(), 10) || 0
+                        });
+                    } else {
+                        resolve(null);
+                    }
+                } catch (e) {
+                    resolve(null);
+                }
+        });
+    });
+}
+
+si = require('systeminformation');
+
+function ensureSI() {
+    return true;
+}
+
+// Global cached GPU data to avoid launching processes too often
+let cachedGpuStats = null;
+let lastGpuPoll = 0;
+let lastHwRpcUpdate = 0;
+let lastHwRpcString = '';
+
+async function pollHardwareStats() {
+    try {
+        const results = {};
+
+        // CPU: Virtually zero-cost
+        if (hwMonitorSettings.showCPU) {
+            results.cpu = {
+                usage: getCpuUsage(),
+                cores: os.cpus() ? os.cpus().length : 0
+            };
+        }
+
+        // RAM: Virtually zero-cost
+        if (hwMonitorSettings.showRAM) {
+            const totalMem = os.totalmem();
+            const freeMem = os.freemem();
+            const usedMem = totalMem - freeMem;
+            results.ram = {
+                usedGB: Math.round((usedMem / 1073741824) * 10) / 10,  // bytes -> GB, 1 decimal
+                totalGB: Math.round((totalMem / 1073741824) * 10) / 10,
+                usagePercent: Math.round((usedMem / totalMem) * 1000) / 10
+            };
+        }
+
+        // GPU: Poll only every 6 seconds to save CPU, while CPU/RAM update every 2-3s
+        if (hwMonitorSettings.showGPU) {
+            if (hwGpuAvailable === false) {
+                results.gpu = null;
+            } else {
+                const now = Date.now();
+                if (!cachedGpuStats || (now - lastGpuPoll) > 6000) {
+                    const gpuResult = await getGpuUsage();
+                    if (gpuResult) {
+                        hwGpuAvailable = true;
+                        cachedGpuStats = gpuResult;
+                    } else {
+                        // If it fails once, maybe no NVIDIA driver. We'll disable it to prevent spamming process spawning.
+                        hwGpuAvailable = false;
+                        cachedGpuStats = null;
+                    }
+                    lastGpuPoll = now;
+                }
+                results.gpu = cachedGpuStats;
+            }
+        }
+
+        latestHwStats = results;
+
+        // Send to renderer for live UI
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('hw-stats-update', results);
+        }
+
+        // Trigger Discord RPC update if enabled and throttled (max once every 5.5s)
+        if (rpcConnected && hwMonitorEnabled && isEnabled) {
+            const now = Date.now();
+            if (now - lastHwRpcUpdate > 5500) {
+                const currentHwString = formatHWStatsForRPC();
+                if (currentHwString && currentHwString !== lastHwRpcString) {
+                    lastHwRpcString = currentHwString;
+                    lastHwRpcUpdate = now;
+                    updatePresence();
+                }
+            }
+        }
+
+    } catch (e) {
+        console.error('[HW Monitor] Poll error:', e.message);
+    }
+}
+
+function startHWMonitor() {
+    if (hwMonitorInterval) return; // Already running
+    if (!hwMonitorEnabled) return;
+
+    // We will poll every 2 seconds for CPU/RAM which is virtually zero-cost
+    const interval = hwMonitorSettings.intervalMs || 2000;
+    console.log('[HW Monitor] Starting lightweight polling every', interval, 'ms');
+    
+    // Warm up CPU counters
+    getCpuUsage();
+    
+    // First poll immediately
+    setTimeout(pollHardwareStats, 500);
+    hwMonitorInterval = setInterval(pollHardwareStats, interval);
+}
+
+function stopHWMonitor() {
+    if (hwMonitorInterval) {
+        clearInterval(hwMonitorInterval);
+        hwMonitorInterval = null;
+        latestHwStats = null;
+        console.log('[HW Monitor] Stopped');
+    }
+}
+
+function formatHWStatsForRPC() {
+    if (!latestHwStats) return null;
+    const parts = [];
+
+    const showCPU = hwMonitorSettings.showCPU !== false;
+    const showRAM = hwMonitorSettings.showRAM !== false;
+    const showGPU = hwMonitorSettings.showGPU !== false;
+    
+    const showGPUTemp = hwMonitorSettings.showGPUTemp !== false;
+
+    if (latestHwStats.cpu && showCPU) {
+        let str = `CPU: ${latestHwStats.cpu.usage}%`;
+        parts.push(str);
+    }
+    if (latestHwStats.ram && showRAM) {
+        parts.push(`RAM: ${latestHwStats.ram.usedGB}/${latestHwStats.ram.totalGB}GB`);
+    }
+    if (latestHwStats.gpu && showGPU) {
+        // Only show GPU if we have any valid data to prevent "GPU: N/A" spam
+        const hasTemp = showGPUTemp && latestHwStats.gpu.temp !== null;
+        
+        if (latestHwStats.gpu.usage !== null || hasTemp) {
+            let str = `GPU:`;
+            if (latestHwStats.gpu.usage !== null) str += ` ${latestHwStats.gpu.usage}%`;
+            if (hasTemp) str += `${latestHwStats.gpu.usage !== null ? '' : ' '}(${latestHwStats.gpu.temp}°C)`;
+            parts.push(str.trim());
+        }
+    }
+
+    return parts.length > 0 ? parts.join(' | ') : null;
+}
+
+// IPC: Toggle hardware monitor
+ipcMain.handle('hw-monitor:toggle', (event, enabled) => {
+    hwMonitorEnabled = enabled;
+    saveData();
+
+    if (enabled) {
+        startHWMonitor();
+    } else {
+        stopHWMonitor();
+        // Notify renderer to clear UI
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('hw-stats-update', null);
+        }
+    }
+
+    console.log('[HW Monitor] Toggled:', enabled);
+    return { success: true, enabled };
+});
+
+// IPC: Get current settings
+ipcMain.handle('hw-monitor:get-settings', () => {
+    return {
+        enabled: hwMonitorEnabled,
+        settings: hwMonitorSettings,
+        stats: latestHwStats,
+        gpuAvailable: hwGpuAvailable
+    };
+});
+
+// IPC: Save settings
+ipcMain.handle('hw-monitor:save-settings', (event, newSettings) => {
+    hwMonitorSettings = { ...hwMonitorSettings, ...newSettings };
+    saveData();
+
+    // Restart polling if running (interval may have changed)
+    if (hwMonitorEnabled) {
+        stopHWMonitor();
+        startHWMonitor();
+    }
+
+    // Reset GPU detection if GPU toggle was changed
+    if ('showGPU' in newSettings) {
+        hwGpuAvailable = null;
+    }
+
+    console.log('[HW Monitor] Settings updated:', JSON.stringify(hwMonitorSettings));
+    return { success: true, settings: hwMonitorSettings };
+});
+
+// IPC: Get latest stats on demand
+ipcMain.handle('hw-monitor:get-stats', () => {
+    return latestHwStats;
 });
 
 
@@ -3835,6 +4515,15 @@ function initializeWebSocketServer() {
                         }
                         break;
 
+                    case 'notes_config_sync':
+                        // Forward notes config and schema to renderer
+                        if (mainWindow) {
+                            mainWindow.webContents.send('notes-data-loaded', { settings: data.config, schema: data.schema });
+                            // Notify UI that plugin is connected
+                            mainWindow.webContents.send('notes-status-update', { connected: true });
+                        }
+                        break;
+
                     case 'setActivity':
                         const plugin = connectedPlugins.get(wsId);
                         if (plugin && blockedPlugins.has(plugin.name)) return;
@@ -3923,6 +4612,36 @@ function initializeWebSocketServer() {
                         // Handle browser extension media updates (Netflix, YouTube, Twitch)
                         handleBrowserMediaUpdate(data, ws);
                         break;
+
+                    // ===== SOLARI NOTES BACKEND =====
+                    case 'notes_request':
+                        try {
+                            const notesPath = path.join(app.getPath('userData'), 'solari_notes.json');
+                            let content = "";
+                            if (fs.existsSync(notesPath)) {
+                                const fileData = JSON.parse(fs.readFileSync(notesPath, 'utf8'));
+                                content = fileData.content || "";
+                            }
+                            ws.send(JSON.stringify({ type: 'notes_sync', content: content }));
+                            console.log('[Solari WSS] Sent notes data to SolariNotes plugin');
+                        } catch (err) {
+                            console.error('[Solari WSS] Error reading notes:', err);
+                        }
+                        break;
+
+                    case 'notes_update':
+                        try {
+                            const notesPath = path.join(app.getPath('userData'), 'solari_notes.json');
+                            fs.writeFileSync(notesPath, JSON.stringify({
+                                content: data.content,
+                                lastUpdated: new Date().toISOString()
+                            }), 'utf8');
+                            console.log('[Solari WSS] Saved notes from SolariNotes plugin');
+                        } catch (err) {
+                            console.error('[Solari WSS] Error saving notes:', err);
+                        }
+                        break;
+                    // ================================
                 }
             } catch (error) { console.error('Message parse error:', error); }
         });
@@ -4102,6 +4821,11 @@ function checkRunningProcesses(isFirstCheck = false) {
                                 smallImageKey: preset.smallImageKey,
                                 smallImageText: preset.smallImageText,
                                 buttons: buttons.length > 0 ? buttons : undefined,
+                                partyCurrent: preset.partyCurrent > 0 ? preset.partyCurrent : undefined,
+                                partyMax: preset.partyMax > 0 ? preset.partyMax : undefined,
+                                timestampMode: preset.timestampMode || 'normal',
+                                customTimestamp: preset.customTimestamp || null,
+                                useEndTimestamp: preset.useEndTimestamp || false,
                                 clientId: finalClientId // Use resolved ID
                             };
 
@@ -4244,6 +4968,11 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
                         smallImageKey: preset.smallImageKey,
                         smallImageText: preset.smallImageText,
                         buttons: buttons.length > 0 ? buttons : undefined,
+                        partyCurrent: preset.partyCurrent > 0 ? preset.partyCurrent : undefined,
+                        partyMax: preset.partyMax > 0 ? preset.partyMax : undefined,
+                        timestampMode: preset.timestampMode || 'normal',
+                        customTimestamp: preset.customTimestamp || null,
+                        useEndTimestamp: preset.useEndTimestamp || false,
                         clientId: preset.clientId
                     };
 
@@ -4766,6 +5495,9 @@ app.whenReady().then(async () => {
 
     // Start user tracking (analytics)
     startTracking();
+
+    // Start background BetterDiscord Auto-Repair polling
+    startBDBackgroundPolling();
 
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

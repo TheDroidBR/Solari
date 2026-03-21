@@ -210,7 +210,7 @@ h1 {
   border: 1px solid var(--glass-border);
 }
 
-/* ===== In-App Update Button (v1.7.0) ===== */
+/* ===== In-App Update Button (v1.8.0) ===== */
 .update-available-btn {
   display: inline-flex;
   align-items: center;
@@ -5738,6 +5738,108 @@ body.eco-mode .neon-btn {
   }
 }
 
+/* ---- 1-Click BD Install Spinner ---- */
+.bd-install-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+.bd-warning-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* ---- BD Split Button ---- */
+.bd-split-btn-group {
+  display: flex;
+  align-items: stretch;
+}
+
+.bd-split-main {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-right: none !important;
+  color: #ff9966;
+  border-color: rgba(255, 153, 102, 0.3);
+  background: rgba(255, 153, 102, 0.08);
+}
+
+.bd-split-main:hover {
+  background: rgba(255, 153, 102, 0.18);
+  border-color: rgba(255, 153, 102, 0.5);
+}
+
+.bd-split-arrow {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  padding: 7px 6px !important;
+  min-width: unset;
+  color: #ff9966;
+  border-color: rgba(255, 153, 102, 0.3);
+  background: rgba(255, 153, 102, 0.08);
+  border-left: 1px solid rgba(255, 153, 102, 0.2) !important;
+}
+
+.bd-split-arrow:hover {
+  background: rgba(255, 153, 102, 0.22);
+  border-color: rgba(255, 153, 102, 0.5);
+}
+
+.bd-split-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: rgba(18, 18, 24, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 5px;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55);
+  z-index: 200;
+  backdrop-filter: blur(16px);
+  animation: fadeInDropdown 0.15s ease;
+}
+
+@keyframes fadeInDropdown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.bd-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  border: none;
+  background: transparent;
+  color: #d1d5db;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.bd-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.bd-dropdown-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
 /* ---- Grid Layout ---- */
 .plugins-store-grid {
   display: grid;
@@ -6235,7 +6337,7 @@ body.eco-mode .neon-btn {
   transform: translateY(-1px);
 }
 
-/* ===== Server Status Grid (v1.7.0) ===== */
+/* ===== Server Status Grid (v1.8.0) ===== */
 .server-status-card {
   border: 1px solid rgba(0, 212, 255, 0.15) !important;
 }
@@ -6297,7 +6399,7 @@ body.eco-mode .neon-btn {
 }
 
 /* ============================================= */
-/* ===== SOUNDBOARD v1.7.0 REDESIGN STYLES ===== */
+/* ===== SOUNDBOARD v1.8.0 REDESIGN STYLES ===== */
 /* ============================================= */
 
 /* --- Top Toolbar --- */
@@ -6879,4 +6981,214 @@ body.eco-mode .neon-btn {
   height: 1px;
   background: rgba(255, 255, 255, 0.06);
   margin: 4px 8px;
+}
+
+/* ===== HARDWARE SYSTEM MONITOR ===== */
+
+.hw-monitor-card .settings-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.hw-gauges-container {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  padding: 20px 16px 12px;
+  flex-wrap: wrap;
+}
+
+.hw-gauge {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.hw-gauge.disabled {
+  opacity: 0.3;
+  transform: scale(0.95);
+  pointer-events: none;
+}
+
+.hw-gauge-ring {
+  width: 110px;
+  height: 110px;
+  transform: rotate(-90deg);
+  filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.2));
+}
+
+.hw-gauge-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 8;
+}
+
+.hw-gauge-fill {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hw-gauge-fill-cpu {
+  stroke: url(#hw-gradient-cpu);
+}
+
+.hw-gauge-fill-ram {
+  stroke: url(#hw-gradient-ram);
+}
+
+.hw-gauge-fill-gpu {
+  stroke: url(#hw-gradient-gpu);
+}
+
+/* Fallback solid colors if gradients not rendered */
+.hw-gauge-fill-cpu { stroke: #6366f1; }
+.hw-gauge-fill-ram { stroke: #10b981; }
+.hw-gauge-fill-gpu { stroke: #f59e0b; }
+
+.hw-gauge-label {
+  position: absolute;
+  top: 55px; /* Lock to center of 110px SVG, ignoring flex children */
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.hw-gauge-value {
+  font-size: 1.3rem;
+  font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+  background: linear-gradient(135deg, #fff, #c4b5fd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1.2;
+}
+
+.hw-gauge-name {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+}
+
+.hw-gauge-toggle {
+  transform: scale(0.7);
+  margin-top: 6px; /* spacing below the circle */
+  pointer-events: auto;
+}
+
+.hw-mini-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.hw-mini-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.hw-mini-toggle input[type="checkbox"] {
+  display: none;
+}
+
+.hw-mini-toggle.active-cpu {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #c7d2fe;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.2);
+}
+
+.hw-mini-toggle.active-gpu {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fde68a;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
+}
+
+.hw-mini-toggle-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.hw-mini-toggle.active-cpu .hw-mini-toggle-dot {
+  background: #818cf8;
+  box-shadow: 0 0 6px #818cf8;
+}
+
+.hw-mini-toggle.active-gpu .hw-mini-toggle-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 6px #fbbf24;
+}
+
+/* RPC Preview Bar */
+.hw-rpc-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  margin: 0 16px 16px;
+  border-radius: 10px;
+  background: rgba(88, 101, 242, 0.08);
+  border: 1px solid rgba(88, 101, 242, 0.2);
+  font-size: 0.82rem;
+}
+
+.hw-rpc-label {
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hw-rpc-text {
+  color: #c4b5fd;
+  font-family: 'Outfit', monospace;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* GPU unavailable state */
+.hw-gauge-gpu-unavailable .hw-gauge-value {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes hw-gauge-pulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(139, 92, 246, 0.15)); }
+  50% { filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.4)); }
+}
+
+.hw-monitor-card.active .hw-gauge-ring {
+  animation: hw-gauge-pulse 4s ease-in-out infinite;
 }
