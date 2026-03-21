@@ -3011,6 +3011,9 @@ function createSettingElement(item, config, pluginName = 'spotify') {
             btn.onclick = () => {
                 if (item.action) {
                     ipcRenderer.send(item.action, item.value);
+                } else if (item.key) {
+                    // Fallback: Send to plugin's update channel with the key as action
+                    ipcRenderer.send(ipcChannel, { action: item.key, value: item.value });
                 }
             };
             return btn;
