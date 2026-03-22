@@ -851,7 +851,7 @@ module.exports = class SolariNotes {
             if (win.x !== null && win.y !== null) {
                 panel.style.right = 'auto'; // Reset right anchor
                 panel.style.left = win.x + 'px';
-                panel.style.top = win.y + 'px';
+                panel.style.top = Math.max(22, win.y) + 'px'; // Protege contra ficar preso no topo da tela do Discord
             }
 
             // Apply saved size with safety
@@ -1243,8 +1243,12 @@ module.exports = class SolariNotes {
             pos3 = e.clientX;
             pos4 = e.clientY;
 
+            // Restrição de limite para não prender debaixo da barra de título (22px) do Discord
+            let newTop = panel.offsetTop - pos2;
+            if (newTop < 22) newTop = 22;
+
             // Set the element's new position:
-            panel.style.top = (panel.offsetTop - pos2) + "px";
+            panel.style.top = newTop + "px";
             panel.style.left = (panel.offsetLeft - pos1) + "px";
             panel.style.right = "auto";
             panel.style.bottom = "auto";
@@ -1256,7 +1260,7 @@ module.exports = class SolariNotes {
             document.removeEventListener('mousemove', elementDrag);
 
             win.x = panel.offsetLeft;
-            win.y = panel.offsetTop;
+            win.y = Math.max(22, panel.offsetTop); // Garante que nunca seja salvo menor que 22
             this.saveConfig();
         };
 

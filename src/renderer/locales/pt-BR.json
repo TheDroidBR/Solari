@@ -8,7 +8,12 @@
         "connecting": "Conectando...",
         "themeDefault": "Tema Padrão",
         "themeDark": "Tema Escuro",
-        "themeLight": "Tema Claro"
+        "themeLight": "Tema Claro",
+        "version": "Versão",
+        "ecoTitle": "Modo Eco (Economiza CPU)",
+        "neonTitle": "Alternar Efeitos Neon",
+        "customCssTitle": "CSS Personalizado",
+        "exitManualTitle": "Sair do Modo Manual (Voltar p/ Auto)"
     },
     "rpc": {
         "switching": "Trocando aplicativo do Discord...",
@@ -22,7 +27,16 @@
         "returningToAutoDetect": "Voltando para Auto-Detect...",
         "detectionMethodUpdated": "Método de detecção atualizado",
         "clientIdSaved": "Client ID salvo!",
-        "clientIdInvalid": "Client ID inválido"
+        "clientIdInvalid": "Client ID inválido",
+        "configSaved": "Configuração Salva",
+        "identityDeleted": "Perfil removido",
+        "fillNameAndId": "Preencha o nome e o Client ID",
+        "invalidClientId": "Client ID inválido (deve ser numérico, 15-30 dígitos)",
+        "identityUpdated": "Perfil atualizado!",
+        "identityAdded": "Perfil \"{name}\" adicionado!",
+        "notesExported": "Notas Exportadas",
+        "settingsReset": "Configurações Resetadas",
+        "error": "Erro"
     },
     "about": {
         "description": "Gerenciador Premium de Rich Presence para Discord",
@@ -91,11 +105,30 @@
         "bdBrokenDesc": "Uma atualização do Discord removeu a injeção do BetterDiscord. Reinstale para restaurar os plugins.",
         "bdReinstall": "Reinstalar",
         "updateAll": "Atualizar Todos",
-        "bdStatusInstalled": "Instalado",
+        "bdStatusMissing": "Não Instalado",
         "bdStatusBroken": "Quebrado",
-        "bdStatusMissing": "Não instalado",
+        "bdStatusRepairing": "Reparando...",
+        "bdStatusInstalled": "Instalado",
+        "bdBtnInstall": "Instalar BD",
+        "bdBtnReinstall": "Reinstalar BD",
+        "bdBtnRepair": "Reparar BD",
+        "bdBtnUninstall": "Desinstalar BD",
+        "bdBtnInstalling": "Instalando...",
+        "bdBtnRepairing": "Reparando...",
+        "bdBtnUninstalling": "Desinstalando...",
         "bdStatusChecking": "Verificando...",
-        "update": "Atualizar"
+        "update": "Atualizar",
+        "bdDisclaimerTitle": "Aviso Legal e Afiliação",
+        "bdDisclaimerText": "O Solari é um projeto independente. NÃO somos os criadores do BetterDiscord e não temos afiliação oficial com a equipe do BetterDiscord. O BetterDiscord é um projeto de código aberto mantido por sua própria comunidade.",
+        "confirmDelete": "Deseja desinstalar {name}?\nO arquivo será removido da pasta de plugins do BetterDiscord.",
+        "deletedSuccess": "{name} desinstalado!",
+        "errorDownload": "Erro ao baixar plugin: {error}",
+        "errorDelete": "Erro ao desinstalar: {error}",
+        "updateAllSuccess": "{count} plugin(s) atualizado(s)!",
+        "updateAllError": "{count} plugin(s) falharam",
+        "allUpToDate": "Todos os plugins já estão atualizados!",
+        "verifying": "Verificando...",
+        "updatingPlugin": "Atualizando {name}..."
     },
     "plugins": {
         "title": "🔌 Plugins",
@@ -142,15 +175,45 @@
             "autoSave": "Atraso de Auto-save",
             "padding": "Espaçamento Interno",
             "reset": "Resetar Tamanho e Posição"
+        },
+        "solarimessagetools": {
+            "title": "Solari MessageTools",
+            "description": "Desbloqueie poderes avançados: Quick Edit, modo stealth (Anti-Typing), tradução instantânea, histórico de apagadas e macros de texto.",
+            "features": [
+                "Modo Anônimo (Anti-Typing)",
+                "Traduções no Menu de Contexto",
+                "Mensagens Fantasmas e Edição Rápida"
+            ],
+            "quickEdit": "Quick Edit & Delete",
+            "quickEditDesc": "Duplo clique para editar, Shift+Clique para deletar instantaneamente.",
+            "antiTyping": "Anti-Typing (Modo Anônimo)",
+            "antiTypingDesc": "Digite em segredo sem acionar o indicador de 'está digitando'.",
+            "ghostMessages": "Mensagens Fantasmas",
+            "ghostMessagesDesc": "Mantenha as mensagens deletadas visíveis localmente no seu histórico.",
+            "editRevealer": "Revelador de Edições",
+            "editRevealerDesc": "Mostra o texto original das mensagens editadas localmente.",
+            "textMacros": "Macros de Texto",
+            "textMacrosDesc": "Habilite a expansão instantânea de palavras-chave (ex: /lenny).",
+            "activeTranslation": "Tradução Ativa",
+            "activeTranslationDesc": "Traduções no Menu de Contexto e formatação no chatbox.",
+            "language": "Idioma Destino",
+            "languageDesc": "Escolha o idioma principal para traduções automáticas."
         }
     },
     "server": {
         "title": "Status do Servidor",
+        "subtitle": "Monitoramento em tempo real dos serviços do Solari",
         "running": "Rodando",
         "connected": "Conectado",
         "disconnected": "Desconectado",
         "testConnection": "Testar Conexão",
-        "exportLogs": "Exportar Logs"
+        "exportLogs": "Exportar Logs",
+        "exporting": "Exportando...",
+        "exported": "Exportado!",
+        "ws": "WebSocket",
+        "rpc": "Discord RPC",
+        "spotify": "SpotifySync",
+        "afk": "SmartAFK"
     },
     "modal": {
         "confirmTitle": "Confirmação",
@@ -231,7 +294,10 @@
         "deleteConfirmTitle": "Excluir Preset?",
         "deleteConfirmMessage": "Tem certeza que deseja excluir \"{name}\"?",
         "replaceConfirmTitle": "Substituir Preset?",
-        "replaceConfirmMessage": "Sobrescrever \"{name}\" com os dados atuais?"
+        "replaceConfirmMessage": "Sobrescrever \"{name}\" com os dados atuais?",
+        "exportConfirm": "Presets exportados com sucesso!",
+        "importConfirm": "Presets importados com sucesso!",
+        "globalDefault": "Padrão Global"
     },
     "identities": {
         "title": "App Profiles",
@@ -241,7 +307,15 @@
         "add": "+ Adicionar",
         "edit": "Editar",
         "remove": "Remover",
-        "globalDefault": "Padrão Global"
+        "globalDefault": "Padrão Global",
+        "noIdentities": "Nenhum perfil cadastrado. Adicione abaixo.",
+        "confirmDeleteTitle": "Excluir Perfil?",
+        "confirmDeleteMessage": "Tem certeza que deseja excluir \"{name}\"?",
+        "deleted": "Perfil removido",
+        "fillNameAndId": "Preencha o nome e o Client ID",
+        "invalidClientId": "Client ID inválido (deve ser numérico, 15-30 dígitos)",
+        "updated": "Perfil atualizado!",
+        "added": "Perfil \"{name}\" adicionado!"
     },
     "soundboard": {
         "driverRequired": "Driver de Áudio Necessário",
@@ -266,7 +340,16 @@
         "loudnessEq": "Equalização Vol.",
         "micVolume": "Vol. Mic",
         "globalVolume": "Vol. Sons",
-        "addSound": "Adicionar Som"
+        "addSound": "Adicionar Som",
+        "default": "Padrão",
+        "dragFiles": "Arraste arquivos aqui ou clique para buscar",
+        "stopAll": "Parar Tudo",
+        "viewMode": "Grade/Lista",
+        "export": "Exportar Biblioteca",
+        "import": "Importar Biblioteca",
+        "queue": "Fila",
+        "noFilesFound": "Nenhum arquivo de áudio válido encontrado",
+        "addedSounds": "Adicionado {count} som(ns)"
     },
     "spotify": {
         "connected": "Conectado",
@@ -296,7 +379,14 @@
         "discordUser": "Usuário Discord",
         "sendNotification": "Enviar Notificação",
         "messagePlaceholder": "Sua mensagem...",
-        "send": "Enviar"
+        "waitingConnection": "Aguardando conexão...",
+        "send": "Enviar",
+        "export": "Exportar como .txt",
+        "pin": "Fixar/Bloquear Janela",
+        "close": "Fechar",
+        "renameHint": "Duplo clique ou botão direito para renomear",
+        "newTab": "Nova Aba",
+        "notePrefix": "Nota "
     },
     "smartAfk": {
         "title": "Smart AFK",
@@ -475,5 +565,18 @@
         "next": "Próximo",
         "finish": "Iniciar Solari",
         "start": "Iniciar Solari"
+    },
+    "hwMonitor": {
+        "title": "Hardware Monitor",
+        "description": "Exiba CPU, RAM e GPU em tempo real no seu Rich Presence.",
+        "cpu": "CPU",
+        "ram": "RAM",
+        "gpu": "GPU",
+        "monitorCpu": "Monitorar CPU no Discord",
+        "monitorGpu": "Monitorar GPU no Discord",
+        "includeTemp": "Incluir Temperatura da GPU",
+        "tempTitle": "Incluir Temperatura da GPU",
+        "temp": "+ Temp",
+        "preview": "Preview do Discord:"
     }
 }

@@ -1,64 +1,48 @@
-## [1.8.0] - 2026-03-19
+## [1.8.0] - 2026-03-20
 **UPDATE 1.8.0: THE INFINITY CONVERGENCE**
 
-Welcome to Solari v1.8.0! This "Mainline" update is a fundamental overhaul of our core infrastructure, designed to bypass aggressive web hosting restrictions while introducing a long-awaited suite of high-performance tools for power users.
-
 ---
 
-### **HYBRID CLOUD ARCHITECTURE: THE GITHUB MIGRATION**
-We have successfully transitioned Solari to a "Cloud-First" model. By migrating all plugin telemetry and binary downloads to the **GitHub Raw CDN**, we have permanently bypassed the "Aesir" Javascript Anti-Bot challenges enforced by legacy web hosts.
+### ✨ New Features
+- **Hardware System Monitor**: Track your PC’s vitals directly in your Discord status with our new high-performance monitoring suite.
+  - **Premium Glassmorphic UI**: Three circular live-animated gauges in the Settings tab provide instant visual feedback on CPU, RAM, and GPU.
+  - **NVIDIA Integration**: Direct integration for NVIDIA GPUs, providing load and temperature metrics with zero overhead.
+  - **Persistent Uptime**: Hardware updates no longer reset the "Elapsed Time" counter in Discord.
+  - **Customizable Toggles**: Individual switches for each component, including a specialized "Glow Pill" toggle for GPU temperature.
 
-*   **Reliable Delivery**: All plugin metadata is now fetched directly via GitHub Raw with a new **cache-busting engine**, ensuring you always see the latest versions.
-*   **Intelligent Redundancy**: Implemented a hybrid fallback system. While the app prioritizes live data, it now maintains local metadata for core plugins (SmartAFK, SpotifySync, Solari Notes) to ensure they are always visible and functional even during temporary network outages.
-*   **High-Frequency Polling**: Metadata refresh rate has been accelerated from 1 hour to **5 minutes** for near real-time update detection.
+- **BetterDiscord 1-Click Manager**: Take full control of your BetterDiscord installation directly from the Solari Plugins tab.
+  - **One-Click Installation**: Automatically downloads the latest `betterdiscord.asar`, injects the loader hook, and restarts Discord.
+  - **Autonomous Background Repair**: Monitors your installation every 3 seconds and performs repairs silently even if the window is closed.
+  - **Stealth Uninstall**: Removes the BD loader completely while preserving your local plugins and themes.
+  - **Smart Disclaimer**: Added a minimalist info icon to clarify the open-source nature of BetterDiscord.
 
----
+### 🔌 New Plugins
+- **Solari Notes**: Enhanced note windows for a more professional workflow within Discord.
+  - **Omni-Directional Resizing**: Resize note windows by pulling from any edge or corner.
+  - **Persistent Workspace**: Note window sizes and "Pinned" status are saved to disk and restored automatically.
+  - **Instant Icon Injection**: The editor pencil icon appears immediately upon Discord startup.
+  - **Fix-to-Front**: Pinned notes remain visible and interactive even when navigating across Discord.
 
-### **NEW FEATURE: HARDWARE SYSTEM MONITOR**
-Track your PC’s vitals directly in your Discord status with our new high-performance monitoring suite.
+### 🌐 Translations
+- **Hardware Localization**: All hardware monitoring labels and metrics now support real-time translation (English and pt-BR).
+- **BetterDiscord Localization**: Status badges and action buttons now support seamless language switching without UI hangs.
+- **Notes Localization**: Full translation support for English and Portuguese, including tooltips and action buttons.
 
-*   **Premium Glassmorphic UI**: Three circular live-animated gauges in the Settings tab provide instant visual feedback on CPU, RAM, and GPU.
-*   **NVIDIA Integration**: Direct integration for NVIDIA GPUs, providing load and temperature metrics with zero overhead.
-*   **Persistent Uptime**: Fixed a legacy bug where hardware updates would reset the "Elapsed Time" counter in Discord. Your session time now stays continuous.
-*   **Customizable Toggles**: Individual switches for each component, including a specialized "Glow Pill" toggle for GPU temperature.
+### 🔧 Improvements
+- **Hybrid Cloud Architecture**: Successfully transitioned to the GitHub Raw CDN with a new cache-busting engine, bypassing restrictions and ensuring reliable plugin delivery.
+- **Intelligent Redundancy**: Implemented a hybrid fallback system that maintains local metadata for core plugins during network outages.
+- **High-Frequency Polling**: Metadata refresh rate has been accelerated from 1 hour to 5 minutes for near real-time update detection.
+- **Plugin Engine Changes**: Implemented header verification to verify actual `@version` tags, bypassing any CDN cache layers.
+- **IPC State Sync**: Implemented a request-response flow for BetterDiscord status to eliminate the "Verificando..." UI hang on startup.
 
----
-
-### **NEW FEATURE: BETTERDISCORD 1-CLICK MANAGER**
-Take full control of your BetterDiscord installation directly from the Solari Plugins tab.
-
-*   **One-Click Installation**: Automatically downloads the latest `betterdiscord.asar`, injects the loader hook, and restarts Discord in a single action.
-*   **Autonomous Background Repair**: (v1.8.0 Update) The Auto-Repair logic has been moved to the **Main Process**. It now monitors your installation every 3 seconds and performs repairs silently even if the Solari window is closed.
-*   **PowerShell Recovery**: Replaced legacy restart commands with a robust PowerShell-based engine for guaranteed Discord process termination and clean restarts.
-*   **Stealth Uninstall**: Removes the BD loader completely while preserving your local plugins and themes.
-*   **Smart Detection**: Uses a new decision matrix to distinguish between "Not Installed", "Broken", and "Healthy" installations.
-
----
-
-### **NEW PLUGIN: SOLARI NOTES**
-Enhanced Note windows for a more professional workflow within Discord.
-
-*   **Omni-Directional Resizing**: You can now resize note windows by pulling from any edge or corner, not just the bottom-right.
-*   **Persistent Workspace**: Note window sizes and their "Pinned" status are now saved to disk and restored automatically on restart.
-*   **Instant Icon Injection**: The editor pencil icon appears immediately upon Discord startup, ensuring your notes are always ready.
-*   **Fix-to-Front**: Pinned notes remain visible and interactive even when navigating between different Discord tabs or categories.
-
----
-
-### **PLUGIN ENGINE CHANGES**
-*   **Header Verification**: Solari now "peaks" into every `.plugin.js` file header upon discovery to verify actual `@version` tags, bypassing any CDN cache layers.
-*   **Cache-Busting Resolution**: Effectively verifies the source of truth directly from the download link for maximum reliability.
-*   **IPC State Sync**: Implemented a request-response flow for BetterDiscord status to eliminate the "Verificando..." UI hang on startup.
-
----
-
-### **FIXES**
-*   Fixed a critical bug where `Party Size` and `Timestamp` preset fields would fail to save to disk.
-*   **Startup Race Condition Fix**: Prevented the Global Client ID from hijacking the connection when the browser extension (Twitch/YouTube) triggers an update during the initial boot sequence.
-*   Fixed the "Race Condition" causing the Discord Preview card to show a generic app name on startup.
-*   Corrected the Client ID fallback logic that would ignore user-selected profiles on startup.
-*   Fixed visual pixelation on gauge borders using a new soft-glow CSS pulsing method.
-*   Added anti-loop protections to the BetterDiscord auto-repair logic (2-strike threshold / 3s poll).
+### 🐛 Bug Fixes
+- **Fixed**: Critical bug where `Party Size` and `Timestamp` preset fields would fail to save to disk.
+- **Fixed**: Startup Race Condition causing the Global Client ID to hijack the connection when the browser extension triggers an update.
+- **Fixed**: Race Condition causing the Discord Preview card to show a generic app name on startup.
+- **Fixed**: Visual pixelation on gauge borders using a new soft-glow CSS pulsing method.
+- **Fixed**: Critical UI hang where the Discord Preview would get stuck on "Loading..." during language switching.
+- **Fixed**: Discord RPC Preview now correctly preserves the dynamic Application Name after re-applying translations.
+- **Fixed**: Redundant "WebSocket" and "RPC" status labels in the Server section now correctly localized.
 
 ---
 

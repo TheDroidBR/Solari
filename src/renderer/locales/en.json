@@ -8,7 +8,12 @@
         "connecting": "Connecting...",
         "themeDefault": "Default Theme",
         "themeDark": "Dark Theme",
-        "themeLight": "Light Theme"
+        "themeLight": "Light Theme",
+        "version": "Version",
+        "ecoTitle": "Eco Mode (Saves CPU)",
+        "neonTitle": "Toggle Neon Effects",
+        "customCssTitle": "Custom CSS",
+        "exitManualTitle": "Exit Manual Mode (Return to Auto)"
     },
     "rpc": {
         "switching": "Switching Discord app...",
@@ -22,7 +27,16 @@
         "returningToAutoDetect": "Returning to Auto-Detect...",
         "detectionMethodUpdated": "Detection method updated",
         "clientIdSaved": "Client ID saved!",
-        "clientIdInvalid": "Invalid Client ID"
+        "clientIdInvalid": "Invalid Client ID",
+        "configSaved": "Configuration Saved",
+        "identityDeleted": "Profile removed",
+        "fillNameAndId": "Fill in name and Client ID",
+        "invalidClientId": "Invalid Client ID (must be numeric, 15-30 digits)",
+        "identityUpdated": "Profile updated!",
+        "identityAdded": "Profile \"{name}\" added!",
+        "notesExported": "Notes Exported",
+        "settingsReset": "Settings Reset",
+        "error": "Error"
     },
     "about": {
         "description": "Premium Discord Rich Presence Manager",
@@ -93,9 +107,28 @@
         "updateAll": "Update All",
         "bdStatusInstalled": "Installed",
         "bdStatusBroken": "Broken",
+        "bdStatusRepairing": "Repairing...",
         "bdStatusMissing": "Not Installed",
+        "bdBtnInstall": "Install BD",
+        "bdBtnReinstall": "Reinstall BD",
+        "bdBtnRepair": "Repair BD",
+        "bdBtnUninstall": "Uninstall BD",
+        "bdBtnInstalling": "Installing...",
+        "bdBtnRepairing": "Repairing...",
+        "bdBtnUninstalling": "Uninstalling...",
         "bdStatusChecking": "Checking...",
-        "update": "Update"
+        "update": "Update",
+        "bdDisclaimerTitle": "Disclaimer & Affiliation",
+        "bdDisclaimerText": "Solari is an independent project. We are NOT the creators of BetterDiscord and have no official affiliation with the BetterDiscord team. BetterDiscord is an open-source project by its own community.",
+        "confirmDelete": "Do you want to uninstall {name}?\nThe file will be removed from the BetterDiscord plugins folder.",
+        "deletedSuccess": "{name} uninstalled!",
+        "errorDownload": "Error downloading plugin: {error}",
+        "errorDelete": "Error uninstalling: {error}",
+        "updateAllSuccess": "{count} plugin(s) updated!",
+        "updateAllError": "{count} plugin(s) failed",
+        "allUpToDate": "All plugins are already up to date!",
+        "verifying": "Verifying...",
+        "updatingPlugin": "Updating {name}..."
     },
     "plugins": {
         "title": "🔌 Plugins",
@@ -142,15 +175,45 @@
             "autoSave": "Auto-save Delay",
             "padding": "Editor Padding",
             "reset": "Reset Window Size & Position"
+        },
+        "solarimessagetools": {
+            "title": "Solari MessageTools",
+            "description": "Unlock advanced powers: Quick Edit, Anti-Typing stealth, instant translation, deleted messages history, and macro shortcuts.",
+            "features": [
+                "Anti-Typing (Stealth Mode)",
+                "Context Menu Translations",
+                "Ghost Messages & Quick Edit"
+            ],
+            "quickEdit": "Quick Edit & Delete",
+            "quickEditDesc": "Double-click to edit, Shift+Click to instantly delete messages.",
+            "antiTyping": "Anti-Typing (Stealth)",
+            "antiTypingDesc": "Secretly type without triggering the 'is typing...' indicator.",
+            "ghostMessages": "Ghost Messages",
+            "ghostMessagesDesc": "Keep deleted messages locally visible in your chat history.",
+            "editRevealer": "Edit Revealer",
+            "editRevealerDesc": "Show the original text of edited messages locally.",
+            "textMacros": "Text Macros",
+            "textMacrosDesc": "Enable instant keyword expansion (e.g. /lenny).",
+            "activeTranslation": "Active Translation",
+            "activeTranslationDesc": "Right click context menu translations and Input formatting.",
+            "language": "Target Language",
+            "languageDesc": "Choose your primary translation output language."
         }
     },
     "server": {
         "title": "Server Status",
+        "subtitle": "Real-time monitoring of Solari services",
         "running": "Running",
         "connected": "Connected",
         "disconnected": "Disconnected",
         "testConnection": "Test Connection",
-        "exportLogs": "Export Logs"
+        "exportLogs": "Export Logs",
+        "exporting": "Exporting...",
+        "exported": "Exported!",
+        "ws": "WebSocket",
+        "rpc": "Discord RPC",
+        "spotify": "SpotifySync",
+        "afk": "SmartAFK"
     },
     "modal": {
         "confirmTitle": "Confirmation",
@@ -231,7 +294,10 @@
         "deleteConfirmTitle": "Delete Preset?",
         "deleteConfirmMessage": "Are you sure you want to delete \"{name}\"?",
         "replaceConfirmTitle": "Replace Preset?",
-        "replaceConfirmMessage": "Overwrite \"{name}\" with current form data?"
+        "replaceConfirmMessage": "Overwrite \"{name}\" with current form data?",
+        "exportConfirm": "Presets exported successfully!",
+        "importConfirm": "Presets imported successfully!",
+        "globalDefault": "Global Default"
     },
     "identities": {
         "title": "App Profiles",
@@ -241,7 +307,15 @@
         "add": "+ Add",
         "edit": "Edit",
         "remove": "Remove",
-        "globalDefault": "Global Default"
+        "globalDefault": "Global Default",
+        "noIdentities": "No profiles registered. Add below.",
+        "confirmDeleteTitle": "Delete Profile?",
+        "confirmDeleteMessage": "Are you sure you want to delete \"{name}\"?",
+        "deleted": "Profile removed",
+        "fillNameAndId": "Fill in the name and Client ID",
+        "invalidClientId": "Invalid Client ID (must be numeric, 15-30 digits)",
+        "updated": "Profile updated!",
+        "added": "Profile \"{name}\" added!"
     },
     "soundboard": {
         "driverRequired": "Audio Driver Required",
@@ -266,7 +340,16 @@
         "loudnessEq": "Loudness Eq.",
         "micVolume": "Mic Vol.",
         "globalVolume": "Sound Vol.",
-        "addSound": "Add Sound"
+        "addSound": "Add Sound",
+        "default": "Default",
+        "dragFiles": "Drag files here or click to browse",
+        "stopAll": "Stop All",
+        "viewMode": "Grid/List View",
+        "export": "Export Library",
+        "import": "Import Library",
+        "queue": "Queue",
+        "noFilesFound": "No valid audio files found",
+        "addedSounds": "Added {count} sound(s)"
     },
     "spotify": {
         "connected": "Connected",
@@ -296,7 +379,14 @@
         "discordUser": "Discord User",
         "sendNotification": "Send Notification",
         "messagePlaceholder": "Your message...",
-        "send": "Send"
+        "waitingConnection": "Waiting for connection...",
+        "send": "Send",
+        "export": "Export as .txt",
+        "pin": "Pin/Lock Window",
+        "close": "Close",
+        "renameHint": "Double click or Right-click to rename",
+        "newTab": "New Tab",
+        "notePrefix": "Note "
     },
     "smartAfk": {
         "title": "Smart AFK",
@@ -475,5 +565,18 @@
         "next": "Next",
         "finish": "Launch Solari",
         "start": "Launch Solari"
+    },
+    "hwMonitor": {
+        "title": "Hardware Monitor",
+        "description": "Display CPU, RAM and GPU in real-time in your Rich Presence.",
+        "cpu": "CPU",
+        "ram": "RAM",
+        "gpu": "GPU",
+        "monitorCpu": "Monitor CPU in Discord",
+        "monitorGpu": "Monitor GPU in Discord",
+        "includeTemp": "Include GPU Temperature",
+        "tempTitle": "Include GPU Temperature",
+        "temp": "+ Temp",
+        "preview": "Discord Preview:"
     }
 }
