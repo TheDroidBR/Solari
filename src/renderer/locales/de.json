@@ -124,6 +124,25 @@
                 "Lautstärke, Suchen, Shuffle und Repeat",
                 "Bibliothek und Musikwarteschlange"
             ]
+        },
+        "solarimessagetools": {
+            "title": "Solari MessageTools",
+            "description": "Schalten Sie erweiterte Funktionen frei: Schnell Bearbeiten, Anti-Tippen (Stealth), sofortige Übersetzung und Makro-Verknüpfungen.",
+            "features": [
+                "Anti-Tippen (Stealth-Modus)",
+                "Kontextmenü-Übersetzungen",
+                "Text-Makros & Schnell Bearbeiten"
+            ],
+            "quickEdit": "Schnell Bearbeiten & Löschen",
+            "quickEditDesc": "Doppelklick zum Bearbeiten, Umschalt+Klick zum sofortigen Löschen.",
+            "antiTyping": "Anti-Tippen (Stealth)",
+            "antiTypingDesc": "Tippen Sie heimlich, ohne die 'tippt...'-Anzeige auszulösen.",
+            "textMacros": "Text-Makros",
+            "textMacrosDesc": "Ermöglicht die sofortige Erweiterung von Schlüsselwörtern (z.B. /lenny).",
+            "activeTranslation": "Aktive Übersetzung",
+            "activeTranslationDesc": "Rechtsklick-Kontextmenü-Übersetzungen und Eingabeformatierung.",
+            "language": "Zielsprache",
+            "languageDesc": "Wählen Sie Ihre primäre Übersetzungssprache."
         }
     },
     "server": {
