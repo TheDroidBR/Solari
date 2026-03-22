@@ -9,6 +9,8 @@
  */
 
 const { ipcRenderer, shell } = require('electron');
+const fs = require('fs');
+const path = require('path');
 const { initI18n, t, applyTranslations, loadTranslations, getCurrentLang } = require('./i18n');
 
 // --- UI Elements ---
@@ -1256,6 +1258,10 @@ function openPluginConfig(pluginName) {
     if (pluginName.toLowerCase() === 'smartafk') panelId = 'configSmartAFKDetector';
     if (pluginName.toLowerCase() === 'spotifysync') panelId = 'configSpotifySync';
     if (pluginName.toLowerCase() === 'solarinotes') panelId = 'configSolariNotes';
+    if (pluginName.toLowerCase() === 'solarimessagetools') {
+        panelId = 'configSolariMessageTools';
+        if (typeof loadSolariMessageToolsConfig === 'function') loadSolariMessageToolsConfig();
+    }
 
     const panel = document.getElementById(panelId);
     if (panel) {
@@ -1431,7 +1437,7 @@ const previewBtn2 = document.getElementById('previewBtn2');
 const previewAppName = document.getElementById('previewAppName');
 
 // Store app name when received from main process
-let discordAppName = t('preview.loading') || 'Loading...';
+let discordAppName = 'Loading...';
 let globalDefaultAppName = 'Discord App'; // Store the original global app name separately
 let appNameReceived = false;
 
@@ -2185,8 +2191,11 @@ function updateUILanguage() {
     }
 
     // Server Status section
-    const serverTitle = document.querySelector('.server-info h2');
+    const serverTitle = document.querySelector('.server-status-card h3');
     if (serverTitle) serverTitle.textContent = t('server.title');
+
+    const wsStatusLabel = document.querySelector('#wsStatus')?.previousElementSibling;
+    if (wsStatusLabel) wsStatusLabel.textContent = t('server.ws');
 
     const wsStatus = document.getElementById('wsStatus');
     if (wsStatus) wsStatus.textContent = t('server.running');
@@ -2694,7 +2703,7 @@ function createSettingElement(item, config, pluginName = 'spotify') {
             const header = document.createElement('div');
             header.className = 'sp-header';
             header.innerHTML = `
-                <div class="sp-title">🎵 ${item.title}</div>
+                <div class="sp-title">${item.icon || ''} ${item.title}</div>
                 ${item.version ? `<div class="sp-version">${item.version}</div>` : ''}
             `;
             return header;
@@ -3084,6 +3093,17 @@ var PluginsTabManager = {
                 'Aparência customizável',
                 'Sincronização em tempo real'
             ]
+        },
+        solarimessagetools: {
+            displayName: 'Solari MessageTools',
+            icon: '💬',
+            requires: 'BetterDiscord',
+            features: [
+                'Edição e deleção acelerada',
+                'Tradução de mensagens nativa',
+                'Retenção de Ghost Messages',
+                'Furtividade Anti-Typing'
+            ]
         }
     },
 
@@ -3104,13 +3124,19 @@ var PluginsTabManager = {
             const labelEl = btn.querySelector('.bd-split-label');
             const originalLabel = labelEl ? labelEl.textContent : '';
             btn.disabled = true;
-            if (labelEl) labelEl.textContent = 'Instalando...';
+            if (labelEl) {
+                labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnInstalling');
+                labelEl.textContent = t('pluginStore.bdBtnInstalling') || 'Instalando...';
+            }
             btn.style.opacity = '0.7';
             try {
                 const result = await ipcRenderer.invoke('plugin:install-bd');
                 if (result && result.success) {
                     showToast('✅', 'BetterDiscord instalado com sucesso! Discord reiniciando...', 'success');
-                    if (labelEl) labelEl.textContent = 'Reinstalar BD';
+                    if (labelEl) {
+                        labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnReinstall');
+                        labelEl.textContent = t('pluginStore.bdBtnReinstall') || 'Reinstalar BD';
+                    }
                     // Cooldown: block auto-repair for 30s during Discord restart
                     this._bdActionCooldown = Date.now() + 30000;
                 } else {
@@ -3188,12 +3214,19 @@ var PluginsTabManager = {
                 if (headerBtn) {
                     headerBtn.disabled = true;
                     if (labelEl) labelEl.textContent = 'Desinstalando...';
+                    if (labelEl) {
+                        labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnUninstalling');
+                        labelEl.textContent = t('pluginStore.bdBtnUninstalling') || 'Desinstalando...';
+                    }
                     headerBtn.style.opacity = '0.7';
                     try {
                         const result = await ipcRenderer.invoke('plugin:uninstall-bd');
                         if (result && result.success) {
                             showToast('✅', 'BetterDiscord desinstalado! Plugins e temas preservados.', 'success');
-                            if (labelEl) labelEl.textContent = 'Instalar BD';
+                            if (labelEl) {
+                                labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnInstall');
+                                labelEl.textContent = t('pluginStore.bdBtnInstall') || 'Instalar BD';
+                            }
                             // Cooldown: block auto-repair for 30s
                             this._bdActionCooldown = Date.now() + 30000;
                         } else {
@@ -3287,32 +3320,56 @@ var PluginsTabManager = {
                 if (indicator) {
                     indicator.classList.add('bd-status-missing');
                     indicator.title = 'BetterDiscord not installed';
-                    if (text) text.textContent = t('pluginStore.bdStatusMissing') || 'Not Installed';
+                    if (text) {
+                        text.setAttribute('data-i18n', 'pluginStore.bdStatusMissing');
+                        text.textContent = t('pluginStore.bdStatusMissing') || 'Not Installed';
+                    }
                 }
-                if (labelEl) labelEl.textContent = 'Instalar BD';
+                if (labelEl) {
+                    labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnInstall');
+                    labelEl.textContent = t('pluginStore.bdBtnInstall') || 'Instalar BD';
+                }
             } else if (result.status === 'broken') {
                 if (brokenBanner) brokenBanner.style.display = 'flex';
                 if (indicator) {
                     indicator.classList.add('bd-status-broken');
                     indicator.title = 'BetterDiscord broken';
-                    if (text) text.textContent = t('pluginStore.bdStatusBroken') || 'Broken';
+                    if (text) {
+                        text.setAttribute('data-i18n', 'pluginStore.bdStatusBroken');
+                        text.textContent = t('pluginStore.bdStatusBroken') || 'Broken';
+                    }
                 }
-                if (labelEl) labelEl.textContent = 'Reparar BD';
+                if (labelEl) {
+                    labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnRepair');
+                    labelEl.textContent = t('pluginStore.bdBtnRepair') || 'Reparar BD';
+                }
             } else if (result.status === 'repairing') {
                 if (indicator) {
                     indicator.classList.add('bd-status-broken');
                     indicator.title = 'BetterDiscord reparando...';
-                    if (text) text.textContent = 'Reparando...';
+                    if (text) {
+                        text.setAttribute('data-i18n', 'pluginStore.bdStatusRepairing');
+                        text.textContent = t('pluginStore.bdStatusRepairing') || 'Reparando...';
+                    }
                 }
-                if (labelEl) labelEl.textContent = 'Reparando...';
+                if (labelEl) {
+                    labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnRepairing');
+                    labelEl.textContent = t('pluginStore.bdBtnRepairing') || 'Reparando...';
+                }
                 showToast('🔧', 'Auto-Repair: BD está sendo reparado agora...', 'info');
             } else {
                 if (indicator) {
                     indicator.classList.add('bd-status-ok');
                     indicator.title = 'BetterDiscord installed';
-                    if (text) text.textContent = t('pluginStore.bdStatusInstalled') || 'Installed';
+                    if (text) {
+                        text.setAttribute('data-i18n', 'pluginStore.bdStatusInstalled');
+                        text.textContent = t('pluginStore.bdStatusInstalled') || 'Installed';
+                    }
                 }
-                if (labelEl) labelEl.textContent = 'Reinstalar BD';
+                if (labelEl) {
+                    labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnReinstall');
+                    labelEl.textContent = t('pluginStore.bdBtnReinstall') || 'Reinstalar BD';
+                }
             }
         } catch (e) {
             console.error('[Plugins] Error handling BD status update:', e);
@@ -3356,6 +3413,14 @@ var PluginsTabManager = {
                 "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariNotes.plugin.js",
                 "fileName": "SolariNotes.plugin.js",
                 "changelog": "### v1.0.0 (2026-03-20)\n- 🚀 **Initial Release**: High-performance notepad built for Discord."
+            },
+            "solarimessagetools": {
+                "version": "1.0.0",
+                "author": "TheDroid",
+                "description": "Ferramentas completas de mensagens: Edição rápida, Tradução, Mensagens Fantasmas e Anti-Typing.",
+                "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMessageTools.plugin.js",
+                "fileName": "SolariMessageTools.plugin.js",
+                "changelog": "### v1.0.0\n- 🚀 **Initial Release**: Message utilities integrated natively with Solari App.\n- 👻 **Ghost Messages**: Keep deleted messages visible on your client.\n- 🌍 **Active Translation**: Translate incoming messages on the fly via context menus.\n- ⚡ **Quick Edit**: Double click to edit, Shift+Click to delete instantly.\n- 🤫 **Anti-Typing**: Prevent Discord from broadcasting your typing status."
             }
         };
 
@@ -4882,14 +4947,14 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
         // Build RPC preview string
         const parts = [];
         if (stats.cpu && toggleCPU.checked) {
-            parts.push(`CPU: ${stats.cpu.usage}%`);
+            parts.push(`${t('hwMonitor.cpu')}: ${stats.cpu.usage}%`);
         }
-        if (stats.ram && toggleRAM.checked) parts.push(`RAM: ${stats.ram.usedGB}/${stats.ram.totalGB}GB`);
+        if (stats.ram && toggleRAM.checked) parts.push(`${t('hwMonitor.ram')}: ${stats.ram.usedGB}/${stats.ram.totalGB}GB`);
         if (stats.gpu && toggleGPU.checked) {
             const showTemp = toggleGPUTemp.checked && stats.gpu.temp !== null;
             
             if (stats.gpu.usage !== null || showTemp) {
-                let gpuStr = `GPU:`;
+                let gpuStr = `${t('hwMonitor.gpu')}:`;
                 if (stats.gpu.usage !== null) gpuStr += ` ${stats.gpu.usage}%`;
                 if (showTemp) gpuStr += `${stats.gpu.usage !== null ? '' : ' '}(${stats.gpu.temp}°C)`;
                 parts.push(gpuStr.trim());
@@ -4993,3 +5058,29 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
     })();
 })();
 
+// --- SOLARI MESSAGETOOLS IPC & CONFIG MANAGEMENT ---
+function getMessageToolsConfigPath() {
+    const appData = process.env.APPDATA || (process.platform === 'darwin' ? process.env.HOME + '/Library/Application Support' : process.env.HOME + '/.config');
+    return path.join(appData, 'BetterDiscord', 'plugins', 'SolariMessageTools.config.json');
+}
+
+window.loadSolariMessageToolsConfig = function() {
+    try {
+        const configPath = getMessageToolsConfigPath();
+        if (fs.existsSync(configPath)) {
+            const raw = fs.readFileSync(configPath, 'utf8');
+            const data = JSON.parse(raw);
+            if (data.settings && data.schema) {
+                renderPluginSettings(data.schema, data.settings, 'messagetools', 'solari-messagetools-settings-container');
+            }
+        } else {
+            // Em vez de lutar, apenas pedimos pro usuário abri o BD para spawnar o arquivo!
+            const container = document.getElementById('solari-messagetools-settings-container');
+            if(container) {
+                container.innerHTML = '<div style="color: #ef4444; padding: 20px;">Schema não encontrado.<br><br><b>Reinicie ou habilite o Plugin "SolariMessageTools" dentro do BetterDiscord pelo menos 1 vez</b> para gerar o arquivo de link do Solari.</div>';
+            }
+        }
+    } catch (error) {
+        console.error("[MessageTools] Error loading dynamic config schema:", error);
+    }
+};

@@ -3239,6 +3239,24 @@ ipcMain.on('update-spotify-plugin-settings', (event, settings) => {
     });
 });
 
+ipcMain.on('update-messagetools-plugin-settings', (event, settings) => {
+    try {
+        const bdConfigPath = path.join(app.getPath('userData').replace('solari-app', 'BetterDiscord'), 'plugins', 'SolariMessageTools.config.json');
+        
+        let fileData = { settings: settings, schema: [] };
+        if (fs.existsSync(bdConfigPath)) {
+            try {
+                let existing = JSON.parse(fs.readFileSync(bdConfigPath, 'utf8'));
+                fileData = { ...existing, settings: { ...existing.settings, ...settings } };
+            } catch(e){}
+        }
+        fs.writeFileSync(bdConfigPath, JSON.stringify(fileData, null, 4), 'utf8');
+        console.log('[Solari] Solari MessageTools BD Plugin config updated via UI Schema!');
+    } catch (error) {
+        console.error("[Solari] Solari MessageTools IPC Saving Error:", error);
+    }
+});
+
 ipcMain.on('update-notes-plugin-settings', (event, settings) => {
     // Check if it's a reset action
     if (settings && settings.action === 'reset_position') {

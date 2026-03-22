@@ -5738,6 +5738,37 @@ body.eco-mode .neon-btn {
   }
 }
 
+/* ---- Plugins Info Icon (Disclaimer) ---- */
+.plugins-info-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 50%;
+  color: #7dd3fc;
+  cursor: help;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.5;
+  margin-left: 2px;
+}
+
+.plugins-info-icon svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 3px;
+}
+
+.plugins-info-icon:hover {
+  opacity: 1;
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
+  transform: scale(1.1) rotate(5deg);
+}
+
 /* ---- 1-Click BD Install Spinner ---- */
 .bd-install-spinner {
   display: inline-block;
