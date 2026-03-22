@@ -1,4 +1,4 @@
-## [1.8.0] - 2026-03-20
+## [1.8.0] - 2026-03-22
 **UPDATE 1.8.0: THE INFINITY CONVERGENCE**
 
 ---
@@ -17,6 +17,13 @@
   - **Smart Disclaimer**: Added a minimalist info icon to clarify the open-source nature of BetterDiscord.
 
 ### 🔌 New Plugins
+- **Solari MessageTools**: The ultimate messaging utility for power users.
+  - **Text Macros**: Access 25+ premium macros (e.g. /shrug, /solari) for instant expression.
+  - **Real-Time Localization**: Fully translated into English, Portuguese, and German with instant UI state updates.
+  - **Quick Edit & Delete**: Double-click to edit and Shift+Click to delete messages with unmatched speed.
+  - **Anti-Typing (Stealth Mode)**: Type secrets without broadcasting your "is typing..." status.
+  - **Active Translation**: Seamlessly translate any incoming message via the Discord context menu.
+
 - **Solari Notes**: Enhanced note windows for a more professional workflow within Discord.
   - **Omni-Directional Resizing**: Resize note windows by pulling from any edge or corner.
   - **Persistent Workspace**: Note window sizes and "Pinned" status are saved to disk and restored automatically.
