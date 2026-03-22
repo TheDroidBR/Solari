@@ -188,6 +188,8 @@
             "quickEditDesc": "Duplo clique para editar, Shift+Clique para deletar instantaneamente.",
             "antiTyping": "Anti-Typing (Modo Anônimo)",
             "antiTypingDesc": "Digite em segredo sem acionar o indicador de 'está digitando'.",
+            "editRevealer": "Revelador de Edições",
+            "editRevealerDesc": "Mostra o texto original das mensagens editadas localmente.",
             "textMacros": "Macros de Texto",
             "textMacrosDesc": "Habilite a expansão instantânea de palavras-chave (ex: /lenny).",
             "activeTranslation": "Tradução Ativa",

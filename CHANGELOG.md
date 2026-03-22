@@ -9,6 +9,7 @@
   - **NVIDIA Integration**: Direct integration for NVIDIA GPUs, providing load and temperature metrics with zero overhead.
   - **Persistent Uptime**: Hardware updates no longer reset the "Elapsed Time" counter in Discord.
   - **Customizable Toggles**: Individual switches for each component, including a specialized "Glow Pill" toggle for GPU temperature.
+- **Global Localization**: 100% parity across **English, Portuguese, German, and Spanish** for all features.
 
 - **BetterDiscord 1-Click Manager**: Take full control of your BetterDiscord installation directly from the Solari Plugins tab.
   - **One-Click Installation**: Automatically downloads the latest `betterdiscord.asar`, injects the loader hook, and restarts Discord.
