@@ -8,7 +8,12 @@
         "connecting": "Conectando...",
         "themeDefault": "Tema Predeterminado",
         "themeDark": "Tema Oscuro",
-        "themeLight": "Tema Claro"
+        "themeLight": "Tema Claro",
+        "version": "Versión",
+        "ecoTitle": "Modo Eco (Ahorra CPU)",
+        "neonTitle": "Alternar Efectos Neón",
+        "customCssTitle": "CSS Personalizado",
+        "exitManualTitle": "Salir del Modo Manual (Volver a Auto)"
     },
     "rpc": {
         "switching": "Cambiando aplicación de Discord...",
@@ -22,7 +27,16 @@
         "returningToAutoDetect": "Volviendo a Auto-Detección...",
         "detectionMethodUpdated": "Método de detección actualizado",
         "clientIdSaved": "¡Client ID guardado!",
-        "clientIdInvalid": "Client ID inválido"
+        "clientIdInvalid": "Client ID inválido",
+        "configSaved": "Configuración Guardada",
+        "identityDeleted": "Perfil eliminado",
+        "fillNameAndId": "Completa el nombre y Client ID",
+        "invalidClientId": "Client ID inválido (debe ser numérico, 15-30 dígitos)",
+        "identityUpdated": "¡Perfil actualizado!",
+        "identityAdded": "¡Perfil \"{name}\" añadido!",
+        "notesExported": "Notas Exportadas",
+        "settingsReset": "Configuración Restablecida",
+        "error": "Error"
     },
     "about": {
         "description": "Gestor Premium de Rich Presence para Discord",
@@ -63,8 +77,8 @@
         "generalDesc": "Configuración de inicio y de interfaz.",
         "rpcTitle": "Discord RPC",
         "rpcDesc": "Ajustes globales de integración con Discord.",
-        "updatesTitle": "Actualizaciones",
-        "updatesDesc": "Administra actualizaciones automáticas.",
+        "updatesTitle": "Actualizaciones e Info",
+        "updatesDesc": "Administra actualizaciones automáticas y ver registros de cambios.",
         "labelStart": "Inicio",
         "labelHidden": "Oculto",
         "labelTray": "Bandeja",
@@ -93,22 +107,120 @@
         "updateAll": "Actualizar Todos",
         "bdStatusInstalled": "Instalado",
         "bdStatusBroken": "Roto",
+        "bdStatusRepairing": "Reparando...",
         "bdStatusMissing": "No Instalado",
+        "bdBtnInstall": "Instalar BD",
+        "bdBtnReinstall": "Reinstalar BD",
+        "bdBtnRepair": "Reparar BD",
+        "bdBtnUninstall": "Desinstalar BD",
+        "bdBtnInstalling": "Instalando...",
+        "bdBtnRepairing": "Reparando...",
+        "bdBtnUninstalling": "Desinstalando...",
         "bdStatusChecking": "Comprobando...",
-        "update": "Actualizar"
+        "update": "Actualizar",
+        "bdDisclaimerTitle": "Aviso Legal y Afiliación",
+        "bdDisclaimerText": "Solari es un proyecto independiente. NO somos los creadores de BetterDiscord y no tenemos afiliación oficial con el equipo de BetterDiscord. BetterDiscord es un proyecto de código abierto por su propia comunidad.",
+        "confirmDelete": "¿Quieres desinstalar {name}?\nEl archivo se eliminará de la carpeta de plugins de BetterDiscord.",
+        "deletedSuccess": "¡{name} desinstalado!",
+        "errorDownload": "Error al descargar plugin: {error}",
+        "errorDelete": "Error al desinstalar: {error}",
+        "updateAllSuccess": "¡{count} plugin(s) actualizados!",
+        "updateAllError": "{count} plugin(s) fallaron",
+        "allUpToDate": "¡Todos los plugins ya están actualizados!",
+        "verifying": "Verificando...",
+        "updatingPlugin": "Actualizando {name}..."
+    },
+    "plugins": {
+        "title": "🔌 Plugins",
+        "connected": "Conectado",
+        "disconnected": "Desconectado",
+        "trash": "Papelera (Bloqueados)",
+        "noPlugin": "Ningún plugin conectado...",
+        "configure": "Configurar",
+        "moveToTrash": "Mover a Papelera",
+        "emptyTrash": "Papelera vacía...",
+        "restore": "Restaurar",
+        "smartafk": {
+            "title": "Detector SmartAFK",
+            "description": "Detecta inactividad automáticamente y actualiza tu estado de Discord. Sincroniza con Solari vía WebSocket.",
+            "features": [
+                "Auto-detectar inactividad",
+                "Tiempo de espera personalizable",
+                "Sync con app Solari vía WebSocket"
+            ]
+        },
+        "spotifysync": {
+            "title": "SpotifySync",
+            "description": "Sincroniza Spotify con Discord y controla la reproducción directamente desde Discord.",
+            "features": [
+                "Controles Play/Pause/Siguiente/Anterior",
+                "Volumen, Seek, Shuffle y Repeat",
+                "Biblioteca y Cola de música"
+            ]
+        },
+        "solarinotes": {
+            "title": "Solari Notes",
+            "description": "Bloc de notas elegante y sincronizado integrado estrictamente en la interfaz de Discord. Guarda de forma segura en tu PC local a través de la Solari App.",
+            "features": [
+                "Bloc de notas de alto rendimiento",
+                "Almacenamiento local seguro",
+                "Apariencia personalizable",
+                "Sincronización en tiempo real"
+            ],
+            "opacity": "Opacidad del Panel",
+            "fontSize": "Tamaño de Fuente",
+            "fontFamily": "Familia de Fuente",
+            "blur": "Desenfoque de Fondo",
+            "accent": "Color de Acento",
+            "autoSave": "Retraso de Autoguardado",
+            "padding": "Padding del Editor",
+            "reset": "Restablecer Tamaño y Posición de Ventana"
+        },
+        "solarimessagetools": {
+            "title": "Solari MessageTools",
+            "description": "Desbloquea poderes avanzados: Edición Rápida, modo sigilo (Anti-Typing), traducción instantánea y macros.",
+            "features": [
+                "Modo Sigilo (Anti-Typing)",
+                "Traducciones en Menú Contextual",
+                "Macros de Texto y Edición Rápida"
+            ],
+            "quickEdit": "Edición y Borrado Rápido",
+            "quickEditDesc": "Doble clic para editar, Shift+Clic para borrar mensajes al instante.",
+            "antiTyping": "Anti-Typing (Sigilo)",
+            "antiTypingDesc": "Escribe en secreto sin activar el indicador de 'está escribiendo...'.",
+            "editRevealer": "Revelador de Ediciones",
+            "editRevealerDesc": "Muestra el texto original de mensajes editados localmente.",
+            "textMacros": "Macros de Texto",
+            "textMacrosDesc": "Permite la expansión instantánea de palabras clave (ej: /lenny).",
+            "activeTranslation": "Traducción Activa",
+            "activeTranslationDesc": "Traducciones en el menú contextual y formateo de entrada.",
+            "language": "Idioma Destino",
+            "languageDesc": "Elige tu idioma principal de salida para traducciones."
+        }
     },
     "server": {
         "title": "Estado del Servidor",
+        "subtitle": "Monitoreo en tiempo real de los servicios Solari",
         "running": "Ejecutando",
         "connected": "Conectado",
         "disconnected": "Desconectado",
         "testConnection": "Probar Conexión",
-        "exportLogs": "Exportar Logs"
+        "exportLogs": "Exportar Logs",
+        "exporting": "Exportando...",
+        "exported": "¡Exportado!",
+        "ws": "WebSocket",
+        "rpc": "Discord RPC",
+        "spotify": "SpotifySync",
+        "afk": "SmartAFK"
     },
     "modal": {
         "confirmTitle": "Confirmación",
         "cancel": "Cancelar",
         "confirm": "Confirmar"
+    },
+    "prompt": {
+        "clientIdTitle": "Ingresa Client ID Global",
+        "clientIdDesc": "Ingresa el Client ID de tu aplicación personalizada:"
     },
     "connection": {
         "testConnection": "Probar Conexión",
@@ -125,12 +237,12 @@
         "competing": "Compitiendo",
         "details": "Detalles (Línea 1)",
         "detailsPlaceholder": "¿Qué estás haciendo?",
-        "detailsUrl": "URL de Detalles (Opcional)",
-        "detailsUrlPlaceholder": "Enlace al hacer clic en (Línea 1)",
+        "detailsUrl": "URL DE DETALLES (OPCIONAL)",
+        "detailsUrlPlaceholder": "Enlace al hacer clic en Línea 1 (ej: https://...)",
         "state": "Estado (Línea 2)",
         "statePlaceholder": "Estado actual",
-        "stateUrl": "URL de Estado (Opcional)",
-        "stateUrlPlaceholder": "Enlace al hacer clic en (Línea 2)",
+        "stateUrl": "URL DE ESTADO (OPCIONAL)",
+        "stateUrlPlaceholder": "Enlace al hacer clic en Línea 2 (ej: https://...)",
         "largeImage": "Imagen Grande (URL)",
         "largeImageText": "Texto de Imagen Grande",
         "smallImage": "Imagen Pequeña (URL)",
@@ -138,7 +250,7 @@
         "smallImageHint": "Imagen que aparece en la esquina inferior derecha",
         "smallImageText": "Texto de Imagen Pequeña",
         "smallImageTextPlaceholder": "Texto al pasar el mouse",
-        "partySize": "Jugadores (Party)",
+        "partySize": "Tamaño de Grupo",
         "partyCurrent": "Actual",
         "partyMax": "Máximo",
         "partyOf": "de",
@@ -150,9 +262,9 @@
         "timestampEnd": "Mostrar tiempo restante (termina en...)",
         "timestampEndHint": "Muestra cuánto falta en lugar de cuánto pasó",
         "buttons": "Botones",
-        "button1Label": "Texto del Botón 1",
+        "button1Label": "Etiqueta del Botón 1",
         "button1Url": "URL del Botón 1",
-        "button2Label": "Texto del Botón 2",
+        "button2Label": "Etiqueta del Botón 2",
         "button2Url": "URL del Botón 2",
         "largeImagePlaceholder": "Pega URL de imagen o clave de asset",
         "largeImageTextPlaceholder": "Texto al pasar el mouse sobre la imagen",
@@ -176,11 +288,14 @@
         "import": "Importar",
         "namePlaceholder": "Nombre del Preset",
         "save": "Guardar",
-        "deleted": "Preset eliminado!",
+        "deleted": "¡Preset eliminado!",
         "deleteConfirmTitle": "¿Eliminar Preset?",
         "deleteConfirmMessage": "¿Estás seguro de eliminar \"{name}\"?",
         "replaceConfirmTitle": "¿Reemplazar Preset?",
-        "replaceConfirmMessage": "¿Sobrescribir \"{name}\" con los datos actuales?"
+        "replaceConfirmMessage": "¿Sobrescribir \"{name}\" con los datos actuales?",
+        "exportConfirm": "¡Presets exportados con éxito!",
+        "importConfirm": "¡Presets importados con éxito!",
+        "globalDefault": "Predeterminado Global"
     },
     "identities": {
         "title": "Perfiles de App",
@@ -190,7 +305,15 @@
         "add": "+ Añadir",
         "edit": "Editar",
         "remove": "Eliminar",
-        "globalDefault": "Predeterminado Global"
+        "globalDefault": "Predeterminado Global",
+        "noIdentities": "Ningún perfil registrado. Añade abajo.",
+        "confirmDeleteTitle": "¿Eliminar Perfil?",
+        "confirmDeleteMessage": "¿Estás seguro de eliminar \"{name}\"?",
+        "deleted": "Perfil eliminado",
+        "fillNameAndId": "Completa el nombre y Client ID",
+        "invalidClientId": "Client ID inválido (debe ser numérico, 15-30 dígitos)",
+        "updated": "¡Perfil actualizado!",
+        "added": "¡Perfil \"{name}\" añadido!"
     },
     "soundboard": {
         "driverRequired": "Requiere Controlador de Audio",
@@ -215,7 +338,16 @@
         "loudnessEq": "Ecualización Vol.",
         "micVolume": "Vol. Mic",
         "globalVolume": "Vol. Sonidos",
-        "addSound": "Añadir Sonido"
+        "addSound": "Añadir Sonido",
+        "default": "Predeterminado",
+        "dragFiles": "Arrastra archivos aquí o haz clic para buscar",
+        "stopAll": "Detener Todo",
+        "viewMode": "Vista de Cuadrícula/Lista",
+        "export": "Exportar Biblioteca",
+        "import": "Importar Biblioteca",
+        "queue": "Cola",
+        "noFilesFound": "No se encontraron archivos de audio válidos",
+        "addedSounds": "Se añadieron {count} sonido(s)"
     },
     "spotify": {
         "connected": "Conectado",
@@ -245,7 +377,14 @@
         "discordUser": "Usuario de Discord",
         "sendNotification": "Enviar Notificación",
         "messagePlaceholder": "Tu mensaje...",
-        "send": "Enviar"
+        "waitingConnection": "Esperando conexión...",
+        "send": "Enviar",
+        "export": "Exportar como .txt",
+        "pin": "Anclar/Bloquear Ventana",
+        "close": "Cerrar",
+        "renameHint": "Doble clic o clic derecho para renombrar",
+        "newTab": "Nueva Pestaña",
+        "notePrefix": "Nota "
     },
     "smartAfk": {
         "title": "Smart AFK",
@@ -275,35 +414,6 @@
         "statusChangedTo": "Estado cambiado a:",
         "customStatusChangedTo": "Estado personalizado cambiado a:",
         "levelUp": "Subió al Nivel"
-    },
-    "plugins": {
-        "title": "🔌 Plugins",
-        "connected": "Conectado",
-        "disconnected": "Desconectado",
-        "trash": "Papelera (Bloqueados)",
-        "noPlugin": "Ningún plugin conectado...",
-        "configure": "Configurar",
-        "moveToTrash": "Mover a Papelera",
-        "emptyTrash": "Papelera vacía...",
-        "restore": "Restaurar",
-        "smartafk": {
-            "title": "Detector SmartAFK",
-            "description": "Detecta inactividad automáticamente y actualiza tu estado de Discord. Sincroniza con Solari vía WebSocket.",
-            "features": [
-                "Auto-detectar inactividad",
-                "Tiempo de espera personalizable",
-                "Sync con app Solari vía WebSocket"
-            ]
-        },
-        "spotifysync": {
-            "title": "SpotifySync",
-            "description": "Sincroniza Spotify con Discord y controla la reproducción directamente desde Discord.",
-            "features": [
-                "Controles Play/Pause/Siguiente/Anterior",
-                "Volumen, Seek, Shuffle y Repeat",
-                "Biblioteca y Cola de música"
-            ]
-        }
     },
     "dialogs": {
         "confirm": "Confirmar",
@@ -453,5 +563,18 @@
         "next": "Siguiente",
         "finish": "Iniciar Solari",
         "start": "Iniciar Solari"
+    },
+    "hwMonitor": {
+        "title": "Hardware Monitor",
+        "description": "Muestra CPU, RAM y GPU en tiempo real en tu Rich Presence.",
+        "cpu": "CPU",
+        "ram": "RAM",
+        "gpu": "GPU",
+        "monitorCpu": "Monitorear CPU en Discord",
+        "monitorGpu": "Monitorear GPU en Discord",
+        "includeTemp": "Incluir Temperatura de GPU",
+        "tempTitle": "Incluir Temperatura de GPU",
+        "temp": "+ Temp",
+        "preview": "Vista Previa de Discord:"
     }
 }

@@ -8,7 +8,12 @@
         "connecting": "Verbinden...",
         "themeDefault": "Standard-Design",
         "themeDark": "Dunkles Design",
-        "themeLight": "Helles Design"
+        "themeLight": "Helles Design",
+        "version": "Version",
+        "ecoTitle": "Eco-Modus (Spart CPU)",
+        "neonTitle": "Neon-Effekte umschalten",
+        "customCssTitle": "Benutzerdefiniertes CSS",
+        "exitManualTitle": "Manuellen Modus verlassen (Zurück zu Auto)"
     },
     "rpc": {
         "switching": "Wechsle Discord App...",
@@ -22,7 +27,16 @@
         "returningToAutoDetect": "Zurück zur Auto-Erkennung...",
         "detectionMethodUpdated": "Erkennungsmethode aktualisiert",
         "clientIdSaved": "Client ID gespeichert!",
-        "clientIdInvalid": "Ungültige Client ID"
+        "clientIdInvalid": "Ungültige Client ID",
+        "configSaved": "Konfiguration gespeichert",
+        "identityDeleted": "Profil entfernt",
+        "fillNameAndId": "Name und Client ID ausfüllen",
+        "invalidClientId": "Ungültige Client ID (muss numerisch sein, 15-30 Stellen)",
+        "identityUpdated": "Profil aktualisiert!",
+        "identityAdded": "Profil \"{name}\" hinzugefügt!",
+        "notesExported": "Notizen exportiert",
+        "settingsReset": "Einstellungen zurückgesetzt",
+        "error": "Fehler"
     },
     "about": {
         "description": "Premium Discord Rich Presence Manager",
@@ -64,7 +78,7 @@
         "rpcTitle": "Discord RPC",
         "rpcDesc": "Globale Einstellungen für die Discord-Integration.",
         "updatesTitle": "Updates & Info",
-        "updatesDesc": "Verwalten Sie automatische Updates.",
+        "updatesDesc": "Verwalten Sie automatische Updates und Änderungsprotokolle.",
         "labelStart": "Start",
         "labelHidden": "Versteckt",
         "labelTray": "Tray",
@@ -93,9 +107,28 @@
         "updateAll": "Alle aktualisieren",
         "bdStatusInstalled": "Installiert",
         "bdStatusBroken": "Defekt",
+        "bdStatusRepairing": "Reparieren...",
         "bdStatusMissing": "Nicht installiert",
+        "bdBtnInstall": "BD Installieren",
+        "bdBtnReinstall": "BD Neu installieren",
+        "bdBtnRepair": "BD Reparieren",
+        "bdBtnUninstall": "BD Deinstallieren",
+        "bdBtnInstalling": "Wird installiert...",
+        "bdBtnRepairing": "Wird repariert...",
+        "bdBtnUninstalling": "Wird deinstalliert...",
         "bdStatusChecking": "Prüfen...",
-        "update": "Aktualisieren"
+        "update": "Aktualisieren",
+        "bdDisclaimerTitle": "Haftungsausschluss & Zugehörigkeit",
+        "bdDisclaimerText": "Solari ist ein unabhängiges Projekt. Wir sind NICHT die Ersteller von BetterDiscord und stehen in keiner offiziellen Verbindung zum BetterDiscord-Team. BetterDiscord ist ein Open-Source-Projekt seiner eigenen Community.",
+        "confirmDelete": "Möchten Sie {name} deinstallieren?\nDie Datei wird aus dem BetterDiscord-Plugin-Ordner entfernt.",
+        "deletedSuccess": "{name} deinstalliert!",
+        "errorDownload": "Fehler beim Herunterladen des Plugins: {error}",
+        "errorDelete": "Fehler beim Deinstallieren: {error}",
+        "updateAllSuccess": "{count} Plugin(s) aktualisiert!",
+        "updateAllError": "{count} Plugin(s) fehlgeschlagen",
+        "allUpToDate": "Alle Plugins sind bereits auf dem neuesten Stand!",
+        "verifying": "Überprüfen...",
+        "updatingPlugin": "Aktualisiere {name}..."
     },
     "plugins": {
         "title": "🔌 Plugins",
@@ -125,6 +158,24 @@
                 "Bibliothek und Musikwarteschlange"
             ]
         },
+        "solarinotes": {
+            "title": "Solari Notes",
+            "description": "Elegantes, synchronisiertes Notizbuch, das strikt in die Discord-UI integriert ist. Speichert sicher auf Ihrem PC über die Solari App.",
+            "features": [
+                "Hochleistungs-Notizbuch",
+                "Sicherer lokaler Speicher",
+                "Anpassbares Erscheinungsbild",
+                "Echtzeit-Synchronisation"
+            ],
+            "opacity": "Panel-Deckkraft",
+            "fontSize": "Schriftgröße",
+            "fontFamily": "Schriftfamilie",
+            "blur": "Hintergrund-Unschärfe",
+            "accent": "Akzentfarbe",
+            "autoSave": "Auto-Speicher Verzögerung",
+            "padding": "Editor-Abstand",
+            "reset": "Fenstergröße & Position zurücksetzen"
+        },
         "solarimessagetools": {
             "title": "Solari MessageTools",
             "description": "Schalten Sie erweiterte Funktionen frei: Schnell Bearbeiten, Anti-Tippen (Stealth), sofortige Übersetzung und Makro-Verknüpfungen.",
@@ -137,6 +188,8 @@
             "quickEditDesc": "Doppelklick zum Bearbeiten, Umschalt+Klick zum sofortigen Löschen.",
             "antiTyping": "Anti-Tippen (Stealth)",
             "antiTypingDesc": "Tippen Sie heimlich, ohne die 'tippt...'-Anzeige auszulösen.",
+            "editRevealer": "Edit Revealer",
+            "editRevealerDesc": "Zeigt den Originaltext von bearbeiteten Nachrichten lokal an.",
             "textMacros": "Text-Makros",
             "textMacrosDesc": "Ermöglicht die sofortige Erweiterung von Schlüsselwörtern (z.B. /lenny).",
             "activeTranslation": "Aktive Übersetzung",
@@ -147,16 +200,27 @@
     },
     "server": {
         "title": "Server Status",
+        "subtitle": "Echtzeit-Überwachung der Solari-Dienste",
         "running": "Läuft",
         "connected": "Verbunden",
         "disconnected": "Getrennt",
         "testConnection": "Verbindung testen",
-        "exportLogs": "Logs exportieren"
+        "exportLogs": "Logs exportieren",
+        "exporting": "Wird exportiert...",
+        "exported": "Exportiert!",
+        "ws": "WebSocket",
+        "rpc": "Discord RPC",
+        "spotify": "SpotifySync",
+        "afk": "SmartAFK"
     },
     "modal": {
         "confirmTitle": "Bestätigung",
         "cancel": "Abbrechen",
         "confirm": "Bestätigen"
+    },
+    "prompt": {
+        "clientIdTitle": "Globale Client ID eingeben",
+        "clientIdDesc": "Geben Sie Ihre benutzerdefinierte Anwendungs-Client-ID ein:"
     },
     "connection": {
         "testConnection": "Verbindung testen",
@@ -228,7 +292,10 @@
         "deleteConfirmTitle": "Voreinstellung löschen?",
         "deleteConfirmMessage": "Möchten Sie \"{name}\" wirklich löschen?",
         "replaceConfirmTitle": "Voreinstellung ersetzen?",
-        "replaceConfirmMessage": "\"{name}\" mit aktuellen Daten überschreiben?"
+        "replaceConfirmMessage": "\"{name}\" mit aktuellen Daten überschreiben?",
+        "exportConfirm": "Voreinstellungen erfolgreich exportiert!",
+        "importConfirm": "Voreinstellungen erfolgreich importiert!",
+        "globalDefault": "Globaler Standard"
     },
     "identities": {
         "title": "App-Profile",
@@ -238,7 +305,15 @@
         "add": "+ Hinzufügen",
         "edit": "Bearbeiten",
         "remove": "Entfernen",
-        "globalDefault": "Globaler Standard"
+        "globalDefault": "Globaler Standard",
+        "noIdentities": "Keine Profile registriert. Unten hinzufügen.",
+        "confirmDeleteTitle": "Profil löschen?",
+        "confirmDeleteMessage": "Möchten Sie \"{name}\" wirklich löschen?",
+        "deleted": "Profil entfernt",
+        "fillNameAndId": "Bitte Name und Client ID ausfüllen",
+        "invalidClientId": "Ungültige Client ID (muss numerisch sein, 15-30 Stellen)",
+        "updated": "Profil aktualisiert!",
+        "added": "Profil \"{name}\" hinzugefügt!"
     },
     "soundboard": {
         "driverRequired": "Audiotreiber erforderlich",
@@ -263,7 +338,16 @@
         "loudnessEq": "Lautstärkeausgleich",
         "micVolume": "Mic Lautst.",
         "globalVolume": "Sound Lautst.",
-        "addSound": "Sound hinzufügen"
+        "addSound": "Sound hinzufügen",
+        "default": "Standard",
+        "dragFiles": "Dateien hierher ziehen oder zum Suchen klicken",
+        "stopAll": "Alle stoppen",
+        "viewMode": "Gitter/Listenansicht",
+        "export": "Bibliothek exportieren",
+        "import": "Bibliothek importieren",
+        "queue": "Warteschlange",
+        "noFilesFound": "Keine gültigen Audiodateien gefunden",
+        "addedSounds": "{count} Sound(s) hinzugefügt"
     },
     "spotify": {
         "connected": "Verbunden",
@@ -293,7 +377,14 @@
         "discordUser": "Discord Benutzer",
         "sendNotification": "Benachrichtigung senden",
         "messagePlaceholder": "Deine Nachricht...",
-        "send": "Senden"
+        "waitingConnection": "Warte auf Verbindung...",
+        "send": "Senden",
+        "export": "Als .txt exportieren",
+        "pin": "Fenster anheften/sperren",
+        "close": "Schließen",
+        "renameHint": "Doppelklick oder Rechtsklick zum Umbenennen",
+        "newTab": "Neuer Tab",
+        "notePrefix": "Notiz "
     },
     "smartAfk": {
         "title": "Smart AFK",
@@ -472,5 +563,18 @@
         "next": "Weiter",
         "finish": "Solari starten",
         "start": "Solari starten"
+    },
+    "hwMonitor": {
+        "title": "Hardware Monitor",
+        "description": "Zeigen Sie CPU, RAM und GPU in Echtzeit in Ihrer Rich Presence an.",
+        "cpu": "CPU",
+        "ram": "RAM",
+        "gpu": "GPU",
+        "monitorCpu": "CPU in Discord überwachen",
+        "monitorGpu": "GPU in Discord überwachen",
+        "includeTemp": "GPU-Temperatur einschließen",
+        "tempTitle": "GPU-Temperatur einschließen",
+        "temp": "+ Temp",
+        "preview": "Discord Vorschau:"
     }
 }
