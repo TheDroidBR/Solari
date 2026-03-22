@@ -178,20 +178,16 @@
         },
         "solarimessagetools": {
             "title": "Solari MessageTools",
-            "description": "Desbloqueie poderes avançados: Quick Edit, modo stealth (Anti-Typing), tradução instantânea, histórico de apagadas e macros de texto.",
+            "description": "Desbloqueie poderes avançados: Quick Edit, modo stealth (Anti-Typing), tradução instantânea e macros de texto.",
             "features": [
                 "Modo Anônimo (Anti-Typing)",
                 "Traduções no Menu de Contexto",
-                "Mensagens Fantasmas e Edição Rápida"
+                "Macros de Texto e Edição Rápida"
             ],
             "quickEdit": "Quick Edit & Delete",
             "quickEditDesc": "Duplo clique para editar, Shift+Clique para deletar instantaneamente.",
             "antiTyping": "Anti-Typing (Modo Anônimo)",
             "antiTypingDesc": "Digite em segredo sem acionar o indicador de 'está digitando'.",
-            "ghostMessages": "Mensagens Fantasmas",
-            "ghostMessagesDesc": "Mantenha as mensagens deletadas visíveis localmente no seu histórico.",
-            "editRevealer": "Revelador de Edições",
-            "editRevealerDesc": "Mostra o texto original das mensagens editadas localmente.",
             "textMacros": "Macros de Texto",
             "textMacrosDesc": "Habilite a expansão instantânea de palavras-chave (ex: /lenny).",
             "activeTranslation": "Tradução Ativa",

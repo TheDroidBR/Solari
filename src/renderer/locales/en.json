@@ -178,18 +178,16 @@
         },
         "solarimessagetools": {
             "title": "Solari MessageTools",
-            "description": "Unlock advanced powers: Quick Edit, Anti-Typing stealth, instant translation, deleted messages history, and macro shortcuts.",
+            "description": "Unlock advanced powers: Quick Edit, Anti-Typing stealth, instant translation, and macro shortcuts.",
             "features": [
                 "Anti-Typing (Stealth Mode)",
                 "Context Menu Translations",
-                "Ghost Messages & Quick Edit"
+                "Text Macros & Quick Edit"
             ],
             "quickEdit": "Quick Edit & Delete",
             "quickEditDesc": "Double-click to edit, Shift+Click to instantly delete messages.",
             "antiTyping": "Anti-Typing (Stealth)",
             "antiTypingDesc": "Secretly type without triggering the 'is typing...' indicator.",
-            "ghostMessages": "Ghost Messages",
-            "ghostMessagesDesc": "Keep deleted messages locally visible in your chat history.",
             "editRevealer": "Edit Revealer",
             "editRevealerDesc": "Show the original text of edited messages locally.",
             "textMacros": "Text Macros",
