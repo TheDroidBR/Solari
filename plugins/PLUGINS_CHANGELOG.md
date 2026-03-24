@@ -1,5 +1,21 @@
 # Plugins Changelog
 
+## SolariNotes v1.0.1 (2026-03-24)
+- 🛡️ **Critical Fix: Discord UI Crash**: Relocated panel injection from `#app-mount` to `document.body`. This prevents a React 18 rendering conflict that caused the Discord interface to "cut off" and show black areas when opening user profiles.
+- 🎯 **Fixed Icon Injection**: Updated toolbar selectors to be more specific, preventing the notes icon from accidentally injecting itself into user profile modals.
+
+## SolariNotes v1.0.0 (2026-03-22)
+- 🚀 **Initial Release**: A sleek, synchronized notepad integrated directly into the Discord toolbar.
+- 💾 **Local Sync**: Automatically saves notes to your PC via the Solari Desktop App.
+- 🪟 **Multi-Window Support**: Ability to "tear off" tabs into independent floating windows.
+- 🎨 **Glassmorphism UI**: Premium design with customizable blur, opacity, and accent colors.
+
+## Solari MessageTools v1.0.0 (2026-03-22)
+- 🚀 **Initial Release**: Power-user utilities for Discord messaging.
+- ⌨️ **Text Macros**: Support for 25+ advanced commands and custom snippets.
+- 🚫 **Anti-Typing**: Option to hide your "typing..." status from others.
+- 📝 **Quick Edit & Reveal**: Enhanced message editing and deletion awareness.
+
 ## SpotifySync v2.1.3 (2026-03-19)
 - 🔒 **Critical Fix: Token Amnesia**: The plugin now completely ignores Auth sync payloads pushed from the Solari Desktop App to prevent Discord from overwriting its valid tokens with empty ones on PC startup.
 - 🛡️ **Critical Fix: Race Condition**: Wrapped the `refresh_token` Spotify Web API OAuth flow inside a JavaScript Promise Mutex. This prevents concurrent background routines (like lyrics fetchers and status pollers) from firing duplicate refresh requests at the exact millisecond the 1-hour token expires. Duplicate requests previously caused Spotify to return an `invalid_grant` error, forcing the plugin to falsely assume access was revoked and wiping your perfectly valid login keys from disk. Your Premium connection is now immortal.
