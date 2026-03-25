@@ -94,15 +94,15 @@ Solari collects **minimal, anonymous telemetry** to help us understand how many 
 
 This data is used solely for usage statistics and is automatically deleted after 90 seconds of inactivity. For more details, see our [Privacy Policy](https://solarirpc.com/privacy.html).
 
-## 🛡️ Segurança e Confiança (SmartScreen)
+## 🔒 Security & Trust (SmartScreen)
 
-O **Solari** é um software de código aberto e seguro. Como não pagamos por um certificado de assinatura digital (que custa centenas de dólares), o Windows SmartScreen pode exibir um aviso ao abrir o `.exe` pela primeira vez.
+**Solari** is safe, open-source software. Since we do not pay for a digital signature certificate (which costs hundreds of dollars), Windows SmartScreen may display a warning when opening the `.exe` for the first time.
 
-**Para abrir com segurança:**
-1. Clique em **"Mais informações"** (More info).
-2. Clique em **"Executar assim mesmo"** (Run anyway).
+**To open safely:**
+1. Click on **"More info"**.
+2. Click on **"Run anyway"**.
 
-Isso acontece apenas porque somos um projeto independente. Você pode verificar todo o código-fonte aqui no GitHub.
+This happens only because we are an independent project. You can verify the entire source code here on GitHub.
 
 ## 👨‍💻 Credits
 
