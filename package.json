@@ -1,7 +1,7 @@
 {
   "name": "solari",
   "productName": "Solari",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Solari - Advanced Discord Rich Presence",
   "main": "src/main/index.js",
   "scripts": {
@@ -47,7 +47,10 @@
       }
     ],
     "win": {
-      "target": "portable",
+      "target": [
+        "portable",
+        "msix"
+      ],
       "icon": "SolariPhotoTransparente.ico"
     },
     "portable": {

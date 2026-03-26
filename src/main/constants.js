@@ -25,7 +25,7 @@ module.exports = {
 
     // RPC Connection
     RPC_RETRY_DELAY_MS: 3000,
-    RPC_MAX_ATTEMPTS: 999999, // Effectively infinite - never give up
+    RPC_SWITCH_MAX_ATTEMPTS: 300, // Max attempts for switchRpcClient (~5 min at 1s, ~25 min at 5s)
     RPC_LONG_RETRY_DELAY_MS: 10000,
     ACTIVITY_UPDATE_DEBOUNCE_MS: 300,
 

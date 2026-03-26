@@ -13,7 +13,7 @@
     <header>
       <div class="brand">
         <h1>Solari</h1>
-        <span class="version">v1.8.0</span>
+        <span class="version">v1.8.1</span>
         <button id="updateAvailableBtn" class="update-available-btn" style="display: none;" title="Update available!">
           <span class="update-icon">⬇️</span> <span id="updateVersionLabel"></span>
         </button>
@@ -252,7 +252,8 @@
               <div class="settings-header">
                 <div class="settings-icon-box" style="background: rgba(139,92,246, 0.15); color: #8b5cf6;">💻</div>
                 <div class="settings-info">
-                  <h3 data-i18n="hwMonitor.title" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); -webkit-background-clip: text; background-clip: text; color: transparent;">
+                  <h3 data-i18n="hwMonitor.title"
+                    style="background: linear-gradient(135deg, #8b5cf6, #6366f1); -webkit-background-clip: text; background-clip: text; color: transparent;">
                     Hardware Monitor</h3>
                   <p data-i18n="hwMonitor.description">Exiba CPU, RAM e GPU em tempo real no seu Rich Presence.</p>
                 </div>
@@ -275,7 +276,8 @@
                     <span class="hw-gauge-value" id="hw-cpu-value">0%</span>
                     <span class="hw-gauge-name" data-i18n="hwMonitor.cpu">CPU</span>
                   </div>
-                  <label class="switch hw-gauge-toggle" data-i18n-title="hwMonitor.monitorCpu" title="Monitorar CPU no Discord">
+                  <label class="switch hw-gauge-toggle" data-i18n-title="hwMonitor.monitorCpu"
+                    title="Monitorar CPU no Discord">
                     <input type="checkbox" id="hw-toggle-cpu" checked>
                     <span class="slider round"></span>
                   </label>
@@ -309,11 +311,13 @@
                     <span class="hw-gauge-value" id="hw-gpu-value">--</span>
                     <span class="hw-gauge-name" data-i18n="hwMonitor.gpu">GPU</span>
                   </div>
-                  <label class="switch hw-gauge-toggle" data-i18n-title="hwMonitor.monitorGpu" title="Monitorar GPU no Discord">
+                  <label class="switch hw-gauge-toggle" data-i18n-title="hwMonitor.monitorGpu"
+                    title="Monitorar GPU no Discord">
                     <input type="checkbox" id="hw-toggle-gpu" checked>
                     <span class="slider round"></span>
                   </label>
-                  <label class="hw-mini-toggle" id="hw-mini-toggle-gputemp" data-i18n-title="hwMonitor.tempTitle" title="Incluir Temperatura da GPU">
+                  <label class="hw-mini-toggle" id="hw-mini-toggle-gputemp" data-i18n-title="hwMonitor.tempTitle"
+                    title="Incluir Temperatura da GPU">
                     <input type="checkbox" id="hw-toggle-gputemp" checked>
                     <div class="hw-mini-toggle-dot"></div>
                     <span data-i18n="hwMonitor.temp">+ Temp</span>
@@ -360,14 +364,16 @@
                     <div class="server-status-dot" id="spotifyStatusDot" style="background: #ef4444;"></div>
                     <div class="server-status-info">
                       <span class="server-status-label" data-i18n="server.spotify">SpotifySync</span>
-                      <span class="server-status-value" id="spotifyPluginStatus" data-i18n="server.disconnected">Desconectado</span>
+                      <span class="server-status-value" id="spotifyPluginStatus"
+                        data-i18n="server.disconnected">Desconectado</span>
                     </div>
                   </div>
                   <div class="server-status-item">
                     <div class="server-status-dot" id="smartAfkStatusDot" style="background: #ef4444;"></div>
                     <div class="server-status-info">
                       <span class="server-status-label" data-i18n="server.afk">SmartAFK</span>
-                      <span class="server-status-value" id="smartAfkPluginStatus" data-i18n="server.disconnected">Desconectado</span>
+                      <span class="server-status-value" id="smartAfkPluginStatus"
+                        data-i18n="server.disconnected">Desconectado</span>
                     </div>
                   </div>
                 </div>
@@ -401,7 +407,8 @@
                 instalado no Discord.</p>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button id="bd-1click-install-btn" class="bd-warning-action-btn" style="background: rgba(255,153,102, 0.2); color: #ff9966; border-color: rgba(255,153,102, 0.5);">
+              <button id="bd-1click-install-btn" class="bd-warning-action-btn"
+                style="background: rgba(255,153,102, 0.2); color: #ff9966; border-color: rgba(255,153,102, 0.5);">
                 <span>⚡</span> <span data-i18n="pluginStore.bd1ClickInstall">Instalar Automático</span>
               </button>
               <button class="bd-warning-action-btn"
@@ -419,7 +426,8 @@
                 Reinstale para restaurar os plugins.</p>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button id="bd-1click-repair-btn" class="bd-warning-action-btn bd-warning-action-orange" style="background: rgba(245,158,11, 0.2); color: #f59e0b; border-color: rgba(245,158,11, 0.5);">
+              <button id="bd-1click-repair-btn" class="bd-warning-action-btn bd-warning-action-orange"
+                style="background: rgba(245,158,11, 0.2); color: #f59e0b; border-color: rgba(245,158,11, 0.5);">
                 <span>⚡</span> <span data-i18n="pluginStore.bd1ClickRepair">Reparar Automático</span>
               </button>
               <button class="bd-warning-action-btn bd-warning-action-orange"
@@ -451,8 +459,10 @@
               <div class="plugins-store-title">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <h2><span data-i18n="pluginStore.title">Plugins Oficiais</span></h2>
-                  <div class="plugins-info-icon" data-i18n-title="pluginStore.bdDisclaimerText" title="Disclaimer & Affiliation">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <div class="plugins-info-icon" data-i18n-title="pluginStore.bdDisclaimerText"
+                    title="Disclaimer & Affiliation">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                      stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="12" r="10"></circle>
                       <line x1="12" y1="16" x2="12" y2="12"></line>
                       <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -489,9 +499,10 @@
                   <span>⚡</span>
                   <span class="bd-split-label" data-i18n="pluginStore.bdBtnInstall">Instalar BD</span>
                 </button>
-                <button id="bd-split-arrow" class="plugins-action-btn bd-split-arrow" data-i18n-title="pluginStore.bdMoreOptions" title="Mais opções">
+                <button id="bd-split-arrow" class="plugins-action-btn bd-split-arrow"
+                  data-i18n-title="pluginStore.bdMoreOptions" title="Mais opções">
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-                    <path d="M2 3.5L5 7L8 3.5H2Z"/>
+                    <path d="M2 3.5L5 7L8 3.5H2Z" />
                   </svg>
                 </button>
                 <div id="bd-split-dropdown" class="bd-split-dropdown" style="display: none;">
@@ -602,14 +613,19 @@
                 </select>
               </div>
               <div class="sb-toolbar-right">
-                <button id="soundboard-view-mode" class="sb-tool-btn" title="Grid/List View" data-i18n-title="soundboard.viewMode">
+                <button id="soundboard-view-mode" class="sb-tool-btn" title="Grid/List View"
+                  data-i18n-title="soundboard.viewMode">
                   <span id="view-mode-icon">▦</span>
                 </button>
-                <button id="soundboard-stop-all" class="sb-tool-btn sb-tool-btn-danger" title="Stop All" data-i18n-title="soundboard.stopAll">⏹️</button>
+                <button id="soundboard-stop-all" class="sb-tool-btn sb-tool-btn-danger" title="Stop All"
+                  data-i18n-title="soundboard.stopAll">⏹️</button>
                 <div class="sb-toolbar-divider"></div>
-                <button id="soundboard-export-btn" class="sb-tool-btn" title="Export Library" data-i18n-title="soundboard.export">📤</button>
-                <button id="soundboard-import-btn" class="sb-tool-btn" title="Import Library" data-i18n-title="soundboard.import">📥</button>
-                <div id="drop-zone" class="sb-drop-zone-mini" data-i18n-title="soundboard.dragFiles" title="Drag files here">
+                <button id="soundboard-export-btn" class="sb-tool-btn" title="Export Library"
+                  data-i18n-title="soundboard.export">📤</button>
+                <button id="soundboard-import-btn" class="sb-tool-btn" title="Import Library"
+                  data-i18n-title="soundboard.import">📥</button>
+                <div id="drop-zone" class="sb-drop-zone-mini" data-i18n-title="soundboard.dragFiles"
+                  title="Drag files here">
                   <span class="drop-icon">📁</span>
                 </div>
                 <button id="soundboard-add-btn" class="sb-add-btn">
@@ -784,7 +800,8 @@
               <input type="text" id="largeImage" placeholder="Cole URL da imagem (ex: https://i.imgur.com/...)"
                 data-i18n-placeholder="presence.largeImagePlaceholder" />
               <p class="hint" style="margin-top: 5px;" data-i18n="presence.largeImageHint">Faça upload no <a
-                  href="https://imgur.com/upload" target="_blank" style="color: #ff9966;">Imgur</a> e cole o link aqui</p>
+                  href="https://imgur.com/upload" target="_blank" style="color: #ff9966;">Imgur</a> e cole o link aqui
+              </p>
               <p class="hint" style="margin-top: 3px; font-size: 11px; opacity: 0.7;"
                 data-i18n="presence.largeImageWarning">Caso a imagem não seja alterada,
                 reinicie o Solari e tente novamente! Caso o link termine com um '/h[extensão do arquivo]', quer dizer
@@ -986,8 +1003,8 @@
                   <button id="toggleIdentityIdBtn" class="input-group-btn">👁️</button>
                 </div>
                 <div style="flex: none; display: flex; gap: 5px;">
-                  <button id="cancelIdentityEditBtn" class="btn btn-secondary btn-small"
-                    style="display: none;" data-i18n="modal.cancel">Cancel</button>
+                  <button id="cancelIdentityEditBtn" class="btn btn-secondary btn-small" style="display: none;"
+                    data-i18n="modal.cancel">Cancel</button>
                   <button id="addIdentityBtn" class="btn btn-small" data-i18n="identities.add">+ Add</button>
                 </div>
               </div>
@@ -1018,7 +1035,8 @@
           <div class="config-grid">
             <div class="form-group">
               <div class="toggle-container" style="justify-content: flex-start;">
-                <span class="toggle-label" style="margin-right: 12px;" data-i18n="smartAfk.enableDetector">Ativar Detector</span>
+                <span class="toggle-label" style="margin-right: 12px;" data-i18n="smartAfk.enableDetector">Ativar
+                  Detector</span>
                 <label class="switch">
                   <input type="checkbox" id="afkToggle" checked>
                   <span class="slider round"></span>
@@ -1027,8 +1045,10 @@
             </div>
 
             <div class="form-group" style="margin-top: 20px;">
-              <label style="margin-bottom: 12px; display: block; font-size: 0.95em;" data-i18n="smartAfk.afkLevels">📊 NÍVEIS DE AFK</label>
-              <p class="hint" style="margin-bottom: 14px; font-size: 0.85em; color: rgba(255,255,255,0.5);" data-i18n="smartAfk.afkLevelsHint">
+              <label style="margin-bottom: 12px; display: block; font-size: 0.95em;" data-i18n="smartAfk.afkLevels">📊
+                NÍVEIS DE AFK</label>
+              <p class="hint" style="margin-bottom: 14px; font-size: 0.85em; color: rgba(255,255,255,0.5);"
+                data-i18n="smartAfk.afkLevelsHint">
                 Configure
                 múltiplos níveis com tempos e
                 status diferentes:</p>
@@ -1037,11 +1057,14 @@
               </div>
               <div style="margin-top: 14px; display: flex; gap: 12px;">
                 <button id="addAfkTierBtn" class="btn"
-                  style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); flex: 1;" data-i18n="smartAfk.addLevel">+ Adicionar
+                  style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); flex: 1;"
+                  data-i18n="smartAfk.addLevel">+ Adicionar
                   Nível</button>
-                <button id="saveAfkBtn" class="btn btn-primary" style="flex: 1;" data-i18n="smartAfk.saveConfig">💾 Salvar Configurações</button>
+                <button id="saveAfkBtn" class="btn btn-primary" style="flex: 1;" data-i18n="smartAfk.saveConfig">💾
+                  Salvar Configurações</button>
               </div>
-              <p id="afkSaveStatus" style="color: #4ade80; margin-top: 10px; display: none; font-size: 0.9em;" data-i18n="smartAfk.saved">✓
+              <p id="afkSaveStatus" style="color: #4ade80; margin-top: 10px; display: none; font-size: 0.9em;"
+                data-i18n="smartAfk.saved">✓
                 Salvo
                 e
                 sincronizado!</p>
@@ -1051,21 +1074,25 @@
 
           <!-- AFK Disabled Presets -->
           <div class="form-group" style="margin-top: 22px;">
-            <label style="margin-bottom: 12px; display: block; font-size: 0.95em;" data-i18n="smartAfk.disablePresets">🎮 PRESETS QUE DESATIVAM
+            <label style="margin-bottom: 12px; display: block; font-size: 0.95em;"
+              data-i18n="smartAfk.disablePresets">🎮 PRESETS QUE DESATIVAM
               AFK</label>
-            <p class="hint" style="margin-bottom: 12px; font-size: 0.85em; color: rgba(255,255,255,0.5);" data-i18n="smartAfk.disablePresetsHint">Quando um
+            <p class="hint" style="margin-bottom: 12px; font-size: 0.85em; color: rgba(255,255,255,0.5);"
+              data-i18n="smartAfk.disablePresetsHint">Quando um
               destes presets estiver ativo, você
               não ficará AFK:</p>
             <div id="afkDisabledPresetsContainer" class="afk-presets-container">
               <!-- Presets will be rendered dynamically -->
-              <p style="color: rgba(255,255,255,0.4); font-size: 0.85em;" data-i18n="smartAfk.noPresetSelected">Nenhum preset selecionado</p>
+              <p style="color: rgba(255,255,255,0.4); font-size: 0.85em;" data-i18n="smartAfk.noPresetSelected">Nenhum
+                preset selecionado</p>
             </div>
             <div style="margin-top: 12px; display: flex; gap: 10px; align-items: center;">
               <select id="addPresetToAfkDisable" class="form-group" style="flex: 1; margin: 0;">
                 <option value="" data-i18n="smartAfk.selectPreset">Selecione um preset...</option>
               </select>
               <button id="addPresetToDisableBtn" class="btn"
-                style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); flex: none; padding: 12px 18px;" data-i18n="smartAfk.add">+
+                style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); flex: none; padding: 12px 18px;"
+                data-i18n="smartAfk.add">+
                 Adicionar</button>
             </div>
           </div>
@@ -1109,7 +1136,8 @@
               <h2
                 style="margin: 0; padding: 0; font-size: 1.3em; background: linear-gradient(90deg, #f59e0b, #fbbf24); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
                 Solari Notes</h2>
-              <p style="margin: 2px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.5);" data-i18n="plugins.configure">Configurações Dinâmicas</p>
+              <p style="margin: 2px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.5);"
+                data-i18n="plugins.configure">Configurações Dinâmicas</p>
             </div>
           </div>
           <div id="solari-notes-settings-container"></div>
@@ -1126,7 +1154,8 @@
               <h2
                 style="margin: 0; padding: 0; font-size: 1.3em; background: linear-gradient(90deg, #a855f7, #d8b4fe); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
                 Solari MessageTools</h2>
-              <p style="margin: 2px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.5);" data-i18n="plugins.configure">Configurações Dinâmicas</p>
+              <p style="margin: 2px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.5);"
+                data-i18n="plugins.configure">Configurações Dinâmicas</p>
             </div>
           </div>
           <div id="solari-messagetools-settings-container"></div>
@@ -1137,11 +1166,13 @@
       <div id="configSolari" class="plugin-config-panel" style="display: none;">
         <h2 data-i18n="solariPlugin.title">⚙️ Solari Plugin</h2>
         <div class="info-card">
-          <p><strong data-i18n="solariPlugin.discordUser">Usuário Discord:</strong> <span id="discordUser" data-i18n="solariPlugin.waitingConnection">Aguardando conexão...</span></p>
+          <p><strong data-i18n="solariPlugin.discordUser">Usuário Discord:</strong> <span id="discordUser"
+              data-i18n="solariPlugin.waitingConnection">Aguardando conexão...</span></p>
         </div>
         <div class="form-group" style="margin-top: 15px;">
           <label for="toastMessage" data-i18n="solariPlugin.sendNotification">Enviar Notificação para Discord</label>
-          <input type="text" id="toastMessage" placeholder="Mensagem para o Discord" data-i18n-placeholder="solariPlugin.messagePlaceholder" />
+          <input type="text" id="toastMessage" placeholder="Mensagem para o Discord"
+            data-i18n-placeholder="solariPlugin.messagePlaceholder" />
         </div>
         <button id="sendToastBtn" class="btn btn-small" data-i18n="solariPlugin.send">Enviar Notificação</button>
       </div>
@@ -1172,7 +1203,7 @@
   <div id="aboutModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px; text-align: center;">
       <h2 style="font-size: 2em; margin-bottom: 5px; color: var(--primary);">Solari RPC</h2>
-      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.8.0</p>
+      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.8.1</p>
       <div style="text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
         <p style="margin-bottom: 15px;">
           <span data-i18n="about.description">Premium Discord Rich Presence Manager</span><br>
@@ -1550,7 +1581,7 @@
           }
         }
 
-          if (audioFiles.length === 0) {
+        if (audioFiles.length === 0) {
           if (typeof showToast === 'function') showToast('⚠️', 'soundboard.noFilesFound', 'warning');
           return;
         }
