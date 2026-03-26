@@ -2,12 +2,16 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 
+// UUID v4 format validator
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 class SoundServer {
     constructor(soundBoard, port = 6465) {
         this.soundBoard = soundBoard;
         this.port = port;
         this.app = express();
         this.server = null;
+        this.maxPortRetries = 10;
 
         this.setupRoutes();
     }
@@ -23,18 +27,22 @@ class SoundServer {
         // Serve sound files
         this.app.get('/sounds/:soundId', (req, res) => {
             const { soundId } = req.params;
+
+            // Validate soundId format before lookup
+            if (!UUID_REGEX.test(soundId)) {
+                return res.status(400).json({ error: 'Invalid sound ID format' });
+            }
+
             const sound = this.soundBoard.getSoundById(soundId);
 
             if (!sound) {
-                console.error(`[SoundServer] Sound NOT FOUND by ID: ${soundId}`);
-                console.error(`[SoundServer] Total sounds in memory: ${this.soundBoard.sounds.length}`);
-                console.error(`[SoundServer] Available IDs:`, this.soundBoard.sounds.slice(0, 5).map(s => `${s.id} (${s.name})`));
-                return res.status(404).json({ error: 'Sound not found', requestedId: soundId });
+                console.error(`[SoundServer] Sound not found: ${soundId}`);
+                return res.status(404).json({ error: 'Sound not found' });
             }
 
             if (!fs.existsSync(sound.path)) {
-                console.error(`[SoundServer] File NOT on disk: ${sound.path}`);
-                return res.status(404).json({ error: 'Sound file missing', path: sound.path });
+                console.error(`[SoundServer] File missing: ${sound.path}`);
+                return res.status(404).json({ error: 'Sound file missing' });
             }
 
             res.sendFile(sound.path);
@@ -58,8 +66,13 @@ class SoundServer {
         });
     }
 
-    start() {
+    start(retryCount = 0) {
         return new Promise((resolve, reject) => {
+            if (retryCount >= this.maxPortRetries) {
+                reject(new Error(`[SoundServer] Failed to find open port after ${this.maxPortRetries} attempts`));
+                return;
+            }
+
             try {
                 this.server = this.app.listen(this.port, '127.0.0.1', () => {
                     console.log(`[SoundServer] Listening on http://127.0.0.1:${this.port}`);
@@ -70,7 +83,7 @@ class SoundServer {
                     if (err.code === 'EADDRINUSE') {
                         console.log(`[SoundServer] Port ${this.port} in use, trying ${this.port + 1}`);
                         this.port += 1;
-                        this.start().then(resolve).catch(reject);
+                        this.start(retryCount + 1).then(resolve).catch(reject);
                     } else {
                         reject(err);
                     }

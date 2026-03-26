@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Sleek, synchronized notepad integrated strictly into Discord's UI. Saves securely to your local PC via the Solari App.
- * @version 1.0.1
+ * @version 1.0.0
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  */
@@ -75,7 +75,7 @@ module.exports = class SolariNotes {
 
     getSettingsSchema() {
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v1.0.1' },
+            { type: 'custom_header', title: this.t('title'), version: 'v1.0.0' },
             { type: 'status_card', id: 'solariStatus', label: this.t('status'), status: this.isConnected ? 'connected' : 'disconnected' },
             {
                 type: 'select', key: 'language', label: 'Language / Idioma', options: [
@@ -292,8 +292,8 @@ module.exports = class SolariNotes {
         try {
             BdApi.Data.save("SolariNotes", "config", this.config);
             if (this.isConnected) {
-                this.send({
-                    type: 'notes_config_sync',
+                this.send({ 
+                    type: 'notes_config_sync', 
                     config: this.config,
                     schema: this.getSettingsSchema()
                 });
@@ -313,10 +313,10 @@ module.exports = class SolariNotes {
                 this.safeShowToast('Solari Notes: Conectado!', { type: "success" });
 
                 // Envia o esquema de configurações inicial e o estado atual para o aplicativo Solari
-                this.send({
-                    type: 'notes_config_sync',
-                    config: this.config,
-                    schema: this.getSettingsSchema()
+                this.send({ 
+                    type: 'notes_config_sync', 
+                    config: this.config, 
+                    schema: this.getSettingsSchema() 
                 });
 
                 // Request the latest notes from the disk immediately
@@ -349,24 +349,24 @@ module.exports = class SolariNotes {
             case 'notes_sync':
                 // Check if backend data is the new JSON Tabs schema or Legacy Phase 6 String
                 try {
-                    if (data.content && data.content.startsWith('{"tabs":')) {
-                        const parsed = JSON.parse(data.content);
-                        this.tabs = parsed.tabs;
-                        // Ensure legacy tabs get a windowId
-                        this.tabs.forEach(t => { if (!t.windowId) t.windowId = 'main'; });
-                        this.activeTabId = parsed.activeTabId || this.tabs[0].id;
-                    } else if (data.content !== undefined) {
-                        // Legacy migration format
-                        this.tabs = [{ id: 1, title: 'Main', content: data.content || '', windowId: 'main' }];
-                        this.activeTabId = 1;
-                    }
-                } catch (e) {
-                    // If parse fails or something weird, assume legacy string
+                if (data.content && data.content.startsWith('{"tabs":')) {
+                    const parsed = JSON.parse(data.content);
+                    this.tabs = parsed.tabs;
+                    // Ensure legacy tabs get a windowId
+                    this.tabs.forEach(t => { if (!t.windowId) t.windowId = 'main'; });
+                    this.activeTabId = parsed.activeTabId || this.tabs[0].id;
+                } else if (data.content !== undefined) {
+                    // Legacy migration format
                     this.tabs = [{ id: 1, title: 'Main', content: data.content || '', windowId: 'main' }];
                     this.activeTabId = 1;
                 }
+            } catch (e) {
+                // If parse fails or something weird, assume legacy string
+                this.tabs = [{ id: 1, title: 'Main', content: data.content || '', windowId: 'main' }];
+                this.activeTabId = 1;
+            }
 
-                this.updateTextAreaUI();
+            this.updateTextAreaUI();
             case 'update_notes_settings':
                 this.config = { ...this.config, ...data.settings };
                 this.saveConfig();
@@ -773,14 +773,11 @@ module.exports = class SolariNotes {
         document.querySelectorAll('.solari-notes-panel').forEach(p => p.remove());
 
         // 1. Find the Discord Header Toolbar (next to Search / Help / Inbox)
-        // We use focused selectors to avoid grabbing popup/message toolbars (which causes React crashes)
-        const headerContainer = document.querySelector('section[class*="title_"]') ||
-            document.querySelector('section[class*="headerBar_"]') ||
-            document.querySelector('[class*="chatContent_"] > [class*="wrapper_"]');
-
-        let toolbar = null;
-        if (headerContainer) toolbar = headerContainer.querySelector('[class*="toolbar_"]');
-
+        // We use multiple selectors to cover Channels, DMs, and the Friends/Home tab
+        const toolbar = document.querySelector('.toolbar_fc4f04') || 
+                        document.querySelector('[class*="toolbar_"]') ||
+                        document.querySelector('[class*="headerBar"] [class*="toolbar"]');
+        
         if (!toolbar) return false;
 
         // 2. Create Icon Button
@@ -807,12 +804,12 @@ module.exports = class SolariNotes {
             const panel = document.createElement('div');
             panel.dataset.windowId = win.id;
             panel.className = "solari-notes-panel";
-
+            
             // Final Visibility Logic:
             // 1. Pinned windows: ALWAYS stay visible (persistent tools)
             // 2. Unpinned windows (main or detached): Follow the Master Toggle (isPanelOpen)
             const shouldBeVisible = win.isPinned || (this.isPanelOpen && (win.id === 'main' || win.isOpen));
-
+            
             if (shouldBeVisible) panel.classList.add('open');
             if (win.isPinned) panel.classList.add('pinned');
 
@@ -875,9 +872,11 @@ module.exports = class SolariNotes {
             panel.style.setProperty('--solari-blur', (this.config.blurIntensity ?? 16) + 'px');
             panel.style.setProperty('--solari-padding', (this.config.editorPadding ?? 16) + 'px');
 
-            // The panel needs absolute positioning. Appending directly to body
-            // prevents React 18 from crashing when it portals modals to app-mount.
-            document.body.appendChild(panel);
+            // The panel needs absolute positioning relative to the app mount so it doesn't get clipped
+            const appMount = document.getElementById('app-mount');
+            if (appMount) {
+                appMount.appendChild(panel);
+            }
 
             // 4. Input Listener with Debounce
             const textArea = panel.querySelector('.solari-notes-textarea');
@@ -1188,15 +1187,15 @@ module.exports = class SolariNotes {
             if (!win) return;
 
             const shouldBeOpen = win.isPinned || (this.isPanelOpen && (win.id === 'main' || win.isOpen));
-
+            
             if (shouldBeOpen) {
                 panel.classList.add('open');
                 if (win.id === 'main') {
-                    const textArea = panel.querySelector('.solari-notes-textarea');
-                    if (textArea) {
-                        textArea.focus();
-                        textArea.selectionStart = textArea.selectionEnd = textArea.value.length;
-                    }
+                     const textArea = panel.querySelector('.solari-notes-textarea');
+                     if (textArea) {
+                         textArea.focus();
+                         textArea.selectionStart = textArea.selectionEnd = textArea.value.length;
+                     }
                 }
             } else {
                 panel.classList.remove('open');
@@ -1385,7 +1384,7 @@ module.exports = class SolariNotes {
 
     updateTextAreaUI() {
         const panels = document.querySelectorAll('.solari-notes-panel');
-
+        
         panels.forEach(panel => {
             const winId = panel.dataset.windowId;
             const textArea = panel.querySelector('.solari-notes-textarea');

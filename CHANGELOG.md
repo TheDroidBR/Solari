@@ -1,3 +1,43 @@
+## [1.8.1] - 2026-03-25
+**UPDATE 1.8.1: THE POLISH & SECURITY PATCH**
+
+---
+
+### 🛡️ Security Hardening
+- **Protocol Validation**: `openExternal` now strictly validates URLs. Only `http:` and `https:` protocols are allowed, preventing potential local file execution exploits.
+- **Stealth Tracker**: The User Tracking system now uses a truly invisible `BrowserWindow` (`show: false`) to resolve InfinityFree's anti-bot JS challenges without leaking into the Windows Taskbar or Alt+Tab menu.
+- **Download Guard**: Implemented a 2MB size limit for plugin downloads to prevent memory exhaustion attacks.
+- **Sound Server Hardening**: Sound file requests now validate UUID format before lookup, preventing potential abuse.
+- **IPC Bridge Expansion**: Added 12 missing SoundBoard and export/import channels to the `preload.js` invoke whitelist.
+
+### 🔧 Improvements & Optimization
+- **Console Sanitization**: Wrapped ~30 high-frequency debug logs behind `DEBUG_MODE`. Production console output reduced by another 90% for better performance.
+- **Dead Code Eradication**: Removed `RPCService.js` (322 lines of unused code), significantly cleaning up the internal project structure.
+- **Efficient Memory Management**: The tracker now uses `.once()` listeners and navigates to `about:blank` after success to minimize background resource usage.
+- **WSS & Plugin Silent Mode**: Silenced high-frequency JSON logging for WebSocket, SoundBoard (stop-all/get-sound-data), Imgur Resolver (~15 logs) and Solari Notes plugins.
+- **Dependency Thinning**: Removed the unused `systeminformation` module, reducing initialization and memory overhead.
+- **Deep Log Silencer**: Guarded ~25 additional production logs in `setActivity`, `updatePresence`, AFK detection, Tray, and Browser Extension with `DEBUG_MODE`.
+- **SoundBoard I/O Optimization**: Cached `fs.existsSync` results in `fromJSON`, halving filesystem calls during sound loading.
+- **Centralized Imports**: Moved `https` and `os` requires to top-level scope, eliminating 14 redundant inline `require()` calls.
+- **Selective Shortcut Cleanup**: `SoundBoard.unregisterAllShortcuts()` now only removes SoundBoard-owned shortcuts instead of clearing all Electron global shortcuts.
+
+### 🐛 Bug Fixes
+- **Fixed**: Accidental `DEBUG_MODE || true` guard in `loadPresetActivity` causing silent performance drain.
+- **Fixed**: Critical typo in plugin updater (`SmartAFK.plugin.js` → `SmartAFKDetector.plugin.js`) that prevented the AFK plugin from ever updating.
+- **Fixed**: Infinite loop in `switchRpcClient`. The app now gracefully gives up after 300 attempts (~5-15 mins) and notifies the user instead of hanging the process.
+- **Fixed**: IPC Bridge mismatch where `set-global-client-id` was registered in the backend but blocked by the `preload.js` whitelist.
+- **Fixed**: Broken `save-eco-mode` link in the bridge (previously used the outdated `save-echo-mode` name).
+- **Fixed**: `[DEBUG]` logs accidentally left in production for tray creation.
+- **Fixed**: IPC Handler Consolidation. Removed 4 duplicate SoundBoard handlers (`get-sounds`, `settings`, etc) causing redundant re-registration.
+- **Fixed**: BD Logic Unification. Eliminated 60 lines of redundant code in `plugin:check-bd` by delegating to `checkBDStatus()`.
+- **Fixed**: Cleaned up duplicate comments in the `setActivity` case handler.
+- **Fixed**: Critical crash — `updateRichPresenceWithPriority()` function was called but did not exist, causing a silent failure when changing priority settings.
+- **Fixed**: Sound Server port retry was recursive without limit, risking stack overflow. Now limited to 10 attempts.
+- **Fixed**: Consolidated `RPC_MAX_ATTEMPTS` constant (was 999999 but unused) into `RPC_SWITCH_MAX_ATTEMPTS: 300`.
+- **Fixed**: Removed empty `services/` directory left over from previous cleanup.
+
+---
+
 ## [1.8.0] - 2026-03-22
 **UPDATE 1.8.0: THE INFINITY CONVERGENCE**
 

@@ -41,12 +41,12 @@ const path = require('path');
 let DiscordRPC = null;
 let WebSocket = { OPEN: 1 };
 const fs = require('fs');
+const https = require('https');
 const { exec, spawn } = require('child_process');
 const { installUpdateAndRestart } = require('./updater');
 const CONSTANTS = require('./constants');
 let SoundBoard = null;
 let SoundServer = null;
-let si = null; // systeminformation (lazy loaded)
 
 
 let mainWindow;
@@ -166,7 +166,7 @@ let prioritySettings = {
 
 let pluginWatcher = null; // Watcher for BetterDiscord plugins folder
 
-// ===== BD AUTO-REPAIR SYSTEM (v1.8.0 BACKGROUND) =====
+// ===== BD AUTO-REPAIR SYSTEM (v1.8.1 BACKGROUND) =====
 let bdStatusPollInterval = null;
 let bdBrokenCount = 0;
 let isRepairing = false;
@@ -212,7 +212,7 @@ function getTrackingUserId() {
     return trackingUserId;
 }
 
-// Send heartbeat ping to tracker using invisible BrowserWindow (bypasses anti-bot)
+// Send heartbeat ping to tracker using invisible BrowserWindow (InfinityFree requires JS challenge solving)
 let trackerWindow = null;
 
 async function sendTrackerPing() {
@@ -221,81 +221,62 @@ async function sendTrackerPing() {
         const uid = getTrackingUserId();
         const url = `${TRACKER_URL}?action=ping&version=${encodeURIComponent(version)}&uid=${encodeURIComponent(uid)}`;
 
-        // console.log('[Solari Tracker] URL:', url); // DEBUG: Show full URL
-        console.log('[Solari Tracker] Sending ping via browser...');
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari Tracker] Sending ping:', url);
 
         // Create invisible window ONLY if it doesn't exist
         if (!trackerWindow || trackerWindow.isDestroyed()) {
             trackerWindow = new BrowserWindow({
                 width: 100,
                 height: 100,
-                show: true,
-                opacity: 0,
+                show: false, // SEC-04: Truly invisible (no Alt+Tab leak)
                 frame: false,
                 focusable: false,
                 skipTaskbar: true,
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 webPreferences: {
                     nodeIntegration: false,
                     contextIsolation: true,
                     javascript: true,
-                    offscreen: false,
-                    backgroundThrottling: false // Must be false to run JS challenges fast
+                    backgroundThrottling: false
                 }
             });
 
-            // Cleanup when closed
             trackerWindow.on('closed', () => {
                 trackerWindow = null;
             });
         }
 
-        console.log('[Solari Tracker] Executing Ping. Fetching: ' + url);
         // Load the URL (browser will handle InfinityFree JS cookie challenge and redirect)
         trackerWindow.loadURL(url);
 
-        // We use a named function so we can remove it once the true payload is parsed
+        // OPT-04: Use a single .once() listener to avoid memory leak from stacking listeners
         const handleFinishLoad = () => {
             if (!trackerWindow || trackerWindow.isDestroyed()) return;
 
             trackerWindow.webContents.executeJavaScript('document.body.innerText')
                 .then((bodyText) => {
-                    console.log('[Solari Tracker Raw DOM Text Check] Length:', bodyText ? bodyText.length : 0);
-                    if (!bodyText || bodyText.trim() === '') return; // Still loading or empty
+                    if (!bodyText || bodyText.trim() === '') return;
 
                     try {
                         const json = JSON.parse(bodyText);
                         if (json.success) {
-                            console.log('[Solari Tracker] Ping successful!');
+                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Tracker] Ping successful!');
                         } else {
-                            console.log('[Solari Tracker] Ping failed:', json.error);
+                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Tracker] Ping failed:', json.error);
                         }
-
-                        // Success! Clean up listener and navigate away
-                        trackerWindow.webContents.removeListener('did-finish-load', handleFinishLoad);
+                        // Success — navigate away to free resources
                         trackerWindow.loadURL('about:blank');
                     } catch (e) {
                         if (bodyText.includes('aes.js') || bodyText.includes('__test=')) {
-                            console.log('[Solari Tracker] Warming up session (solving host challenge)...');
-                            // Do NOT remove listener here, we need it to fire again after redirect
-                        } else {
-                            console.log('[Solari Tracker] Response parse error. Raw:\n', bodyText.substring(0, 1500));
-                            // Unrecoverable error, clean up
-                            trackerWindow.webContents.removeListener('did-finish-load', handleFinishLoad);
+                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Tracker] Solving host challenge...');
+                            // Re-attach listener for redirect after challenge
+                            trackerWindow.webContents.once('did-finish-load', handleFinishLoad);
                         }
                     }
                 })
-                .catch((err) => {
-                    console.error('[Solari Tracker] JS Execute Error:', err.message);
-                });
+                .catch(() => { });
         };
 
-        // Attach the listener
-        trackerWindow.webContents.on('did-finish-load', handleFinishLoad);
-
-        trackerWindow.webContents.once('did-fail-load', (e, code, desc) => {
-            console.error('[Solari Tracker] Load failed:', desc);
-        });
+        trackerWindow.webContents.once('did-finish-load', handleFinishLoad);
     } catch (e) {
         console.error('[Solari Tracker] Error:', e.message);
     }
@@ -309,7 +290,6 @@ async function sendTrackerDisconnect() {
 
         const url = `${TRACKER_URL}?action=disconnect&uid=${encodeURIComponent(uid)}`;
 
-        // If tracker window exists, use it
         if (trackerWindow && !trackerWindow.isDestroyed()) {
             trackerWindow.loadURL(url).catch(() => { });
         }
@@ -663,7 +643,7 @@ ipcMain.on('trigger-update-check', async () => {
     });
 });
 
-// ===== IN-APP UPDATE BUTTON (v1.8.0) =====
+// ===== IN-APP UPDATE BUTTON (v1.8.1) =====
 // Silent update check — returns {hasUpdate, latestVersion} without showing dialogs
 ipcMain.handle('check-update-silent', () => {
     return new Promise((resolve) => {
@@ -1141,38 +1121,23 @@ async function updatePluginsOnStartup() {
 
     const plugins = [
         { name: 'SpotifySync.plugin.js', url: 'https://solarirpc.com/downloads/SpotifySync.plugin.js' },
-        { name: 'SmartAFK.plugin.js', url: 'https://solarirpc.com/downloads/SmartAFK.plugin.js' }
+        { name: 'SmartAFKDetector.plugin.js', url: 'https://solarirpc.com/downloads/SmartAFKDetector.plugin.js' }
     ];
 
     let updatedCount = 0;
-    const https = require('https');
 
     for (const plugin of plugins) {
         const filePath = path.join(pluginsPath, plugin.name);
         if (fs.existsSync(filePath)) {
-            // Download to memory/buffer to compare? Or just blindly update?
-            // "Blind update" is safer/simpler for now as these are small files.
-            // But let's verify size/content to avoid toast spam if nothing changed.
-            // Actually, for simplicity and speed, just downloading and overwriting is fine. 
-            // Better: Read local file, download remote to string, compare.
-
             downloadPluginToString(plugin.url).then(remoteContent => {
                 if (!remoteContent) return;
 
                 try {
                     const localContent = fs.readFileSync(filePath, 'utf8');
-                    // Simple comparison (ignoring newlines slightly ideally, but exact match is fine)
                     if (localContent.trim() !== remoteContent.trim()) {
                         fs.writeFileSync(filePath, remoteContent);
                         console.log(`[Solari] Updated plugin: ${plugin.name}`);
                         updatedCount++;
-                        // If last one, show toast? Hard to coordinate.
-                        // We can just log it. Or show individual toasts?
-                        // Let's increment count and show toast at end? No, async.
-                        // Just show toast per plugin for now, or silence it. 
-                        // User asked "fazer atualização automatica".
-                        // Silent is usually preferred unless it's a major change.
-                        // I'll show a toast if any update happens.
                         sendToast('Plugin Updated', `${plugin.name} was auto-updated`, 'success');
                     }
                 } catch (e) {
@@ -1183,13 +1148,26 @@ async function updatePluginsOnStartup() {
     }
 }
 
+// OPT-02: Download plugin with 2MB size limit to prevent memory abuse
+const MAX_PLUGIN_SIZE = 2 * 1024 * 1024; // 2MB
+
 function downloadPluginToString(url) {
     return new Promise(resolve => {
         const https = require('https');
         https.get(url, res => {
             if (res.statusCode !== 200) { resolve(null); return; }
             let data = '';
-            res.on('data', c => data += c);
+            let size = 0;
+            res.on('data', c => {
+                size += c.length;
+                if (size > MAX_PLUGIN_SIZE) {
+                    console.error('[Solari] Plugin download exceeds 2MB limit, aborting.');
+                    res.destroy();
+                    resolve(null);
+                    return;
+                }
+                data += c;
+            });
             res.on('end', () => resolve(data));
         }).on('error', () => resolve(null));
     });
@@ -1393,7 +1371,7 @@ function createTray() {
         updateTrayMenu();
         tray.on('double-click', () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
 
-        console.log('[DEBUG] Tray created successfully.');
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Tray created successfully.');
 
         // Hide console on startup
         setTimeout(() => {
@@ -1443,9 +1421,8 @@ function updateTrayMenu() {
         {
             label: `${autoDetectEnabled ? '✅' : '⬜'} ${labels.autoDetect}`,
             click: () => {
-                console.log('[Solari] Tray auto-detect toggle clicked, current:', autoDetectEnabled);
                 autoDetectEnabled = !autoDetectEnabled;
-                console.log('[Solari] Auto-detect now:', autoDetectEnabled);
+                if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Auto-detect toggled:', autoDetectEnabled);
                 saveData();
                 if (autoDetectEnabled) {
                     startAutoDetection();
@@ -1546,7 +1523,7 @@ function startSystemAFKCheck() {
         clearInterval(systemAFKCheckInterval);
     }
 
-    console.log(`[Solari] Starting system AFK check (timeout: ${systemAFKSettings.timeoutMinutes} min)`);
+    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] Starting system AFK check (timeout: ${systemAFKSettings.timeoutMinutes} min)`);
 
     let debugCounter = 0;
 
@@ -1579,7 +1556,7 @@ function startSystemAFKCheck() {
                 // Reset state so when preset ends, AFK can trigger again
                 if (lastSystemIdleState === true) {
                     lastSystemIdleState = false;
-                    console.log(`[Solari] AFK disabled for preset: ${currentDetectedPresetName}`);
+                    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] AFK disabled for preset: ${currentDetectedPresetName}`);
                 }
                 return; // Skip normal idle check
             }
@@ -1591,9 +1568,9 @@ function startSystemAFKCheck() {
             // Log every 6th check (every 30 seconds) for debugging
             // Log every check (every 5 seconds) for deep debugging requested by user
             debugCounter++;
-            if (debugCounter >= 6) { // Log every 30 seconds
+            if (debugCounter >= 6) {
                 debugCounter = 0;
-                console.log(`[Solari] Idle check: ${idleSeconds}s (${idleMinutes.toFixed(2)} min) | State: ${isIdle ? 'IDLE' : 'ACTIVE'} | LastState: ${lastSystemIdleState ? 'IDLE' : 'ACTIVE'}`);
+                if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] Idle check: ${idleSeconds}s (${idleMinutes.toFixed(2)} min) | State: ${isIdle ? 'IDLE' : 'ACTIVE'} | LastState: ${lastSystemIdleState ? 'IDLE' : 'ACTIVE'}`);
             }
 
             // Send update if:
@@ -1604,7 +1581,7 @@ function startSystemAFKCheck() {
             // Update state tracking
             if (stateChanged) {
                 lastSystemIdleState = isIdle;
-                console.log(`[Solari] *** STATE CHANGED *** System idle: ${isIdle ? 'IDLE' : 'ACTIVE'} (idle for ${idleMinutes.toFixed(2)} min)`);
+                if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] *** STATE CHANGED *** System idle: ${isIdle ? 'IDLE' : 'ACTIVE'} (idle for ${idleMinutes.toFixed(2)} min)`);
             }
 
             // Always send to renderer and plugins so they stay synced
@@ -1640,13 +1617,13 @@ function stopSystemAFKCheck() {
     if (systemAFKCheckInterval) {
         clearInterval(systemAFKCheckInterval);
         systemAFKCheckInterval = null;
-        console.log('[Solari] System AFK check stopped');
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] System AFK check stopped');
     }
 }
 
 function createWindow() {
     // Log process args for debugging auto-launch detection
-    console.log('[Solari] process.argv:', JSON.stringify(process.argv));
+    if (CONSTANTS.DEBUG_MODE) console.log('[Solari] process.argv:', JSON.stringify(process.argv));
 
     // Always start hidden - splash screen or did-finish-load will show the window
     mainWindow = new BrowserWindow({
@@ -1705,7 +1682,8 @@ function initializeDiscordRPC(targetClientId = null) {
     let connectionAttempts = 0;
     let isReconnecting = false; // Prevent multiple simultaneous reconnection attempts
     let reconnectTimeout = null;
-    const maxAttempts = CONSTANTS.RPC_MAX_ATTEMPTS;
+    // initializeDiscordRPC reconnects infinitely by design (never give up)
+    // maxAttempts is only used for logging, not for stopping
 
     const scheduleReconnect = (delayMs) => {
         // GUARD: If global Client ID has changed since this closure was created, abort!
@@ -1997,14 +1975,14 @@ async function switchRpcClient(newClientId) {
     // 2. Update current ID immediately
     currentClientId = newClientId;
 
-    // 3. Smart reconnection - poll FOREVER until Discord accepts the connection
-    // Only aborts if: (a) user switches to a different Client ID, or (b) connection succeeds
-    let retryDelay = 1000; // Start with 1s between attempts
+    // 3. Smart reconnection with max attempts guard (BUG-08)
+    let retryDelay = 1000;
     let attempt = 1;
+    const MAX_SWITCH_ATTEMPTS = CONSTANTS.RPC_SWITCH_MAX_ATTEMPTS;
 
-    console.log('[Solari] Starting smart switch to', newClientId);
+    if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Starting smart switch to', newClientId);
 
-    while (true) {
+    while (attempt <= MAX_SWITCH_ATTEMPTS) {
         // ABORT CHECK 1: If user wants to switch to yet ANOTHER client ID, abort this one
         if (currentClientId !== newClientId) {
             console.log('[Solari] Switch aborted: Target Client ID changed');
@@ -2054,12 +2032,12 @@ async function switchRpcClient(newClientId) {
             rpcConnected = true;
             isSwitching = false;
 
-            console.log(`[Solari] Switch successful on attempt ${attempt}! (validated)`);
+            if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] Switch successful on attempt ${attempt}! (validated)`);
 
             // Setup event handlers for the new client
             newClient.on('disconnected', () => {
                 if (isSwitching) return; // Ignore if we are intentionally switching
-                console.log('[Solari] Discord RPC disconnected after switch - will reconnect in 10s...');
+                if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Discord RPC disconnected after switch - will reconnect in 10s...');
                 rpcConnected = false;
                 currentActivity = {}; // Reset so next update forces refresh
 
@@ -2128,10 +2106,18 @@ async function switchRpcClient(newClientId) {
         }
     }
 
-    // This code is unreachable now (infinite loop above only exits via return)
-    // Kept as safety net in case future changes break the loop
+    // BUG-08: Max attempts reached — stop trying
+    console.error(`[Solari] Switch to ${newClientId} failed after ${MAX_SWITCH_ATTEMPTS} attempts. Giving up.`);
     isSwitching = false;
     rpcConnected = false;
+    if (mainWindow) {
+        mainWindow.webContents.send('show-toast', {
+            messageKey: 'rpc.switchFailed',
+            title: '❌',
+            type: 'danger'
+        });
+        mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: false });
+    }
     return false;
 }
 
@@ -2197,7 +2183,7 @@ function setActivity(activity, presetClientId = null) {
 
     // Get activity type (0=Playing, 1=Streaming, 2=Listening, 3=Watching, 5=Competing)
     const activityType = finalActivity.type !== undefined ? finalActivity.type : 0;
-    console.log('[Solari] Activity type:', activityType);
+    if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Activity type:', activityType);
 
     // DEDUPLICATION CHECK:
     // If the activity content is identical to the current one, SKIP the update.
@@ -2232,7 +2218,7 @@ function setActivity(activity, presetClientId = null) {
         if (finalActivity.largeImageText) {
             assets.large_text = finalActivity.largeImageText;
         }
-        console.log('[Solari] Using large image:', finalActivity.largeImageKey);
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Using large image:', finalActivity.largeImageKey);
     } else {
         assets.large_image = 'logo';
     }
@@ -2242,7 +2228,7 @@ function setActivity(activity, presetClientId = null) {
         if (finalActivity.smallImageText) {
             assets.small_text = finalActivity.smallImageText;
         }
-        console.log('[Solari] Using small image:', finalActivity.smallImageKey);
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Using small image:', finalActivity.smallImageKey);
     }
 
     // Build timestamps based on mode
@@ -2271,7 +2257,7 @@ function setActivity(activity, presetClientId = null) {
     if (useEndTimestamp) {
         // End timestamp: shows "ends in X" countdown
         timestamps.end = baseTimestamp;
-        console.log('[Solari] Using end timestamp:', new Date(baseTimestamp).toISOString());
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Using end timestamp:', new Date(baseTimestamp).toISOString());
     } else {
         // Start timestamp: shows "X elapsed"
         timestamps.start = baseTimestamp;
@@ -2284,7 +2270,7 @@ function setActivity(activity, presetClientId = null) {
             id: `solari_party_${Date.now()}`,
             size: [finalActivity.partyCurrent, finalActivity.partyMax]
         };
-        console.log('[Solari] Using party:', JSON.stringify(party));
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Using party:', JSON.stringify(party));
     }
 
     currentActivity = finalActivity;
@@ -2392,12 +2378,14 @@ const presenceSources = {
 async function updatePresence() {
     if (!isEnabled) return;
 
-    // DEBUG: Log all source states
-    console.log('[Solari-Core] updatePresence called. Source states:');
-    console.log('  - manualPreset.active:', presenceSources.manualPreset.active, '| data:', !!presenceSources.manualPreset.data);
-    console.log('  - autoDetect.active:', presenceSources.autoDetect.active, '| source:', presenceSources.autoDetect.source);
-    console.log('  - browserExtension.active:', presenceSources.browserExtension.active, '| data:', !!presenceSources.browserExtension.data, '| platform:', presenceSources.browserExtension.platform);
-    console.log('  - defaultFallback.active:', presenceSources.defaultFallback.active);
+    // OPT-01: Only log source states in debug mode
+    if (CONSTANTS.DEBUG_MODE) {
+        console.log('[Solari-Core] updatePresence called. Source states:');
+        console.log('  - manualPreset.active:', presenceSources.manualPreset.active, '| data:', !!presenceSources.manualPreset.data);
+        console.log('  - autoDetect.active:', presenceSources.autoDetect.active, '| source:', presenceSources.autoDetect.source);
+        console.log('  - browserExtension.active:', presenceSources.browserExtension.active, '| data:', !!presenceSources.browserExtension.data, '| platform:', presenceSources.browserExtension.platform);
+        console.log('  - defaultFallback.active:', presenceSources.defaultFallback.active);
+    }
 
     // 1. EVALUATE SOURCES (in order of priority)
     // Priority: Manual > Auto-Process (games) > Extension > Auto-Website > Fallback
@@ -2433,7 +2421,7 @@ async function updatePresence() {
         sourceType = 'defaultFallback';
     }
 
-    console.log('[Solari-Core] Selected source:', sourceType || 'NONE');
+    if (CONSTANTS.DEBUG_MODE) console.log('[Solari-Core] Selected source:', sourceType || 'NONE');
 
     if (!activeSource) {
         // ALWAYS try to clear if we have no active source
@@ -2464,7 +2452,7 @@ async function updatePresence() {
         }
     }
 
-    console.log(`[Solari-Core] TargetClientID: ${targetClientId}, CurrentClientID: ${currentClientId}, Source.clientId: ${activeSource.clientId || 'null'}, Global: ${clientId}`);
+    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari-Core] TargetClientID: ${targetClientId}, CurrentClientID: ${currentClientId}, Source.clientId: ${activeSource.clientId || 'null'}, Global: ${clientId}`);
 
     // 3. HANDLE CLIENT ID SWITCHING
     if (targetClientId !== currentClientId) {
@@ -2510,13 +2498,12 @@ async function updatePresence() {
     finalActivity.clientId = targetClientId;
 
     // Apply
-    console.log('[Solari-Core] Ready to apply activity. isSwitching:', isSwitching, 'rpcConnected:', rpcConnected);
+    if (CONSTANTS.DEBUG_MODE) console.log('[Solari-Core] Ready to apply activity. isSwitching:', isSwitching, 'rpcConnected:', rpcConnected);
     if (isSwitching) {
-        // Still transitioning, keep buffer fresh
-        console.log('[Solari-Core] Switch in progress, buffering activity instead of applying');
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari-Core] Switch in progress, buffering activity instead of applying');
         pendingActivity = finalActivity;
     } else {
-        console.log('[Solari-Core] Calling setActivity now...');
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari-Core] Calling setActivity now...');
         setActivity(finalActivity, targetClientId);
 
         // UI Notifications - ONLY if source OR preset actually changed
@@ -2546,11 +2533,11 @@ async function updatePresence() {
         const presetChanged = currentPresetName !== lastNotifiedPresetName;
 
         if (mainWindow && notificationText && (sourceChanged || presetChanged)) {
-            console.log(`[Solari-Core] Showing notification - Source changed: ${sourceChanged}, Preset changed: ${presetChanged} (${lastNotifiedPresetName} -> ${currentPresetName})`);
+            if (CONSTANTS.DEBUG_MODE) console.log(`[Solari-Core] Showing notification - Source changed: ${sourceChanged}, Preset changed: ${presetChanged} (${lastNotifiedPresetName} -> ${currentPresetName})`);
             mainWindow.webContents.send('preset-auto-loaded', notificationText);
             lastNotifiedPresetName = currentPresetName;
         } else if (mainWindow && !sourceChanged && !presetChanged) {
-            console.log('[Solari-Core] Source and preset unchanged, skipping toast notification.');
+            if (CONSTANTS.DEBUG_MODE) console.log('[Solari-Core] Source and preset unchanged, skipping toast notification.');
         }
     }
 }
@@ -2569,14 +2556,14 @@ async function updatePresence() {
  * 5. Returns null (falls back to global)
  */
 function resolveClientIdForPlatform(platform, preset) {
-    console.log(`[Solari Resolver] ========================================`);
-    console.log(`[Solari Resolver] Starting resolution for platform: "${platform}"`);
-    console.log(`[Solari Resolver] Preset: ${preset ? preset.name : 'null'}, preset.clientId: ${preset?.clientId || 'undefined'}`);
-    console.log(`[Solari Resolver] Available identities (${identities?.length || 0}): ${JSON.stringify(identities?.map(i => ({ name: i.name, id: i.id?.substring(0, 10) + '...' })) || [])}`);
+    if (CONSTANTS.DEBUG_MODE) {
+        console.log(`[Solari Resolver] Starting resolution for platform: "${platform}"`);
+        console.log(`[Solari Resolver] Preset: ${preset ? preset.name : 'null'}, preset.clientId: ${preset?.clientId || 'undefined'}`);
+    }
 
     // Priority 1: Direct clientId on preset
     if (preset && preset.clientId) {
-        console.log(`[Solari Resolver] ✅ RESOLVED via preset.clientId: ${preset.clientId}`);
+        if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Resolver] ✅ RESOLVED via preset.clientId: ${preset.clientId}`);
         return preset.clientId;
     }
 
@@ -2585,7 +2572,7 @@ function resolveClientIdForPlatform(platform, preset) {
         const identity = identities.find(i => i.id === preset.identityId);
         if (identity) {
             const id = identity.id;
-            console.log(`[Solari Resolver] ✅ RESOLVED via identityId link: ${id}`);
+            if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Resolver] ✅ RESOLVED via identityId link: ${id}`);
             return id;
         }
     }
@@ -2593,12 +2580,11 @@ function resolveClientIdForPlatform(platform, preset) {
     // Priority 3: Identity matched by PLATFORM name (most important for extension)
     if (platform && identities && identities.length > 0) {
         const platformLower = platform.toLowerCase();
-        console.log(`[Solari Resolver] Trying platform name match: "${platformLower}"`);
         const identityByPlatform = identities.find(i =>
             i.name && i.name.toLowerCase() === platformLower
         );
         if (identityByPlatform) {
-            console.log(`[Solari Resolver] ✅ RESOLVED via platform name match: ${identityByPlatform.id} (identity: "${identityByPlatform.name}")`);
+            if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Resolver] ✅ RESOLVED via platform name match: ${identityByPlatform.id}`);
             return identityByPlatform.id;
         }
     }
@@ -2606,19 +2592,17 @@ function resolveClientIdForPlatform(platform, preset) {
     // Priority 4: Identity matched by PRESET name
     if (preset && preset.name && identities && identities.length > 0) {
         const presetLower = preset.name.toLowerCase();
-        console.log(`[Solari Resolver] Trying preset name match: "${presetLower}"`);
         const identityByPreset = identities.find(i =>
             i.name && i.name.toLowerCase() === presetLower
         );
         if (identityByPreset) {
-            console.log(`[Solari Resolver] ✅ RESOLVED via preset name match: ${identityByPreset.id} (identity: "${identityByPreset.name}")`);
+            if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Resolver] ✅ RESOLVED via preset name match: ${identityByPreset.id}`);
             return identityByPreset.id;
         }
     }
 
     // No match found
-    console.log(`[Solari Resolver] ❌ NO CLIENT ID FOUND - will use Global default`);
-    console.log(`[Solari Resolver] ========================================`);
+    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Resolver] ❌ NO CLIENT ID FOUND - will use Global default`);
     return null;
 }
 
@@ -2640,7 +2624,7 @@ function handleBrowserMediaUpdate(message, ws) {
     // 1. CLEAR LOGIC
     if (!data) {
         if (presenceSources.browserExtension.active && presenceSources.browserExtension.platform === platform) {
-            console.log(`[Solari Extension] Clearing ${platform} state (debounce started)`);
+        if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Clearing ${platform} state (debounce started)`);
 
             // Debounce: Wait 1s before actually clearing to prevent flickering on tab switches
             if (presenceSources.browserExtension.clearTimeout) {
@@ -2648,7 +2632,7 @@ function handleBrowserMediaUpdate(message, ws) {
             }
 
             presenceSources.browserExtension.clearTimeout = setTimeout(() => {
-                console.log(`[Solari Extension] Debounce finished, clearing ${platform}`);
+                if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Debounce finished, clearing ${platform}`);
                 presenceSources.browserExtension.active = false;
                 presenceSources.browserExtension.data = null;
                 presenceSources.browserExtension.platform = null;
@@ -2661,7 +2645,7 @@ function handleBrowserMediaUpdate(message, ws) {
                     presenceSources.autoDetect.source === 'website' &&
                     presenceSources.autoDetect.presetName &&
                     presenceSources.autoDetect.presetName.toLowerCase().includes(platform.toLowerCase())) {
-                    console.log(`[Solari Extension] Also clearing autoDetect website for ${platform}`);
+                    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Also clearing autoDetect website for ${platform}`);
                     presenceSources.autoDetect.active = false;
                     presenceSources.autoDetect.data = null;
                     presenceSources.autoDetect.source = null;
@@ -2687,7 +2671,7 @@ function handleBrowserMediaUpdate(message, ws) {
     // 2. CANCEL PENDING CLEAR (if any) - Important for platform switching
     if (presenceSources.browserExtension.clearTimeout) {
         const pendingPlatform = presenceSources.browserExtension.platform;
-        console.log(`[Solari Extension] Cancelling pending clear for ${pendingPlatform} (new data received for ${platform})`);
+        if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Cancelling pending clear for ${pendingPlatform} (new data received for ${platform})`);
         clearTimeout(presenceSources.browserExtension.clearTimeout);
         presenceSources.browserExtension.clearTimeout = null;
     }
@@ -2695,20 +2679,22 @@ function handleBrowserMediaUpdate(message, ws) {
     // 2.5. Handle platform switch (e.g., Twitch -> YouTube)
     const previousPlatform = presenceSources.browserExtension.platform;
     if (previousPlatform && previousPlatform !== platform) {
-        console.log(`[Solari Extension] Platform switch detected: ${previousPlatform} -> ${platform}`);
+        if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Platform switch detected: ${previousPlatform} -> ${platform}`);
     }
 
     // 3. PREPARE DATA
-    console.log(`[Solari Extension] Received ${platform} update:`, JSON.stringify(data));
+    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Received ${platform} update:`, JSON.stringify(data));
 
     // Find matching preset for assets/Client ID
     const matchingPreset = presets.find(p => p.name.toLowerCase() === platform.toLowerCase()) ||
         presets.find(p => p.name.toLowerCase().includes(platform.toLowerCase()));
 
-    if (matchingPreset) {
-        console.log(`[Solari Debug] Found matching preset for ${platform}:`, matchingPreset.name, '| ClientID:', matchingPreset.clientId);
-    } else {
-        console.log(`[Solari Debug] NO matching preset found for ${platform}. Using fallback.`);
+    if (CONSTANTS.DEBUG_MODE) {
+        if (matchingPreset) {
+            console.log(`[Solari Extension] Found matching preset for ${platform}:`, matchingPreset.name);
+        } else {
+            console.log(`[Solari Extension] NO matching preset found for ${platform}. Using fallback.`);
+        }
     }
 
     const presetToUse = matchingPreset || { name: platform, type: 3 }; // Fallback
@@ -2722,14 +2708,16 @@ function handleBrowserMediaUpdate(message, ws) {
         buttons.push({ label: presetToUse.button2Label, url: presetToUse.button2Url });
     }
 
-    // DEBUG: Log button building
-    console.log('[Solari Extension] Preset button fields:', {
-        button1Label: presetToUse.button1Label,
-        button1Url: presetToUse.button1Url,
-        button2Label: presetToUse.button2Label,
-        button2Url: presetToUse.button2Url,
-        builtButtons: buttons
-    });
+    // Only log button building in debug mode
+    if (CONSTANTS.DEBUG_MODE) {
+        console.log('[Solari Extension] Preset button fields:', {
+            button1Label: presetToUse.button1Label,
+            button1Url: presetToUse.button1Url,
+            button2Label: presetToUse.button2Label,
+            button2Url: presetToUse.button2Url,
+            builtButtons: buttons
+        });
+    }
 
     // Construct Activity Object
     // NOTE: Don't include largeImageText for extension updates - it shows as extra text in Discord
@@ -2748,9 +2736,9 @@ function handleBrowserMediaUpdate(message, ws) {
     const platformChanged = previousPlatform !== platform;
     if (platformChanged || !presenceSources.browserExtension.startTimestamp) {
         presenceSources.browserExtension.startTimestamp = Date.now();
-        console.log(`[Solari Extension] New timestamp set for ${platform}:`, presenceSources.browserExtension.startTimestamp);
+        if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] New timestamp set for ${platform}`);
     } else {
-        console.log(`[Solari Extension] Preserving existing timestamp for ${platform}:`, presenceSources.browserExtension.startTimestamp);
+        if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Preserving existing timestamp for ${platform}`);
     }
 
     let activityType = presetToUse.type || 3; // Default to Watching
@@ -2794,8 +2782,7 @@ function handleBrowserMediaUpdate(message, ws) {
         customTimestamp: presenceSources.browserExtension.startTimestamp
     };
 
-    // DEBUG: Log constructed activity with buttons
-    console.log('[Solari Extension] Constructed activity:', JSON.stringify(activity, null, 2));
+    if (CONSTANTS.DEBUG_MODE) console.log('[Solari Extension] Constructed activity:', JSON.stringify(activity, null, 2));
 
     // RESOLVE CLIENT ID (USING ROBUST RESOLVER)
     const finalClientId = resolveClientIdForPlatform(platform, presetToUse);
@@ -2809,9 +2796,9 @@ function handleBrowserMediaUpdate(message, ws) {
     presenceSources.browserExtension.timestamp = Date.now();
 
     // 5. TRIGGER UPDATE
-    console.log(`[Solari Extension] Calling updatePresence for ${platform}...`);
+    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Calling updatePresence for ${platform}...`);
     updatePresence();
-    console.log(`[Solari Extension] updatePresence completed for ${platform}`);
+    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] updatePresence completed for ${platform}`);
 
     // 6. CONFIRMATION
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -2913,7 +2900,7 @@ ipcMain.on('update-priority-settings', (event, priorities) => {
 
     // Re-evaluate priority (force update since priorities changed)
     currentPrioritySource = null; // Reset to force re-evaluation
-    updateRichPresenceWithPriority(true);
+    updatePresence();
 });
 
 ipcMain.on('spotify-control', (event, action) => {
@@ -3041,13 +3028,13 @@ ipcMain.handle('resolve-imgur-url', async (event, url) => {
     const https = require('https');
     const http = require('http');
 
-    console.log('[Solari] ========== IMGUR RESOLVER ==========');
-    console.log('[Solari] Input URL:', url);
+    if (CONSTANTS.DEBUG_MODE) console.log('[Solari] ========== IMGUR RESOLVER ==========');
+    if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Input URL:', url);
 
     try {
         // If it's already a direct image URL (i.imgur.com with extension), just clean and return
         if (url.includes('i.imgur.com') && /\.(png|jpg|jpeg|gif|webp)/i.test(url)) {
-            console.log('[Solari] Already direct URL');
+            if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Already direct URL');
             return cleanImgurUrl(url);
         }
 
@@ -3076,7 +3063,7 @@ ipcMain.handle('resolve-imgur-url', async (event, url) => {
                                 const urlObj = new URL(currentUrl);
                                 newUrl = urlObj.origin + newUrl;
                             }
-                            console.log('[Solari] Redirect to:', newUrl);
+                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Redirect to:', newUrl);
                             doFetch(newUrl, redirectsLeft - 1);
                             return;
                         }
@@ -3091,10 +3078,10 @@ ipcMain.handle('resolve-imgur-url', async (event, url) => {
         };
 
         const html = await fetchWithRedirects(url);
-        console.log('[Solari] Fetched HTML length:', html.length);
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Fetched HTML length:', html.length);
 
         if (html.length < 100) {
-            console.log('[Solari] HTML too short, likely error page');
+            if (CONSTANTS.DEBUG_MODE) console.log('[Solari] HTML too short, likely error page');
             return url;
         }
 
@@ -3113,7 +3100,7 @@ ipcMain.handle('resolve-imgur-url', async (event, url) => {
             const match = html.match(pattern);
             if (match && match[1] && match[1].includes('imgur')) {
                 ogUrl = match[1].split('?')[0].replace('http://', 'https://');
-                console.log('[Solari] Found og:image:', ogUrl);
+                if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Found og:image:', ogUrl);
                 break;
             }
         }
@@ -3125,7 +3112,7 @@ ipcMain.handle('resolve-imgur-url', async (event, url) => {
         // Strategy 2: Look for i.imgur.com URLs directly in HTML
         const directMatch = html.match(/https?:\/\/i\.imgur\.com\/[a-zA-Z0-9]+\.(png|jpg|jpeg|gif|webp)/i);
         if (directMatch) {
-            console.log('[Solari] Found direct URL in HTML:', directMatch[0]);
+            if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Found direct URL in HTML:', directMatch[0]);
             return cleanImgurUrl(directMatch[0]);
         }
 
@@ -3136,12 +3123,12 @@ ipcMain.handle('resolve-imgur-url', async (event, url) => {
         if (hashMatch && extMatch) {
             const ext = extMatch[1].replace('.', '');
             const imageUrl = `https://i.imgur.com/${hashMatch[1]}.${ext}`;
-            console.log('[Solari] Found via JSON:', imageUrl);
+            if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Found via JSON:', imageUrl);
             return imageUrl;
         }
 
-        console.log('[Solari] Could not find image URL');
-        console.log('[Solari] HTML preview:', html.substring(0, 500));
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Could not find image URL');
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] HTML preview:', html.substring(0, 500));
         return url;
 
     } catch (err) {
@@ -3159,7 +3146,7 @@ function cleanImgurUrl(url) {
     // Minimum ID length should be 5 characters (Imgur uses 5-7 char IDs)
     const validCheck = url.match(/https:\/\/i\.imgur\.com\/([a-zA-Z0-9]{5,})\.(png|jpg|jpeg|gif|webp)/i);
     if (!validCheck) {
-        console.log('[Solari] URL does not match valid Imgur format:', url);
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] URL does not match valid Imgur format:', url);
         return url;
     }
 
@@ -3171,7 +3158,7 @@ function cleanImgurUrl(url) {
         const id = match[1];
         const suffix = match[2];
         const ext = match[3];
-        console.log('[Solari] Cleaned URL:', `https://i.imgur.com/${id}${ext}`, '(removed suffix:', suffix + ')');
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Cleaned URL:', `https://i.imgur.com/${id}${ext}`, '(removed suffix:', suffix + ')');
         return `https://i.imgur.com/${id}${ext}`;
     }
     return url;
@@ -3242,13 +3229,13 @@ ipcMain.on('update-spotify-plugin-settings', (event, settings) => {
 ipcMain.on('update-messagetools-plugin-settings', (event, settings) => {
     try {
         const bdConfigPath = path.join(app.getPath('userData').replace('solari-app', 'BetterDiscord'), 'plugins', 'SolariMessageTools.config.json');
-        
+
         let fileData = { settings: settings, schema: [] };
         if (fs.existsSync(bdConfigPath)) {
             try {
                 let existing = JSON.parse(fs.readFileSync(bdConfigPath, 'utf8'));
                 fileData = { ...existing, settings: { ...existing.settings, ...settings } };
-            } catch(e){}
+            } catch (e) { }
         }
         fs.writeFileSync(bdConfigPath, JSON.stringify(fileData, null, 4), 'utf8');
         console.log('[Solari] Solari MessageTools BD Plugin config updated via UI Schema!');
@@ -3373,70 +3360,10 @@ function setupPluginWatcher() {
     }
 }
 
+// P2-BUG-02: Unified — delegates to checkBDStatus() to avoid 60 lines of duplicated logic
 ipcMain.handle('plugin:check-bd', async () => {
-    try {
-        const bdPath = path.join(app.getPath('appData'), 'BetterDiscord');
-        const bdDataPath = path.join(bdPath, 'data');
-        const prevNoAsar = process.noAsar;
-        process.noAsar = true;
-        const asarExists = fs.existsSync(path.join(bdDataPath, 'betterdiscord.asar'));
-        process.noAsar = prevNoAsar;
-
-        // Check injection in Discord's index.js
-        let injectionFound = false;
-        const localAppData = process.env.LOCALAPPDATA;
-        if (localAppData) {
-            const discordBase = path.join(localAppData, 'Discord');
-            if (fs.existsSync(discordBase)) {
-                try {
-                    const appDirs = fs.readdirSync(discordBase)
-                        .filter(d => d.startsWith('app-'))
-                        .sort().reverse();
-
-                    if (appDirs.length > 0) {
-                        const modulesDir = path.join(discordBase, appDirs[0], 'modules');
-                        if (fs.existsSync(modulesDir)) {
-                            const coreDirs = fs.readdirSync(modulesDir)
-                                .filter(d => d.startsWith('discord_desktop_core'));
-
-                            for (const cd of coreDirs) {
-                                const indexJs = path.join(modulesDir, cd, 'discord_desktop_core', 'index.js');
-                                if (fs.existsSync(indexJs)) {
-                                    const content = fs.readFileSync(indexJs, 'utf8');
-                                    if (content.toLowerCase().includes('betterdiscord')) {
-                                        injectionFound = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (scanErr) {
-                    console.warn('[Solari] Erro ao verificar injeção BD:', scanErr);
-                }
-            }
-        }
-
-        // Decision matrix:
-        // asar exists + injection exists → ok
-        // asar exists + injection missing → broken (Discord update removed hook)
-        // asar missing + injection exists → broken (asar deleted but hook remains)
-        // asar missing + injection missing → not_installed
-        if (asarExists && injectionFound) {
-            return { status: 'ok' };
-        } else if (asarExists && !injectionFound) {
-            console.log('[Solari] BD asar exists but injection missing → broken');
-            return { status: 'broken' };
-        } else if (!asarExists && injectionFound) {
-            console.log('[Solari] BD asar missing but injection exists → broken');
-            return { status: 'broken' };
-        } else {
-            return { status: 'not_installed' };
-        }
-    } catch (e) {
-        console.error('[Solari] Error checking BetterDiscord:', e);
-        return { status: 'not_installed' };
-    }
+    const status = await checkBDStatus();
+    return { status };
 });
 
 // Uninstall BetterDiscord (remove hook + asar, keep plugins/themes)
@@ -3559,7 +3486,7 @@ async function checkBDStatus() {
                             }
                         }
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
         }
 
@@ -3574,7 +3501,7 @@ async function checkBDStatus() {
 // Background poller for Auto-Repair
 function startBDBackgroundPolling() {
     if (bdStatusPollInterval) clearInterval(bdStatusPollInterval);
-    
+
     // Check every 3 seconds for lightning-fast repair
     bdStatusPollInterval = setInterval(async () => {
         if (isRepairing) return;
@@ -3601,7 +3528,7 @@ async function performBDRepair() {
     isRepairing = true;
     broadcastBDStatus('repairing');
     console.log('[BD Repair] Starting background repair...');
-    
+
     try {
         // Reuse the logic from plugin:install-bd (this would be better if refactored to a standalone function,
         // but for now I'll call the logic directly to ensure immediate result)
@@ -3611,7 +3538,7 @@ async function performBDRepair() {
             // Let's refactor the real one below to be callable.
             return await actualInstallBDLogic();
         })();
-        
+
         if (result.success) {
             console.log('[BD Repair] Background repair successful!');
         } else {
@@ -3643,7 +3570,7 @@ async function actualInstallBDLogic() {
         const followRedirects = (url, maxRedirects = 10) => {
             return new Promise((resolve, reject) => {
                 const doRequest = (currentUrl, redirectsLeft) => {
-                    https.get(currentUrl, { headers: { 'User-Agent': 'Solari/1.8.0' } }, (res) => {
+                    https.get(currentUrl, { headers: { 'User-Agent': 'Solari/1.8.1' } }, (res) => {
                         if ((res.statusCode === 302 || res.statusCode === 301) && res.headers.location && redirectsLeft > 0) {
                             doRequest(res.headers.location, redirectsLeft - 1);
                         } else if (res.statusCode === 200) resolve(res);
@@ -3835,7 +3762,7 @@ ipcMain.handle('plugin:get-remote-version', async (event, url) => {
         return new Promise((resolve) => {
             if (maxRedirects <= 0) return resolve(null);
             const protocol = fetchUrl.startsWith('https') ? https : http;
-            
+
             try {
                 protocol.get(fetchUrl, (res) => {
                     if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
@@ -3901,24 +3828,24 @@ let lastCpuInfo = null;
 function getCpuUsage() {
     const cpus = os.cpus();
     if (!cpus || cpus.length === 0) return 0;
-    
+
     let totalIdle = 0;
     let totalTick = 0;
-    
+
     for (let currentCpu of cpus) {
         for (let type in currentCpu.times) {
             totalTick += currentCpu.times[type];
         }
         totalIdle += currentCpu.times.idle;
     }
-    
+
     let usage = 0;
     if (lastCpuInfo) {
         const idleDifference = totalIdle - lastCpuInfo.idle;
         const totalDifference = totalTick - lastCpuInfo.total;
         usage = 100 - ~~(100 * idleDifference / totalDifference);
     }
-    
+
     lastCpuInfo = { idle: totalIdle, total: totalTick };
     return Math.max(0, Math.min(100, usage));
 }
@@ -3927,8 +3854,8 @@ function getCpuUsage() {
 async function getGpuUsage() {
     return new Promise((resolve) => {
         // Use nvidia-smi if available (fastest C++ utility), otherwise return null
-        exec('nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits', 
-            { timeout: 1000, windowsHide: true }, 
+        exec('nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits',
+            { timeout: 1000, windowsHide: true },
             (error, stdout) => {
                 if (error || !stdout) {
                     resolve(null);
@@ -3950,15 +3877,11 @@ async function getGpuUsage() {
                 } catch (e) {
                     resolve(null);
                 }
-        });
+            });
     });
 }
 
-si = require('systeminformation');
 
-function ensureSI() {
-    return true;
-}
 
 // Global cached GPU data to avoid launching processes too often
 let cachedGpuStats = null;
@@ -4044,10 +3967,10 @@ function startHWMonitor() {
     // We will poll every 2 seconds for CPU/RAM which is virtually zero-cost
     const interval = hwMonitorSettings.intervalMs || 2000;
     console.log('[HW Monitor] Starting lightweight polling every', interval, 'ms');
-    
+
     // Warm up CPU counters
     getCpuUsage();
-    
+
     // First poll immediately
     setTimeout(pollHardwareStats, 500);
     hwMonitorInterval = setInterval(pollHardwareStats, interval);
@@ -4069,7 +3992,7 @@ function formatHWStatsForRPC() {
     const showCPU = hwMonitorSettings.showCPU !== false;
     const showRAM = hwMonitorSettings.showRAM !== false;
     const showGPU = hwMonitorSettings.showGPU !== false;
-    
+
     const showGPUTemp = hwMonitorSettings.showGPUTemp !== false;
 
     if (latestHwStats.cpu && showCPU) {
@@ -4082,7 +4005,7 @@ function formatHWStatsForRPC() {
     if (latestHwStats.gpu && showGPU) {
         // Only show GPU if we have any valid data to prevent "GPU: N/A" spam
         const hasTemp = showGPUTemp && latestHwStats.gpu.temp !== null;
-        
+
         if (latestHwStats.gpu.usage !== null || hasTemp) {
             let str = `GPU:`;
             if (latestHwStats.gpu.usage !== null) str += ` ${latestHwStats.gpu.usage}%`;
@@ -4367,19 +4290,16 @@ ipcMain.handle('soundboard:get-history', () => {
 
 // Stop all sounds
 ipcMain.handle('soundboard:stop-all', async () => {
-    console.log('[SoundBoard IPC] stop-all invoked');
+    if (CONSTANTS.DEBUG_MODE) console.log('[SoundBoard IPC] stop-all invoked');
     try {
         if (wss) {
-            let sentCount = 0;
             wss.clients.forEach(client => {
                 if (client.readyState === WebSocket.OPEN) {
                     client.send(JSON.stringify({
                         type: 'soundboard:stop-all'
                     }));
-                    sentCount++;
                 }
             });
-            console.log('[SoundBoard IPC] stop-all sent to', sentCount, 'clients');
         }
         return { success: true };
     } catch (e) {
@@ -4494,8 +4414,8 @@ function initializeWebSocketServer() {
             try {
                 const data = JSON.parse(message);
 
-                // DEBUG: Log all incoming messages
-                console.log('[Solari WSS] Received message type:', data.type, '| Content:', JSON.stringify(data).substring(0, 200));
+                // P2-OPT-02: Guard verbose WSS log with DEBUG_MODE
+                if (CONSTANTS.DEBUG_MODE) console.log('[Solari WSS] Received message type:', data.type, '| Content:', JSON.stringify(data).substring(0, 200));
 
                 switch (data.type) {
                     case 'handshake':
@@ -4564,7 +4484,6 @@ function initializeWebSocketServer() {
                         const plugin = connectedPlugins.get(wsId);
                         if (plugin && blockedPlugins.has(plugin.name)) return;
 
-                        // Treat plugin update as manual preset update
                         // Treat plugin update as manual preset update
                         if (data.activity) {
                             // Smart Resolve: If no Client ID, try to find a mapping
@@ -4659,7 +4578,7 @@ function initializeWebSocketServer() {
                                 content = fileData.content || "";
                             }
                             ws.send(JSON.stringify({ type: 'notes_sync', content: content }));
-                            console.log('[Solari WSS] Sent notes data to SolariNotes plugin');
+                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari WSS] Sent notes data to SolariNotes plugin');
                         } catch (err) {
                             console.error('[Solari WSS] Error reading notes:', err);
                         }
@@ -4672,7 +4591,7 @@ function initializeWebSocketServer() {
                                 content: data.content,
                                 lastUpdated: new Date().toISOString()
                             }), 'utf8');
-                            console.log('[Solari WSS] Saved notes from SolariNotes plugin');
+                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari WSS] Saved notes from SolariNotes plugin');
                         } catch (err) {
                             console.error('[Solari WSS] Error saving notes:', err);
                         }
@@ -5077,7 +4996,7 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
 }
 
 function loadPresetActivity(preset, isManual = false) {
-    if (CONSTANTS.DEBUG_MODE || true) console.log(`[Solari] Loading preset "${preset.name}" with Client ID: ${preset.clientId}`);
+    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] Loading preset "${preset.name}" with Client ID: ${preset.clientId}`);
     // Build buttons array
     const buttons = [];
     if (preset.button1Label && preset.button1Url) {
@@ -5199,42 +5118,8 @@ ipcMain.on('set-client-id', (event, newClientId) => {
 
 // ===== GLOBAL SHORTCUTS HANDLER =====
 
-// ===== IPC HANDLERS =====
-// IPC handler for get-sounds
-ipcMain.removeHandler('soundboard:get-sounds'); // Safety removal
-ipcMain.handle('soundboard:get-sounds', async () => {
-    console.log('[Main] soundboard:get-sounds called');
-    if (!soundBoard) {
-        console.error('[Main] SoundBoard instance is null');
-        return [];
-    }
-    return soundBoard.sounds || [];
-});
-
-// IPC handler for get-settings
-ipcMain.removeHandler('soundboard:get-settings'); // Safety removal
-ipcMain.handle('soundboard:get-settings', async () => {
-    console.log('[Main] soundboard:get-settings called');
-    if (!soundBoard) {
-        console.error('[Main] SoundBoard instance is null');
-        return { enabled: false, globalVolume: 1.0, previewVolume: 0.5 };
-    }
-    return soundBoard.settings;
-});
-
-// IPC handler for get-categories
-ipcMain.removeHandler('soundboard:get-categories');
-ipcMain.handle('soundboard:get-categories', async () => {
-    if (!soundBoard) return ['default', 'custom'];
-    return soundBoard.categories || ['default', 'custom'];
-});
-
-// IPC handler for get-history (play history)
-ipcMain.removeHandler('soundboard:get-history');
-ipcMain.handle('soundboard:get-history', async () => {
-    if (!soundBoard) return [];
-    return soundBoard.playHistory || [];
-});
+// P2-BUG-01: Removed duplicate SoundBoard IPC handlers (get-sounds, get-settings, get-categories, get-history)
+// These are already registered at lines ~4130-4290. The removeHandler+handle pattern here was causing unnecessary re-registration.
 
 // IPC handler for sound server port
 ipcMain.removeHandler('soundboard:get-server-port');
@@ -5262,7 +5147,7 @@ ipcMain.handle('soundboard:get-sound-data', async (event, soundId) => {
     }
     try {
         const data = fs.readFileSync(sound.path);
-        console.log(`[SoundBoard IPC] get-sound-data: Serving ${sound.name} (${data.length} bytes)`);
+        if (CONSTANTS.DEBUG_MODE) console.log(`[SoundBoard IPC] get-sound-data: Serving ${sound.name} (${data.length} bytes)`);
         return data;
     } catch (e) {
         console.error(`[SoundBoard IPC] get-sound-data error:`, e);

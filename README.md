@@ -94,6 +94,16 @@ Solari collects **minimal, anonymous telemetry** to help us understand how many 
 
 This data is used solely for usage statistics and is automatically deleted after 90 seconds of inactivity. For more details, see our [Privacy Policy](https://solarirpc.com/privacy.html).
 
+## 🔒 Security & Trust (SmartScreen)
+
+**Solari** is safe, open-source software. Since we do not pay for a digital signature certificate (which costs hundreds of dollars), Windows SmartScreen may display a warning when opening the `.exe` for the first time.
+
+**To open safely:**
+1. Click on **"More info"**.
+2. Click on **"Run anyway"**.
+
+This happens only because we are an independent project. You can verify the entire source code here on GitHub.
+
 ## 👨‍💻 Credits
 
 Developed by **[TheDroid](https://github.com/TheDroidBR)**.

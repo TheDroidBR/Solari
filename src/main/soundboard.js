@@ -312,7 +312,12 @@ class SoundBoard {
     }
 
     unregisterAllShortcuts() {
-        globalShortcut.unregisterAll();
+        // Only unregister shortcuts owned by the SoundBoard, not ALL global shortcuts
+        this.sounds.forEach(sound => {
+            if (sound.shortcut && globalShortcut.isRegistered(sound.shortcut)) {
+                globalShortcut.unregister(sound.shortcut);
+            }
+        });
     }
 
     // Data persistence helpers
@@ -351,11 +356,12 @@ class SoundBoard {
             this.sounds = data.sounds.map(s => {
                 const dir = s.category === 'default' ? this.defaultSoundsDir : this.customSoundsDir;
                 const filePath = path.join(dir, s.filename);
+                const fileExists = fs.existsSync(filePath);
                 return {
                     ...s,
                     path: filePath,
-                    exists: fs.existsSync(filePath),
-                    size: fs.existsSync(filePath) ? fs.statSync(filePath).size : 0,
+                    exists: fileExists,
+                    size: fileExists ? fs.statSync(filePath).size : 0,
                     dateAdded: new Date()
                 };
             }).filter(s => {
