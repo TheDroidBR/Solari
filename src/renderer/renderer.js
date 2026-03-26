@@ -3343,6 +3343,22 @@ var PluginsTabManager = {
                     labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnRepair');
                     labelEl.textContent = t('pluginStore.bdBtnRepair') || 'Reparar BD';
                 }
+            } else if (result.status === 'pending_update') {
+                // Discord downloaded an update but user hasn't installed it yet
+                // Auto-repair is paused to prevent infinite loop
+                if (indicator) {
+                    indicator.classList.add('bd-status-broken');
+                    indicator.title = 'Discord update pending — Auto-Repair paused';
+                    if (text) {
+                        text.setAttribute('data-i18n', 'pluginStore.bdStatusPending');
+                        text.textContent = t('pluginStore.bdStatusPending') || 'Update Pendente';
+                    }
+                }
+                if (labelEl) {
+                    labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnWaitUpdate');
+                    labelEl.textContent = t('pluginStore.bdBtnWaitUpdate') || 'Aguardando Update';
+                }
+                if (headerBtn) headerBtn.disabled = true;
             } else if (result.status === 'repairing') {
                 if (indicator) {
                     indicator.classList.add('bd-status-broken');
@@ -3370,6 +3386,7 @@ var PluginsTabManager = {
                     labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnReinstall');
                     labelEl.textContent = t('pluginStore.bdBtnReinstall') || 'Reinstalar BD';
                 }
+                if (headerBtn) headerBtn.disabled = false;
             }
         } catch (e) {
             console.error('[Plugins] Error handling BD status update:', e);

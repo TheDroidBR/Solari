@@ -116,6 +116,8 @@
         "bdBtnInstalling": "Installing...",
         "bdBtnRepairing": "Repairing...",
         "bdBtnUninstalling": "Uninstalling...",
+        "bdStatusPending": "Update Pending",
+        "bdBtnWaitUpdate": "Awaiting Update",
         "bdStatusChecking": "Checking...",
         "update": "Update",
         "bdDisclaimerTitle": "Disclaimer & Affiliation",

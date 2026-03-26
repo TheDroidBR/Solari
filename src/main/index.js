@@ -166,11 +166,17 @@ let prioritySettings = {
 
 let pluginWatcher = null; // Watcher for BetterDiscord plugins folder
 
-// ===== BD AUTO-REPAIR SYSTEM (v1.8.1 BACKGROUND) =====
+// ===== BD AUTO-REPAIR SYSTEM (v1.8.2 ANTI-LOOP) =====
 let bdStatusPollInterval = null;
 let bdBrokenCount = 0;
 let isRepairing = false;
 let lastKnownBDStatus = 'unknown';
+let bdRepairCooldownUntil = 0;          // Timestamp: no repairs before this
+let bdRepairHistory = [];                // Timestamps of recent repairs (circuit breaker)
+const BD_REPAIR_COOLDOWN_MS = 120000;   // 2min cooldown after each repair
+const BD_MAX_REPAIRS_WINDOW = 3;         // Max repairs allowed within the time window
+const BD_REPAIR_WINDOW_MS = 600000;      // 10min window for circuit breaker
+const BD_BROKEN_THRESHOLD = 5;           // 5 consecutive broken polls (15s) before repair
 
 let currentPrioritySource = null; // Track what's currently controlling RPC
 let lastNotifiedPresetName = null; // Track last preset name that triggered a notification
@@ -3453,7 +3459,7 @@ ipcMain.handle('bd:get-status', async () => {
     return { status: lastKnownBDStatus };
 });
 
-// Reusable logic for BetterDiscord Check
+// Reusable logic for BetterDiscord Check (v1.8.2 — with pending-update detection)
 async function checkBDStatus() {
     try {
         const bdPath = path.join(app.getPath('appData'), 'BetterDiscord');
@@ -3463,34 +3469,49 @@ async function checkBDStatus() {
         const asarExists = fs.existsSync(path.join(bdDataPath, 'betterdiscord.asar'));
         process.noAsar = prevNoAsar;
 
-        let injectionFound = false;
+        let injectionFoundInLatest = false;
+        let injectionFoundInOlder = false;
+        let hasMultipleAppDirs = false;
         const localAppData = process.env.LOCALAPPDATA;
+
         if (localAppData) {
             const discordBase = path.join(localAppData, 'Discord');
             if (fs.existsSync(discordBase)) {
                 try {
+                    // Sort descending: appDirs[0] = newest version
                     const appDirs = fs.readdirSync(discordBase).filter(d => d.startsWith('app-')).sort().reverse();
-                    if (appDirs.length > 0) {
-                        const modulesDir = path.join(discordBase, appDirs[0], 'modules');
-                        if (fs.existsSync(modulesDir)) {
-                            const coreDirs = fs.readdirSync(modulesDir).filter(d => d.startsWith('discord_desktop_core'));
-                            for (const cd of coreDirs) {
-                                const indexJs = path.join(modulesDir, cd, 'discord_desktop_core', 'index.js');
-                                if (fs.existsSync(indexJs)) {
-                                    const content = fs.readFileSync(indexJs, 'utf8');
-                                    if (content.toLowerCase().includes('betterdiscord')) {
-                                        injectionFound = true;
-                                        break;
-                                    }
+                    hasMultipleAppDirs = appDirs.length > 1;
+
+                    // Check BD injection in EACH app-* directory
+                    for (let i = 0; i < appDirs.length; i++) {
+                        const modulesDir = path.join(discordBase, appDirs[i], 'modules');
+                        if (!fs.existsSync(modulesDir)) continue;
+                        const coreDirs = fs.readdirSync(modulesDir).filter(d => d.startsWith('discord_desktop_core'));
+                        for (const cd of coreDirs) {
+                            const indexJs = path.join(modulesDir, cd, 'discord_desktop_core', 'index.js');
+                            if (fs.existsSync(indexJs)) {
+                                const content = fs.readFileSync(indexJs, 'utf8');
+                                if (content.toLowerCase().includes('betterdiscord')) {
+                                    if (i === 0) injectionFoundInLatest = true;
+                                    else injectionFoundInOlder = true;
                                 }
                             }
                         }
                     }
-                } catch (e) { }
+                } catch (e) { /* filesystem race — ignore */ }
             }
         }
 
-        if (asarExists && injectionFound) return 'ok';
+        const injectionFound = injectionFoundInLatest || injectionFoundInOlder;
+
+        if (asarExists && injectionFoundInLatest) return 'ok';
+
+        // Heuristic: asar exists, BD is injected in an older app-* dir but NOT in the newest one,
+        // AND there are multiple app-* dirs → Discord downloaded an update but hasn't applied it yet.
+        if (asarExists && !injectionFoundInLatest && injectionFoundInOlder && hasMultipleAppDirs) {
+            return 'pending_update';
+        }
+
         if (asarExists || injectionFound) return 'broken';
         return 'not_installed';
     } catch (e) {
@@ -3498,29 +3519,49 @@ async function checkBDStatus() {
     }
 }
 
-// Background poller for Auto-Repair
+// Background poller for Auto-Repair (v1.8.2 — anti-loop)
 function startBDBackgroundPolling() {
     if (bdStatusPollInterval) clearInterval(bdStatusPollInterval);
 
-    // Check every 3 seconds for lightning-fast repair
     bdStatusPollInterval = setInterval(async () => {
         if (isRepairing) return;
 
         const status = await checkBDStatus();
         broadcastBDStatus(status);
 
-        if (status === 'broken' && appSettings.bdAutoRepair) {
-            bdBrokenCount++;
-            console.log(`[BD Repair] Broken detected (${bdBrokenCount}/2)`);
-            if (bdBrokenCount >= 2) { // 6 seconds threshold
-                bdBrokenCount = 0;
-                performBDRepair();
-            }
-        } else {
+        // Skip repair for non-broken statuses or when auto-repair is off
+        if (!appSettings.bdAutoRepair || (status !== 'broken')) {
             bdBrokenCount = 0;
+            if (status === 'pending_update') {
+                console.log('[BD Repair] Discord update pending — auto-repair paused');
+            }
+            return;
+        }
+
+        // Cooldown check: don't repair if we recently completed one
+        const now = Date.now();
+        if (now < bdRepairCooldownUntil) {
+            bdBrokenCount = 0;
+            return;
+        }
+
+        // Circuit breaker: prune old entries and check
+        bdRepairHistory = bdRepairHistory.filter(ts => (now - ts) < BD_REPAIR_WINDOW_MS);
+        if (bdRepairHistory.length >= BD_MAX_REPAIRS_WINDOW) {
+            console.warn(`[BD Repair] Circuit breaker: ${bdRepairHistory.length} repairs in the last ${BD_REPAIR_WINDOW_MS / 60000}min — halting auto-repair`);
+            bdBrokenCount = 0;
+            return;
+        }
+
+        // Accumulate broken-count threshold
+        bdBrokenCount++;
+        console.log(`[BD Repair] Broken detected (${bdBrokenCount}/${BD_BROKEN_THRESHOLD})`);
+        if (bdBrokenCount >= BD_BROKEN_THRESHOLD) {
+            bdBrokenCount = 0;
+            performBDRepair();
         }
     }, 3000);
-    console.log('[Solari] Background BD Auto-Repair Poller started (3s)');
+    console.log('[Solari] Background BD Auto-Repair Poller started (3s interval, 15s threshold)');
 }
 
 async function performBDRepair() {
@@ -3530,14 +3571,7 @@ async function performBDRepair() {
     console.log('[BD Repair] Starting background repair...');
 
     try {
-        // Reuse the logic from plugin:install-bd (this would be better if refactored to a standalone function,
-        // but for now I'll call the logic directly to ensure immediate result)
-        // Actually, we can just trigger the existing handler logic
-        const result = await (async () => {
-            // This is a truncated mock of the install logic or I should refactor the real one
-            // Let's refactor the real one below to be callable.
-            return await actualInstallBDLogic();
-        })();
+        const result = await actualInstallBDLogic();
 
         if (result.success) {
             console.log('[BD Repair] Background repair successful!');
@@ -3548,7 +3582,11 @@ async function performBDRepair() {
         console.error('[BD Repair] Uncaught error:', e);
     } finally {
         isRepairing = false;
-        // The next poll will update the status to 'ok'
+        // Record this repair for cooldown + circuit breaker
+        const now = Date.now();
+        bdRepairCooldownUntil = now + BD_REPAIR_COOLDOWN_MS;
+        bdRepairHistory.push(now);
+        console.log(`[BD Repair] Cooldown active until ${new Date(bdRepairCooldownUntil).toLocaleTimeString()} | Repairs in window: ${bdRepairHistory.length}/${BD_MAX_REPAIRS_WINDOW}`);
     }
 }
 

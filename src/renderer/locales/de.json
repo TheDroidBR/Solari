@@ -116,6 +116,8 @@
         "bdBtnInstalling": "Wird installiert...",
         "bdBtnRepairing": "Wird repariert...",
         "bdBtnUninstalling": "Wird deinstalliert...",
+        "bdStatusPending": "Update ausstehend",
+        "bdBtnWaitUpdate": "Warte auf Update",
         "bdStatusChecking": "Prüfen...",
         "update": "Aktualisieren",
         "bdDisclaimerTitle": "Haftungsausschluss & Zugehörigkeit",
