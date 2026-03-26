@@ -1,3 +1,21 @@
+## [1.8.2] - 2026-03-26
+**UPDATE 1.8.2: BETTERDISCORD RESILIENCE & I18N PATCH**
+
+---
+
+### 🛡️ BetterDiscord Auto-Repair
+- **Loop Prevention**: Implemented a multi-layered detection system to identify pending Discord updates, preventing the infinite "Repair -> Discord Update -> Re-Break" loop.
+- **Circuit Breaker**: Added a safety limit of 3 repairs per 10 minutes to prevent process hangs during corrupted Discord installations.
+- **Repair Cooldown**: Added a mandatory 2-minute cooldown between auto-repair attempts.
+- **Transient State Handling**: Increased the detection threshold (15s) and added awareness of multiple `app-*` directories to distinguish between a broken injection and a clean update in progress.
+
+### 🌐 UI & Localization
+- **New Status**: Added `pending_update` status branch in the UI with a descriptive warning when a Discord update is downloaded but not yet applied.
+- **Global Parity**: Added missing `bdStatusPending` and `bdBtnWaitUpdate` translation keys to all 4 supported languages (PT-BR, EN, ES, DE).
+- **i18n Support**: Fixed several UI components in the Plugins tab to properly resolve translations via `data-i18n` attributes.
+
+---
+
 ## [1.8.1] - 2026-03-25
 **UPDATE 1.8.1: THE POLISH & SECURITY PATCH**
 
