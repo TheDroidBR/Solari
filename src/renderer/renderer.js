@@ -3408,12 +3408,12 @@ var PluginsTabManager = {
 
         const fallbackData = {
             "smartafk": {
-                "version": "1.0.0",
+                "version": "1.1.2",
                 "author": "TheDroid",
                 "description": "Detecta inatividade automaticamente e atualiza seu status no Discord. Sincroniza com o Solari via WebSocket.",
-                "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SmartAFKDetector.plugin.js",
+                "downloadUrl": "https://solarirpc.com/downloads/SmartAFKDetector.plugin.js",
                 "fileName": "SmartAFKDetector.plugin.js",
-                "changelog": "### v1.1.2 (2026-01-28)\n- \ud83d\udc1b **Fixed:** Infinite reconnection loop (\\\"zombie connection\\\") when plugin is disabled\n- \u26a1 **Optimized:** Connection cleanup logic\n\n### v1.1.1 (2026-01-20)\n- \ud83d\udc1b **Fixed:** Custom status sync with Discord servers when cleared\n- \ud83d\udc1b **Fixed:** Status persistence on other devices fixed\n- \u26a1 **Improved:** Reliability with new retry mechanism\n\n### v1.1.0 (2024-12-24)\n- \ud83d\udc1b **Fixed:** Status no longer gets stuck on 'Idle' when opening Discord on mobile/browser\n- \u26a1 **New:** Patches Discord's native idle timeout instead of manually setting status\n- \u26a1 Discord now handles idle detection natively, syncing correctly across devices\n\n### v1.0.0\n- \ud83d\ude80 Initial release\n- \u2705 Auto-detect mouse/keyboard inactivity\n- \u2705 Customizable timeout settings\n- \u2705 Syncs with Solari app via WebSocket"
+                "changelog": "### v1.1.2\n- 🐛 **Fixed:** Infinite reconnection loop when plugin is disabled"
             },
             "spotifysync": {
                 "version": "2.1.3",
@@ -3421,23 +3421,23 @@ var PluginsTabManager = {
                 "description": "Sync Spotify with Discord Rich Presence and Controls.",
                 "downloadUrl": "https://solarirpc.com/downloads/SpotifySync.plugin.js",
                 "fileName": "SpotifySync.plugin.js",
-                "changelog": "### v2.1.3 (2026-03-19)\n- 🔒 **Critical Fix: Token Amnesia**: The plugin now completely ignores Auth sync payloads pushed from the Solari Desktop App to prevent Discord from overwriting its valid tokens with empty ones on PC startup.\n- 🛡️ **Critical Fix: Race Condition**: Wrapped the `refresh_token` Spotify Web API OAuth flow inside a JavaScript Promise Mutex. This prevents concurrent background routines (like lyrics fetchers and status pollers) from firing duplicate refresh requests at the exact millisecond the 1-hour token expires. Duplicate requests previously caused Spotify to return an `invalid_grant` error, forcing the plugin to falsely assume access was revoked and wiping your perfectly valid login keys from disk. Your Premium connection is now immortal.\n\n### v2.1.2 (2026-03-18)\n- ⚡ **Play/Pause Responsiveness**: Reduced internal debounce from 800ms to 400ms for snappier playback controls.\n- 💾 **Connection Persistence**: Added \"Safe Merge\" logic to prevent Solari App from wiping plugin tokens on restart.\n- 🛑 **Rate Limiting**: Added support for Spotify's updated API limits (429 handling with Retry-After).\n- ⚠️ **Explicit Premium Warning**: Added prominent UI alerts (styled boxes and text) to clarify that Spotify Premium is required for full functionality.\n- 🔍 **Improved Detection**: Enhanced account resolution engine for more reliable Discord local control.\n\n### v2.1.1 (2026-02-25)\n- 🛡️ **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data.\n- 🎵 **Improvement:** **Lyrics Search** rewritten with 4-tier fallback. Strips (Remastered), (feat. X), [Deluxe], etc. Prioritizes synced (LRC) lyrics.\n\n### v2.1.0 (2026-02-25)\n- 🚀 **New:** **Lyrics Viewer** with synced LRC support, auto-scrolling, and premium blur effects.\n- 📱 **New:** **Device Picker** (Spotify Connect) to instantly transfer playback between your PC, Phone, TV, or Echo directly from Discord.\n- 🛡️ **Critical Fix:** **AFK Premium Fallback**. The plugin now seamlessly switches to the Spotify Web API when Discord stores go idle, ensuring the widget never disappears again.\n- ⚡ **Improvement:** **Real-Time Volume Sync**. Added a dedicated high-speed background poll. If you change the volume on your phone, the slider updates instantly.\n\n### v2.0.2 (2026-02-15)\n- 🚀 **Critical Fix:** Solved persistent \"Token Expirado (401)\" errors by scanning for CONNECTION_ACCESS_TOKEN.\n- 🐛 **Fix:** Library button now opens playlist view correctly.\n- ⚡ **Improvement:** Smarter local module detection.\n- 🐞 **Fix:** Removed triple-notification on Share.\n- 🛠️ **Fix:** Added startup delay for better reliability.\n\n### v2.0.1 (2026-02-15) - The Ghost Fix 👻\n- 🚀 **Fix:** Resolved misleading \"Local Control failed\" error toast when Web API fallback is successful.\n- 🐛 **Fix:** Fixed Next, Previous, and Pause controls by correctly passing accountId to local modules.\n- 🔍 **Improvement:** Enhanced local module search strategy.\n- 🔗 **Improvement:** Made the developer.spotify.com link clickable in the settings panel.\n- 🛠️ **Dev:** Added version check log for easier troubleshooting.\n\n### v2.0.0 (The Complete Rebirth)\n- 🚀 **Total Architecture Rewrite**: Built from the ground up for stability, speed, and premium features.\n- 🔐 **Premium Auth System**: Integrated Spotify PKCE authentication for secure access to advanced player controls.\n- 🎮 **Advanced Player Controls**: Added Shuffle, Repeat, Like/Unlike, real-time Volume Slider, and Seek Bar.\n- 📏 **New List Views**: Library and Queue views with Auto-Expanding Height (450px).\n- 🛡️ **Security & Privacy**: Added Editable Client ID field with a visibility toggle.\n- ✨ **Premium Glassmorphic Design**: Redesigned with card-based layouts and blur effects.\n- ⚡ **Performance & Sync**: Reliable WebSocket communication with Solari APP.\n\n### v1.0.1 (2026-01-28)\n- 🐛 **Fixed:** Infinite reconnection loop when plugin is disabled\n- ⚡ **Optimized:** Connection cleanup logic\n\n### v1.0.0\n- 🚀 Initial release\n- ✅ Play/Pause controls\n- ✅ Next/Previous track buttons\n- ✅ Now Playing display in Discord"
+                "changelog": "### v2.1.3\n- 🔒 **Critical Fix: Token Amnesia**: The plugin now completely ignores Auth sync payloads pushed from the Solari Desktop App to prevent overwrites."
             },
             "solarinotes": {
                 "version": "1.0.0",
                 "author": "TheDroid",
                 "description": "Sleek, synchronized notepad integrated strictly into Discord UI.",
-                "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariNotes.plugin.js",
+                "downloadUrl": "https://solarirpc.com/downloads/SolariNotes.plugin.js",
                 "fileName": "SolariNotes.plugin.js",
-                "changelog": "### v1.0.0 (2026-03-20)\n- 🚀 **Initial Release**: High-performance notepad built for Discord."
+                "changelog": "### v1.0.0\n- 🚀 **Initial Release**: High-performance notepad built for Discord."
             },
             "solarimessagetools": {
                 "version": "1.0.0",
                 "author": "TheDroid",
                 "description": "Ferramentas completas de mensagens: Edição rápida, Tradução, Mensagens Fantasmas e Anti-Typing.",
-                "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMessageTools.plugin.js",
+                "downloadUrl": "https://solarirpc.com/downloads/SolariMessageTools.plugin.js",
                 "fileName": "SolariMessageTools.plugin.js",
-                "changelog": "### v1.0.0\n- 🚀 **Initial Release**: Message utilities integrated natively with Solari App.\n- 👻 **Ghost Messages**: Keep deleted messages visible on your client.\n- 🌍 **Active Translation**: Translate incoming messages on the fly via context menus.\n- ⚡ **Quick Edit**: Double click to edit, Shift+Click to delete instantly.\n- 🤫 **Anti-Typing**: Prevent Discord from broadcasting your typing status."
+                "changelog": "### v1.0.0\n- 🚀 **Initial Release**: Message utilities integrated natively with Solari App."
             }
         };
 
@@ -3462,7 +3462,6 @@ var PluginsTabManager = {
                 // Optimization: We now fetch strictly from the GitHub Raw CDN, completely bypassing the 
                 // aggressive Javascript Bot Protection checks injected universally by free hosts like InfinityFree/Hostinger.
                 const url = `https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json?v=${Date.now()}`;
-
                 const response = await fetch(url, { 
                     signal: controller.signal, 
                     cache: 'no-store', // Request the browser network layer to never use cached responses
@@ -3478,17 +3477,26 @@ var PluginsTabManager = {
                 
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('text/html')) {
-                    throw new Error(`O servidor retornou uma página HTML em vez do arquivo JSON. Verifique se o arquivo 'plugins-meta.json' realmente foi feito upload na raiz do site solarirpc.com ou se há um bloqueio de Cloudflare.`);
+                    throw new Error(`Cloudflare/HTML Block Detected.`);
                 }
                 
                 data = await response.json();
             } catch (fetchErr) {
-                if (!isBackground) console.warn('[Plugins] Fetch falhou, modo estrito sem fallbacks ativado:', fetchErr.message);
-                if (this.metaData) {
-                    data = this.metaData; // Keep existing data if fetch fails in background (prevents layout flashing)
-                } else {
-                    // Throw error to trigger the errorEl UI block - guaranteeing website dependency
-                    throw fetchErr;
+                console.warn('[Plugins] Primary fetch failed. Initiating FALLBACK to solarirpc.com:', fetchErr.message);
+                try {
+                    const fallbackUrl = `https://solarirpc.com/fallback/plugins-meta.json?v=${Date.now()}`;
+                    if (!isBackground) console.log('[Plugins] Fetching from Fallback:', fallbackUrl);
+                    const fbResponse = await fetch(fallbackUrl);
+                    if (!fbResponse.ok) throw new Error('Fallback HTTP Error');
+                    data = await fbResponse.json();
+                } catch(fallbackFetchErr) {
+                    console.error('[Plugins] Fallback fetch also failed, activating Hardcoded Data Mode');
+                    if (this.metaData) {
+                        data = this.metaData; // Keep existing data if fetch fails in background (prevents layout flashing)
+                    } else {
+                        // Use local hardcoded fallback data as absolute last resort
+                        data = fallbackData;
+                    }
                 }
             }
             this.metaData = data;

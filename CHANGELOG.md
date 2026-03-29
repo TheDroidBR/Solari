@@ -1,3 +1,14 @@
+## [1.8.3] - 2026-03-29
+**UPDATE 1.8.3: OPERATION FALLBACK**
+
+---
+
+### 🛡️ Operation Fallback
+- **Emergency Static Servers**: Implements a robust fallback system ensuring that Solari downloads, updates, and plugins remain fully operational directly from `solarirpc.com` during GitHub unavailability.
+- **Enhanced Stability**: Enhanced stability across all network-dependent systems, ensuring you can still use your Discord Rich Presence seamlessly without hanging or crashing.
+
+---
+
 ## [1.8.2] - 2026-03-26
 **UPDATE 1.8.2: BETTERDISCORD RESILIENCE & I18N PATCH**
 
