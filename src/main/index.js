@@ -650,45 +650,56 @@ ipcMain.on('trigger-update-check', async () => {
 });
 
 // ===== IN-APP UPDATE BUTTON (v1.8.1) =====
-// Silent update check — returns {hasUpdate, latestVersion} without showing dialogs
-ipcMain.handle('check-update-silent', () => {
-    return new Promise((resolve) => {
-        const https = require('https');
-        const pkg = require('../../package.json');
-        const currentVersion = pkg.version;
 
-        const options = {
-            hostname: 'api.github.com',
-            path: CONSTANTS.GITHUB_RELEASES_PATH,
-            method: 'GET',
-            headers: {
-                'User-Agent': 'Solari-SilentCheck',
-                'Accept': 'application/vnd.github.v3+json'
-            }
+function fetchLatestReleaseWithFallback() {
+    return new Promise((resolve, reject) => {
+        const https = require('https');
+        
+        const makeRequest = (hostname, path) => {
+            return new Promise((reqResolve, reqReject) => {
+                const options = {
+                    hostname,
+                    path,
+                    method: 'GET',
+                    headers: { 'User-Agent': 'Solari-AutoUpdater', 'Accept': 'application/vnd.github.v3+json' },
+                    timeout: 4000
+                };
+                const req = https.request(options, (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => {
+                        try { reqResolve(JSON.parse(data)); } catch (e) { reqReject(e); }
+                    });
+                });
+                req.on('error', reqReject);
+                req.on('timeout', () => { req.destroy(); reqReject(new Error('Timeout')); });
+                req.end();
+            });
         };
 
-        const req = https.request(options, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-                try {
-                    const release = JSON.parse(data);
-                    const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
-                    const hasUpdate = compareVersions(latestVersion, currentVersion) > 0;
-                    resolve({ hasUpdate, latestVersion, currentVersion });
-                } catch (e) {
-                    resolve({ hasUpdate: false, latestVersion: currentVersion, currentVersion });
-                }
+        makeRequest('api.github.com', CONSTANTS.GITHUB_RELEASES_PATH)
+            .then(resolve)
+            .catch((err) => {
+                console.warn('[Solari Updater] GitHub API failed, attempting local fallback:', err.message);
+                makeRequest('solarirpc.com', `/fallback/latest-release.json?t=${Date.now()}`)
+                    .then(resolve)
+                    .catch(reject);
             });
-        });
-
-        req.on('error', () => resolve({ hasUpdate: false, latestVersion: currentVersion, currentVersion }));
-        req.setTimeout(8000, () => {
-            req.destroy();
-            resolve({ hasUpdate: false, latestVersion: currentVersion, currentVersion });
-        });
-        req.end();
     });
+}
+
+// Silent update check — returns {hasUpdate, latestVersion} without showing dialogs
+ipcMain.handle('check-update-silent', async () => {
+    const pkg = require('../../package.json');
+    const currentVersion = pkg.version;
+    try {
+        const release = await fetchLatestReleaseWithFallback();
+        const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
+        const hasUpdate = compareVersions(latestVersion, currentVersion) > 0;
+        return { hasUpdate, latestVersion, currentVersion };
+    } catch (e) {
+        return { hasUpdate: false, latestVersion: currentVersion, currentVersion };
+    }
 });
 
 // Trigger update via splash: use the SAME flow as the auto-update that already works
@@ -726,68 +737,45 @@ ipcMain.on('trigger-update-via-splash', async () => {
 
 // Check for updates via GitHub releases API
 async function checkForUpdates(labels) {
-    const https = require('https');
     const { dialog, shell } = require('electron');
     const pkg = require('../../package.json');
     const currentVersion = pkg.version;
 
     console.log('[Solari] Checking for updates...');
 
-    const options = {
-        hostname: 'api.github.com',
-        path: '/repos/TheDroidBR/Solari/releases/latest',
-        method: 'GET',
-        headers: {
-            'User-Agent': 'Solari-UpdateChecker',
-            'Accept': 'application/vnd.github.v3+json'
-        }
-    };
+    try {
+        const release = await fetchLatestReleaseWithFallback();
+        const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
 
-    const req = https.request(options, (res) => {
-        let data = '';
-        res.on('data', (chunk) => { data += chunk; });
-        res.on('end', () => {
-            try {
-                const release = JSON.parse(data);
-                const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
-
-                // Compare versions
-                if (compareVersions(latestVersion, currentVersion) > 0) {
-                    dialog.showMessageBox(mainWindow, {
-                        type: 'info',
-                        title: labels.updateAvailable,
-                        message: labels.updateMessage,
-                        detail: `${labels.updateAvailable}\n\nVersão atual: v${currentVersion}\nNova versão: v${latestVersion}`,
-                        buttons: [labels.downloadNow, labels.later]
-                    }).then((result) => {
-                        if (result.response === 0) {
-                            shell.openExternal(release.html_url || 'https://github.com/TheDroidBR/Solari/releases/latest');
-                        }
-                    });
-                } else {
-                    dialog.showMessageBox(mainWindow, {
-                        type: 'info',
-                        title: 'Solari',
-                        message: labels.noUpdates,
-                        detail: `Versão atual: v${currentVersion}`
-                    });
+        // Compare versions
+        if (compareVersions(latestVersion, currentVersion) > 0) {
+            dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: labels.updateAvailable,
+                message: labels.updateMessage,
+                detail: `${labels.updateAvailable}\n\nVersão atual: v${currentVersion}\nNova versão: v${latestVersion}`,
+                buttons: [labels.downloadNow, labels.later]
+            }).then((result) => {
+                if (result.response === 0) {
+                    shell.openExternal(release.html_url || 'https://solarirpc.com/changelog.html');
                 }
-            } catch (err) {
-                console.error('[Solari] Update check error:', err);
-                dialog.showMessageBox(mainWindow, {
-                    type: 'info',
-                    title: 'Solari',
-                    message: labels.noUpdates
-                });
-            }
+            });
+        } else {
+            dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Solari',
+                message: labels.noUpdates,
+                detail: `Versão atual: v${currentVersion}`
+            });
+        }
+    } catch (err) {
+        console.error('[Solari] Update check error:', err);
+        dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Solari',
+            message: labels.noUpdates
         });
-    });
-
-    req.on('error', (err) => {
-        console.error('[Solari] Update check failed:', err);
-    });
-
-    req.end();
+    }
 }
 
 // ===== SPLASH SCREEN & AUTO UPDATE SYSTEM =====
@@ -831,77 +819,46 @@ function sendSplashProgress(percent, downloaded, total) {
 /**
  * Check for app updates during splash. Returns true if an update is being installed (app will restart).
  */
-function checkUpdateViaSplash() {
-    return new Promise((resolve) => {
-        if (process.env.NODE_ENV === 'development') {
-            resolve(false);
-            return;
-        }
+async function checkUpdateViaSplash() {
+    if (process.env.NODE_ENV === 'development') {
+        return false;
+    }
 
-        sendSplashStatus('checking', 'Checking for updates...');
+    sendSplashStatus('checking', 'Checking for updates...');
 
-        const https = require('https');
-        const pkg = require('../../package.json');
-        const currentVersion = pkg.version;
+    const pkg = require('../../package.json');
+    const currentVersion = pkg.version;
 
-        console.log('[Solari Updater] Checking for updates... Current:', currentVersion);
+    console.log('[Solari Updater] Checking for updates... Current:', currentVersion);
 
-        const options = {
-            hostname: 'api.github.com',
-            path: CONSTANTS.GITHUB_RELEASES_PATH,
-            method: 'GET',
-            headers: {
-                'User-Agent': 'Solari-AutoUpdater',
-                'Accept': 'application/vnd.github.v3+json'
+    try {
+        const release = await fetchLatestReleaseWithFallback();
+        const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
+        const exeAsset = release.assets?.find(a => a.name.endsWith('.exe'));
+
+        if (compareVersions(latestVersion, currentVersion) > 0 && exeAsset) {
+            console.log('[Solari Updater] Update available:', latestVersion);
+            sendSplashStatus('downloading', `Downloading v${latestVersion}...`);
+
+            try {
+                await downloadUpdateWithProgress(exeAsset.browser_download_url, exeAsset.name, exeAsset.size);
+                return true;
+            } catch (dlErr) {
+                console.error('[Solari Updater] Download failed:', dlErr);
+                sendSplashStatus('error', 'Download failed. Starting anyway...');
+                await new Promise(r => setTimeout(r, 2000));
+                return false;
             }
-        };
-
-        const req = https.request(options, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-                try {
-                    const release = JSON.parse(data);
-                    const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
-                    const exeAsset = release.assets?.find(a => a.name.endsWith('.exe'));
-
-                    if (compareVersions(latestVersion, currentVersion) > 0 && exeAsset) {
-                        console.log('[Solari Updater] Update available:', latestVersion);
-                        sendSplashStatus('downloading', `Downloading v${latestVersion}...`);
-
-                        downloadUpdateWithProgress(exeAsset.browser_download_url, exeAsset.name, exeAsset.size)
-                            .then(() => resolve(true))
-                            .catch((err) => {
-                                console.error('[Solari Updater] Download failed:', err);
-                                sendSplashStatus('error', 'Download failed. Starting anyway...');
-                                setTimeout(() => resolve(false), 2000);
-                            });
-                    } else {
-                        console.log('[Solari Updater] No update available. Latest:', latestVersion);
-                        resolve(false);
-                    }
-                } catch (e) {
-                    console.error('[Solari Updater] Parse error:', e);
-                    sendSplashStatus('error', 'Update check failed. Starting anyway...');
-                    setTimeout(() => resolve(false), 2000);
-                }
-            });
-        });
-
-        req.on('error', (err) => {
-            console.error('[Solari Updater] Request error:', err);
-            sendSplashStatus('error', 'Could not connect. Starting anyway...');
-            setTimeout(() => resolve(false), 2000);
-        });
-
-        req.setTimeout(8000, () => {
-            req.destroy();
-            sendSplashStatus('error', 'Connection timed out. Starting anyway...');
-            setTimeout(() => resolve(false), 2000);
-        });
-
-        req.end();
-    });
+        } else {
+            console.log('[Solari Updater] No update available. Latest:', latestVersion);
+            return false;
+        }
+    } catch (e) {
+        console.error('[Solari Updater] Update check connection/parse error:', e);
+        sendSplashStatus('error', 'Update check failed. Starting anyway...');
+        await new Promise(r => setTimeout(r, 2000));
+        return false;
+    }
 }
 
 /**
