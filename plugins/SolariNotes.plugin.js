@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Sleek, synchronized notepad integrated strictly into Discord's UI. Saves securely to your local PC via the Solari App.
- * @version 1.0.0
+ * @version 1.0.2
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  */
@@ -75,7 +75,7 @@ module.exports = class SolariNotes {
 
     getSettingsSchema() {
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v1.0.0' },
+            { type: 'custom_header', title: this.t('title'), version: 'v1.0.2' },
             { type: 'status_card', id: 'solariStatus', label: this.t('status'), status: this.isConnected ? 'connected' : 'disconnected' },
             {
                 type: 'select', key: 'language', label: 'Language / Idioma', options: [
@@ -409,13 +409,19 @@ module.exports = class SolariNotes {
         // 3. Inject UI via MutationObserver (Reliably detects when Discord UI is ready)
         this.observer = new MutationObserver(() => {
             if (!document.getElementById("solari-notes-icon-btn")) {
-                this.injectUI();
+                // Prevent synchronous React DOM mutation collisions that cause Chat crash (black screen)
+                if (this.injectTimeout) clearTimeout(this.injectTimeout);
+                this.injectTimeout = setTimeout(() => {
+                    if (!document.getElementById("solari-notes-icon-btn")) {
+                        this.injectUI();
+                    }
+                }, 300);
             }
         });
         this.observer.observe(document.body, { childList: true, subtree: true });
 
         // Initial attempt
-        this.injectUI();
+        this.injectTimeout = setTimeout(() => this.injectUI(), 500);
     }
 
     stop() {
@@ -425,6 +431,7 @@ module.exports = class SolariNotes {
         if (this.ws) this.ws.close();
 
         if (this.typingTimeout) clearTimeout(this.typingTimeout);
+        if (this.injectTimeout) clearTimeout(this.injectTimeout);
 
         // Cleanup
         if (this.observer) this.observer.disconnect();
@@ -773,11 +780,19 @@ module.exports = class SolariNotes {
         document.querySelectorAll('.solari-notes-panel').forEach(p => p.remove());
 
         // 1. Find the Discord Header Toolbar (next to Search / Help / Inbox)
-        // We use multiple selectors to cover Channels, DMs, and the Friends/Home tab
-        const toolbar = document.querySelector('.toolbar_fc4f04') || 
-                        document.querySelector('[class*="toolbar_"]') ||
-                        document.querySelector('[class*="headerBar"] [class*="toolbar"]');
+        // We use focused selectors to avoid grabbing popup/message toolbars (which causes React crashes)
+        const possibleHeaders = Array.from(document.querySelectorAll('section[class*="title_"], section[class*="headerBar_"], [class*="chatContent_"] > [class*="wrapper_"]'));
         
+        // CRITICAL: Strictly avoid layer containers and popouts to prevent React from crashing (black screen bug)
+        const headerContainer = possibleHeaders.find(c => 
+            !c.closest('.layerContainer-2v_Sit') && 
+            !c.closest('[class*="layerContainer"]') && 
+            !c.closest('[class*="popout"]')
+        );
+
+        let toolbar = null;
+        if (headerContainer) toolbar = headerContainer.querySelector('[class*="toolbar_"]');
+
         if (!toolbar) return false;
 
         // 2. Create Icon Button

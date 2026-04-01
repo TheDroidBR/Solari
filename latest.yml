@@ -1,8 +1,8 @@
-version: 1.9.0-alpha
+version: 1.9.0-alpha2
 files:
-  - url: SolariAPP-Setup-1.9.0-alpha.exe
-    sha512: j0/iIlj2Tw4fVkbUo9KHmzOGL26eyJihpkXmAzBQG47hVOAj2dnFD9k/choaLI7zZ/rtBPjQFu2RxC/3YJSGiw==
-    size: 98388170
-path: SolariAPP-Setup-1.9.0-alpha.exe
-sha512: j0/iIlj2Tw4fVkbUo9KHmzOGL26eyJihpkXmAzBQG47hVOAj2dnFD9k/choaLI7zZ/rtBPjQFu2RxC/3YJSGiw==
-releaseDate: '2026-04-01T23:04:20.185Z'
+  - url: Solari-Setup.exe
+    sha512: SphwiGaVz1GCRDxKfNHt3MAXMjN5fyx9fsMyBqhS6Jr76i3CGtv/OaTQ35HXVuzYyLQ9Oj3XjPoT0q4IrYQGpA==
+    size: 98388583
+path: Solari-Setup.exe
+sha512: SphwiGaVz1GCRDxKfNHt3MAXMjN5fyx9fsMyBqhS6Jr76i3CGtv/OaTQ35HXVuzYyLQ9Oj3XjPoT0q4IrYQGpA==
+releaseDate: '2026-04-01T23:24:04.932Z'

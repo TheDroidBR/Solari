@@ -23,7 +23,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'spotify-control',
             'update-activity',
             'exit-manual-mode',
-            'toggle-activity'
+            'toggle-activity',
+            'uninstall-app'
         ];
         if (validChannels.includes(channel)) {
             ipcRenderer.send(channel, data);
