@@ -675,6 +675,14 @@ if (settingsAboutBtn) {
     });
 }
 
+const settingsUninstallBtn = document.getElementById('settings-uninstallBtn');
+if (settingsUninstallBtn) {
+    settingsUninstallBtn.addEventListener('click', () => {
+        // Delegate confirmation dialog to main process (has access to Electron dialog)
+        ipcRenderer.send('uninstall-app');
+    });
+}
+
 // --- Load Initial Data ---
 function syncSettingsUI(loadedSettings) {
     if (!loadedSettings) return;

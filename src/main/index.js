@@ -43,7 +43,7 @@ let WebSocket = { OPEN: 1 };
 const fs = require('fs');
 const https = require('https');
 const { exec, spawn } = require('child_process');
-const { installUpdateAndRestart } = require('./updater');
+const UpdateManager = require('./updater_manager');
 const CONSTANTS = require('./constants');
 let SoundBoard = null;
 let SoundServer = null;
@@ -637,6 +637,63 @@ ipcMain.on('save-app-settings', (event, newSettings) => {
     console.log('[Solari] Settings unified from frontend:', appSettings);
 });
 
+// ===== UNINSTALL HANDLER =====
+ipcMain.on('uninstall-app', async () => {
+    const { dialog } = require('electron');
+
+    // Step 1: Confirm with user
+    const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        title: 'Desinstalar Solari',
+        message: 'Tem certeza que quer desinstalar o Solari?',
+        detail: 'O aplicativo será removido do sistema. Seus dados de configuração serão mantidos.',
+        buttons: ['Cancelar', 'Desinstalar'],
+        defaultId: 0,
+        cancelId: 0
+    });
+
+    if (response !== 1) return; // User cancelled
+
+    // Step 2: Find the NSIS uninstaller
+    // Safer way: Look exactly where the current Solari.exe is running from
+    const uninstallerPath = path.join(path.dirname(process.execPath), 'Uninstall Solari.exe');
+
+    if (!fs.existsSync(uninstallerPath)) {
+        // Fallback for some NSIS configurations that might put it in LocalAppData
+        const fallbackPath = path.join(
+            app.getPath('appData').replace('Roaming', 'Local'),
+            'solari',
+            'Uninstall Solari.exe'
+        );
+        
+        if (fs.existsSync(fallbackPath)) {
+            runUninstaller(fallbackPath);
+            return;
+        }
+
+        // Portable/dev mode — no uninstaller available
+        dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Solari',
+            message: 'Desinstalador não encontrado.',
+            detail: `O desinstalador deveria estar em: ${uninstallerPath}\n\nSe você está em modo de desenvolvimento ou usando a versão portátil, não há desinstalador.`
+        });
+        return;
+    }
+
+    runUninstaller(uninstallerPath);
+
+    function runUninstaller(p) {
+        console.log('[Solari] Launching uninstaller:', p);
+        const child = spawn(p, [], {
+            detached: true,
+            stdio: 'ignore'
+        });
+        child.unref();
+        setTimeout(() => app.exit(0), 500);
+    }
+});
+
 ipcMain.on('trigger-update-check', async () => {
     // the label texts will now be built directly from the frontend strings
     await checkForUpdates({
@@ -651,55 +708,11 @@ ipcMain.on('trigger-update-check', async () => {
 
 // ===== IN-APP UPDATE BUTTON (v1.8.1) =====
 
-function fetchLatestReleaseWithFallback() {
-    return new Promise((resolve, reject) => {
-        const https = require('https');
-        
-        const makeRequest = (hostname, path) => {
-            return new Promise((reqResolve, reqReject) => {
-                const options = {
-                    hostname,
-                    path,
-                    method: 'GET',
-                    headers: { 'User-Agent': 'Solari-AutoUpdater', 'Accept': 'application/vnd.github.v3+json' },
-                    timeout: 4000
-                };
-                const req = https.request(options, (res) => {
-                    let data = '';
-                    res.on('data', chunk => data += chunk);
-                    res.on('end', () => {
-                        try { reqResolve(JSON.parse(data)); } catch (e) { reqReject(e); }
-                    });
-                });
-                req.on('error', reqReject);
-                req.on('timeout', () => { req.destroy(); reqReject(new Error('Timeout')); });
-                req.end();
-            });
-        };
-
-        makeRequest('api.github.com', CONSTANTS.GITHUB_RELEASES_PATH)
-            .then(resolve)
-            .catch((err) => {
-                console.warn('[Solari Updater] GitHub API failed, attempting local fallback:', err.message);
-                makeRequest('solarirpc.com', `/fallback/latest-release.json?t=${Date.now()}`)
-                    .then(resolve)
-                    .catch(reject);
-            });
-    });
-}
+// Obsolete fetch function removed. Manual flow now uses UpdateManager.
 
 // Silent update check — returns {hasUpdate, latestVersion} without showing dialogs
 ipcMain.handle('check-update-silent', async () => {
-    const pkg = require('../../package.json');
-    const currentVersion = pkg.version;
-    try {
-        const release = await fetchLatestReleaseWithFallback();
-        const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
-        const hasUpdate = compareVersions(latestVersion, currentVersion) > 0;
-        return { hasUpdate, latestVersion, currentVersion };
-    } catch (e) {
-        return { hasUpdate: false, latestVersion: currentVersion, currentVersion };
-    }
+    return await UpdateManager.checkUpdateSilent();
 });
 
 // Trigger update via splash: use the SAME flow as the auto-update that already works
@@ -715,17 +728,27 @@ ipcMain.on('trigger-update-via-splash', async () => {
     // 2. Create fresh splash window
     createSplashWindow();
 
-    // 3. Run the exact same update check that the auto-update uses
-    const willRestart = await checkUpdateViaSplash();
+    // 3. Connect updater_manager to this splash window
+    UpdateManager.setSplashSenders(sendSplashStatus, sendSplashProgress);
+
+    // 4. Run the update check via electron-updater
+    const willRestart = await UpdateManager.checkUpdateViaSplash();
 
     if (willRestart) {
-        // installUpdateAndRestart() was called — app will exit via batch script
-        console.log('[Solari] Update downloaded, updater script will handle restart.');
+        // electron-updater will handle install and restart natively
+        console.log('[Solari] Update downloaded, electron-updater will handle restart.');
+        setTimeout(() => UpdateManager.installUpdateAndRestart(), 1000);
         return;
     }
 
-    // 4. If no update found (shouldn't happen since we checked), close splash and show main
-    console.log('[Solari] No update found during manual check. Restoring main window.');
+    // 5. If no update found or error occurred, close splash and show main
+    console.log('[Solari] No update found or error during download. Restoring main window.');
+    
+    // Notify renderer to stop the infinite loading spinner on the badge
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-check-finished', false);
+    }
+
     if (splashWindow && !splashWindow.isDestroyed()) {
         splashWindow.close();
     }
@@ -735,29 +758,29 @@ ipcMain.on('trigger-update-via-splash', async () => {
 });
 
 
-// Check for updates via GitHub releases API
+// Check for updates via UpdateManager (unified flow)
 async function checkForUpdates(labels) {
     const { dialog, shell } = require('electron');
-    const pkg = require('../../package.json');
-    const currentVersion = pkg.version;
-
-    console.log('[Solari] Checking for updates...');
+    
+    // 1. Show "Checking..." state to user if app is already open
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('show-toast', { message: labels.checkingUpdates || 'Checking for updates...', type: 'info' });
+    }
 
     try {
-        const release = await fetchLatestReleaseWithFallback();
-        const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
-
-        // Compare versions
-        if (compareVersions(latestVersion, currentVersion) > 0) {
+        const result = await UpdateManager.checkUpdateSilent();
+        
+        if (result.hasUpdate) {
             dialog.showMessageBox(mainWindow, {
                 type: 'info',
                 title: labels.updateAvailable,
                 message: labels.updateMessage,
-                detail: `${labels.updateAvailable}\n\nVersão atual: v${currentVersion}\nNova versão: v${latestVersion}`,
+                detail: `${labels.updateAvailable}\n\nVersão atual: v${result.currentVersion}\nNova versão: v${result.latestVersion}`,
                 buttons: [labels.downloadNow, labels.later]
-            }).then((result) => {
-                if (result.response === 0) {
-                    shell.openExternal(release.html_url || 'https://solarirpc.com/changelog.html');
+            }).then((boxResult) => {
+                if (boxResult.response === 0) {
+                    // Trigger the splash download UI
+                    ipcMain.emit('trigger-update-via-splash');
                 }
             });
         } else {
@@ -765,15 +788,16 @@ async function checkForUpdates(labels) {
                 type: 'info',
                 title: 'Solari',
                 message: labels.noUpdates,
-                detail: `Versão atual: v${currentVersion}`
+                detail: `Versão atual: v${result.currentVersion}`
             });
         }
     } catch (err) {
-        console.error('[Solari] Update check error:', err);
+        console.error('[Solari] Manual update check error:', err);
         dialog.showMessageBox(mainWindow, {
             type: 'info',
             title: 'Solari',
-            message: labels.noUpdates
+            message: labels.noUpdates,
+            detail: `Versão atual: v${require('../../package.json').version}`
         });
     }
 }
@@ -818,97 +842,25 @@ function sendSplashProgress(percent, downloaded, total) {
 
 /**
  * Check for app updates during splash. Returns true if an update is being installed (app will restart).
+ * Delegates to UpdateManager (electron-updater) with fallback support.
  */
 async function checkUpdateViaSplash() {
     if (process.env.NODE_ENV === 'development') {
         return false;
     }
 
-    sendSplashStatus('checking', 'Checking for updates...');
+    // Connect updater_manager to the current splash window
+    UpdateManager.setSplashSenders(sendSplashStatus, sendSplashProgress);
 
-    const pkg = require('../../package.json');
-    const currentVersion = pkg.version;
+    const willRestart = await UpdateManager.checkUpdateViaSplash();
 
-    console.log('[Solari Updater] Checking for updates... Current:', currentVersion);
-
-    try {
-        const release = await fetchLatestReleaseWithFallback();
-        const latestVersion = release.tag_name?.replace('v', '') || '0.0.0';
-        const exeAsset = release.assets?.find(a => a.name.endsWith('.exe'));
-
-        if (compareVersions(latestVersion, currentVersion) > 0 && exeAsset) {
-            console.log('[Solari Updater] Update available:', latestVersion);
-            sendSplashStatus('downloading', `Downloading v${latestVersion}...`);
-
-            try {
-                await downloadUpdateWithProgress(exeAsset.browser_download_url, exeAsset.name, exeAsset.size);
-                return true;
-            } catch (dlErr) {
-                console.error('[Solari Updater] Download failed:', dlErr);
-                sendSplashStatus('error', 'Download failed. Starting anyway...');
-                await new Promise(r => setTimeout(r, 2000));
-                return false;
-            }
-        } else {
-            console.log('[Solari Updater] No update available. Latest:', latestVersion);
-            return false;
-        }
-    } catch (e) {
-        console.error('[Solari Updater] Update check connection/parse error:', e);
-        sendSplashStatus('error', 'Update check failed. Starting anyway...');
-        await new Promise(r => setTimeout(r, 2000));
-        return false;
+    if (willRestart) {
+        // Give splash screen a moment to show "Installing..." before restart
+        await new Promise(r => setTimeout(r, 1500));
+        UpdateManager.installUpdateAndRestart();
     }
-}
 
-/**
- * Download update with progress reporting to splash screen.
- */
-function downloadUpdateWithProgress(url, fileName, expectedSize) {
-    return new Promise((resolve, reject) => {
-        const https = require('https');
-        const tempPath = path.join(app.getPath('temp'), fileName);
-        const file = fs.createWriteStream(tempPath);
-
-        const request = (targetUrl) => {
-            https.get(targetUrl, (response) => {
-                // Handle redirects
-                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-                    request(response.headers.location);
-                    return;
-                }
-
-                const totalSize = parseInt(response.headers['content-length']) || expectedSize || 0;
-                let downloaded = 0;
-
-                response.on('data', (chunk) => {
-                    downloaded += chunk.length;
-                    if (totalSize > 0) {
-                        const percent = (downloaded / totalSize) * 100;
-                        sendSplashProgress(percent, downloaded, totalSize);
-                    }
-                });
-
-                response.pipe(file);
-
-                file.on('finish', () => {
-                    file.close(() => {
-                        console.log('[Solari Updater] Download complete:', tempPath);
-                        sendSplashStatus('installing', 'Installing update...');
-                        setTimeout(() => {
-                            installUpdateAndRestart(tempPath);
-                            resolve(true);
-                        }, 500);
-                    });
-                });
-            }).on('error', (err) => {
-                fs.unlink(tempPath, () => { });
-                reject(err);
-            });
-        };
-
-        request(url);
-    });
+    return willRestart;
 }
 
 /**
@@ -5263,7 +5215,7 @@ app.whenReady().then(async () => {
         // Phase 3: Check for app updates (if enabled)
         if (appSettings.autoCheckAppUpdates) {
             const willRestart = await checkUpdateViaSplash();
-            if (willRestart) return; // App will restart via updater.js
+            if (willRestart) return; // App will restart via electron-updater
         }
 
         // Phase 4: Check for plugin updates (if enabled)
