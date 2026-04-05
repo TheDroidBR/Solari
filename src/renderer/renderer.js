@@ -3453,52 +3453,43 @@ var PluginsTabManager = {
         try {
             let data = null;
             const primaryUrl = `https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json?v=${Date.now()}`;
-            // Root path verified on solariwebsite structure
+            const gitlabUrl = `https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/plugins-meta.json?v=${Date.now()}`;
             const fallbackUrl = `https://solarirpc.com/plugins-meta.json?v=${Date.now()}`;
 
             // 1. Primary Attempt (GitHub)
             try {
                 console.log('[Plugins] Fetching metadata from GitHub mirror...');
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 6000);
-                
-                const response = await fetch(primaryUrl, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                
+                const response = await fetch(primaryUrl);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('text/html')) throw new Error('HTML Block');
-                
                 data = await response.json();
                 console.log('[Plugins] Metadata loaded successfully from GitHub.');
             } catch (primaryErr) {
-                console.warn(`[Plugins] GitHub mirror failed (${primaryErr.message}). Trying official website fallback...`);
+                console.warn(`[Plugins] GitHub mirror failed. Trying GitLab fallback...`);
                 
-                // 2. Fallback Attempt (Solari Website)
+                // 2. GitLab Fallback (Level 2)
                 try {
-                    const fbResponse = await fetch(fallbackUrl, { cache: 'no-store' });
-                    if (!fbResponse.ok) throw new Error(`HTTP ${fbResponse.status}`);
-                    
-                    const fbContentType = fbResponse.headers.get('content-type');
-                    if (fbContentType && fbContentType.includes('text/html')) throw new Error('Host returned HTML (possibly 404 or block)');
-                    
-                    data = await fbResponse.json();
-                    console.log('[Plugins] Metadata loaded successfully from official website fallback.');
-                } catch (fallbackErr) {
-                    // 3. Last Resort: Network Synchronization (Handle InfinityFree/Cloudflare challenges)
-                    console.warn(`[Plugins] Official website fetch failed (${fallbackErr.message}). Triggering network synchronization...`);
+                    const glResponse = await fetch(gitlabUrl);
+                    if (!glResponse.ok) throw new Error(`HTTP ${glResponse.status}`);
+                    data = await glResponse.json();
+                    console.log('[Plugins] Metadata loaded successfully from GitLab.');
+                } catch (glErr) {
+                    console.warn(`[Plugins] GitLab fallback failed. Trying official website...`);
+
+                    // 3. Official Website (Level 3)
                     try {
-                        const syncData = await ipcRenderer.invoke('net:fetch-resource', fallbackUrl);
-                        if (syncData) {
-                            data = JSON.parse(syncData);
-                            console.log('[Plugins] Metadata loaded successfully via network sync.');
-                        } else {
-                            throw new Error('Sync result empty');
+                        const fbResponse = await fetch(fallbackUrl);
+                        if (!fbResponse.ok) throw new Error(`HTTP ${fbResponse.status}`);
+                        data = await fbResponse.json();
+                    } catch (fbErr) {
+                        // 4. Last Resort: Network Sync (Native Electron Mode)
+                        console.warn('[Plugins] Website fetch failed. Triggering native network sync...');
+                        try {
+                            const syncData = await ipcRenderer.invoke('net:fetch-resource', fallbackUrl);
+                            if (syncData) data = JSON.parse(syncData);
+                        } catch (syncErr) {
+                            console.error('[Plugins] All remote sources failed.');
+                            data = this.metaData || {};
                         }
-                    } catch (syncErr) {
-                        console.error('[Plugins] All remote sources AND sync failed:', syncErr.message);
-                        data = this.metaData || {};
                     }
                 }
             }

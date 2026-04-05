@@ -16,7 +16,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, shell, powerMonitor, globalShortcut, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, shell, powerMonitor, globalShortcut, dialog, net, session } = require('electron');
 app.setName('Solari');
 app.setPath('userData', require('path').join(require('os').homedir(), 'AppData', 'Roaming', 'Solari'));
 
@@ -275,7 +275,7 @@ async function sendTrackerPing() {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
                 }
             });
-            
+
             if (response.ok) {
                 const body = await response.text();
                 // Check if it worked without challenge (standard JSON response)
@@ -284,7 +284,7 @@ async function sendTrackerPing() {
                     confirmed = true;
                 }
             }
-        } catch (e) { 
+        } catch (e) {
             if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Native fetch failed/blocked, attempting browser fallback...');
         }
 
@@ -340,9 +340,9 @@ async function sendTrackerDisconnect() {
         const uid = getTrackingUserId();
         if (!uid) return;
         const url = `${TRACKER_URL}?action=disconnect&uid=${encodeURIComponent(uid)}`;
-        
+
         // Non-blocking fire and forget
-        fetch(url).catch(() => {});
+        fetch(url).catch(() => { });
     } catch (err) { }
 }
 
@@ -370,7 +370,7 @@ function loadData() {
             const rawData = fs.readFileSync(DATA_PATH);
             const data = JSON.parse(rawData);
             console.log(`[Solari DEBUG] File parsed. Presets: ${data.presets?.length || 0}, Mappings: ${data.autoDetectMappings?.length || 0}`);
-            
+
             defaultActivity = data.defaultActivity || {};
             presets = Array.isArray(data.presets) ? data.presets : [];
             lastFormState = data.lastFormState || {};
@@ -534,56 +534,37 @@ ipcMain.handle('plugins:fetch-bypass', async (event, url) => {
 });
 
 async function handleFetchResource(url) {
-    console.log('[Solari Net] Fetching:', url);
+    console.log('[Solari Net] Fetching native:', url);
     return new Promise((resolve, reject) => {
-        let win = new BrowserWindow({
-            width: 800,
-            height: 600,
-            show: false, // Standard background window
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true
+        const request = net.request({
+            url: url,
+            method: 'GET',
+            redirect: 'follow', // Automatically follow redirects
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*'
             }
         });
 
-        const timeoutId = setTimeout(() => {
-            if (win && !win.isDestroyed()) {
-                win.destroy();
-                win = null;
-            }
-            reject(new Error('Network request timed out'));
-        }, 20000);
-
-        win.webContents.on('did-finish-load', async () => {
-            try {
-                const content = await win.webContents.executeJavaScript('document.body.innerText');
-                const trimmed = content ? content.trim() : "";
-                const isJson = trimmed.startsWith('{') || trimmed.startsWith('[');
-
-                if (isJson) {
-                    clearTimeout(timeoutId);
-                    if (win && !win.isDestroyed()) {
-                        win.destroy();
-                        win = null;
-                    }
-                    resolve(trimmed);
-                }
-            } catch (e) {
-                console.warn('[Solari Net] Processing error:', e.message);
+        request.on('response', (response) => {
+            if (response.statusCode === 200) {
+                const chunks = [];
+                response.on('data', (chunk) => chunks.push(chunk));
+                response.on('end', () => {
+                    const body = Buffer.concat(chunks).toString('utf-8');
+                    resolve(body);
+                });
+            } else {
+                reject(new Error(`Fetch failed: HTTP Status ${response.statusCode}`));
             }
         });
 
-        win.webContents.on('did-fail-load', (e, errorCode, errorDescription) => {
-            if (errorCode === -3) return; 
-            clearTimeout(timeoutId);
-            if (win && !win.isDestroyed()) {
-                win.destroy();
-                win = null;
-            }
-            reject(new Error(`Fetch failed: ${errorDescription}`));
+        request.on('error', (error) => {
+            console.error('[Solari Net] Error:', error.message);
+            reject(error);
         });
 
-        win.loadURL(url);
+        request.end();
     });
 }
 ;
@@ -794,7 +775,7 @@ ipcMain.on('uninstall-app', async () => {
             'solari',
             'Uninstall Solari.exe'
         );
-        
+
         if (fs.existsSync(fallbackPath)) {
             runUninstaller(fallbackPath);
             return;
@@ -835,7 +816,7 @@ ipcMain.on('trigger-update-check', async () => {
     });
 });
 
-// ===== IN-APP UPDATE BUTTON (v1.8.1) =====
+// ===== IN-APP UPDATE BUTTON (v1.9.1) =====
 
 // Obsolete fetch function removed. Manual flow now uses UpdateManager.
 
@@ -872,7 +853,7 @@ ipcMain.on('trigger-update-via-splash', async () => {
 
     // 5. If no update found or error occurred, close splash and show main
     console.log('[Solari] No update found or error during download. Restoring main window.');
-    
+
     // Notify renderer to stop the infinite loading spinner on the badge
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('update-check-finished', false);
@@ -890,7 +871,7 @@ ipcMain.on('trigger-update-via-splash', async () => {
 // Check for updates via UpdateManager (unified flow)
 async function checkForUpdates(labels) {
     const { dialog, shell } = require('electron');
-    
+
     // 1. Show "Checking..." state to user if app is already open
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('show-toast', { message: labels.checkingUpdates || 'Checking for updates...', type: 'info' });
@@ -898,7 +879,7 @@ async function checkForUpdates(labels) {
 
     try {
         const result = await UpdateManager.checkUpdateSilent();
-        
+
         if (result.hasUpdate) {
             dialog.showMessageBox(mainWindow, {
                 type: 'info',
@@ -1020,8 +1001,8 @@ function updatePluginsViaSplash() {
         }
 
         const plugins = [
-            { name: 'SpotifySync.plugin.js', url: 'https://solarirpc.com/downloads/SpotifySync.plugin.js' },
-            { name: 'SmartAFKDetector.plugin.js', url: 'https://solarirpc.com/downloads/SmartAFKDetector.plugin.js' }
+            { name: 'SpotifySync.plugin.js', url: 'https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/SpotifySync.plugin.js' },
+            { name: 'SmartAFKDetector.plugin.js', url: 'https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/SmartAFKDetector.plugin.js' }
         ];
 
         let remaining = 0;
@@ -1099,55 +1080,72 @@ function showChangelog(force = false) {
             saveData();
         }
 
-        // Fetch changelog from GitHub
-        const https = require('https');
-        const options = {
-            hostname: 'api.github.com',
-            path: `/repos/TheDroidBR/Solari/releases/tags/v${currentVersion}`,
+        // Fetch changelog from GitHub first
+        const request = net.request({
+            url: `https://api.github.com/repos/TheDroidBR/Solari/releases/tags/v${currentVersion}`,
             method: 'GET',
             headers: {
                 'User-Agent': 'Solari-AutoUpdater',
                 'Accept': 'application/vnd.github.v3+json'
             }
-        };
+        });
 
-        const req = https.request(options, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-                try {
-                    const release = JSON.parse(data);
-                    if (release.body && mainWindow && !mainWindow.isDestroyed()) {
-                        console.log('[Solari] Sending changelog to renderer...');
-                        mainWindow.webContents.send('show-changelog', {
-                            version: currentVersion,
-                            body: release.body,
-                            name: release.name || `v${currentVersion}`
+        request.on('response', (res) => {
+            let data = Buffer.alloc(0);
+            res.on('data', chunk => data = Buffer.concat([data, chunk]));
+            res.on('end', async () => {
+                if (res.statusCode === 200) {
+                    try {
+                        const release = JSON.parse(data.toString());
+                        if (release.body && mainWindow && !mainWindow.isDestroyed()) {
+                            console.log('[Solari] Sending GitHub changelog to renderer...');
+                            mainWindow.webContents.send('show-changelog', {
+                                version: currentVersion,
+                                body: release.body,
+                                name: release.name || `v${currentVersion}`
+                            });
+                        }
+                    } catch (e) { console.error('[Solari] GitHub changelog parse error:', e); }
+                } else {
+                    console.warn(`[Solari] GitHub changelog failed (${res.statusCode}). Trying GitLab Fallback...`);
+                    // FALLBACK: Fetch CHANGELOG.md from GitLab
+                    try {
+                        const gitlabUrl = 'https://gitlab.com/TheDroidBR/solari/-/raw/main/CHANGELOG.md';
+                        const glRequest = net.request(gitlabUrl);
+                        glRequest.on('response', (glRes) => {
+                            let glData = '';
+                            glRes.on('data', c => glData += c.toString('utf8'));
+                            glRes.on('end', () => {
+                                if (glRes.statusCode === 200 && mainWindow && !mainWindow.isDestroyed()) {
+                                    // Simple extract: find ## [version] section
+                                    const lines = glData.split('\n');
+                                    let found = false;
+                                    let body = '';
+                                    for (const line of lines) {
+                                        if (line.includes(`## [${currentVersion}]`)) { found = true; continue; }
+                                        if (found && line.startsWith('## ')) break;
+                                        if (found) body += line + '\n';
+                                    }
+                                    if (found && body.trim()) {
+                                        console.log('[Solari] Sending GitLab changelog (extracted) to renderer...');
+                                        mainWindow.webContents.send('show-changelog', {
+                                            version: currentVersion,
+                                            body: body.trim(),
+                                            name: `v${currentVersion}`
+                                        });
+                                    }
+                                }
+                            });
                         });
-                    } else if (force && mainWindow && !mainWindow.isDestroyed()) {
-                        mainWindow.webContents.send('show-toast', { message: 'Erro ao buscar o Changelog. Tente novamente mais tarde.', type: 'danger' });
-                    }
-                } catch (e) {
-                    console.error('[Solari] Changelog parse error:', e);
-                    if (force && mainWindow && !mainWindow.isDestroyed()) {
-                        mainWindow.webContents.send('show-toast', { message: 'Erro ao buscar o Changelog.', type: 'danger' });
-                    }
+                        glRequest.end();
+                    } catch (e) { console.error('[Solari] GitLab fallback error:', e); }
                 }
             });
         });
-        req.on('error', (e) => {
-            console.error('[Solari] Changelog fetch error:', e);
-            if (force && mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('show-toast', { message: 'Erro de conexão ao buscar Changelog.', type: 'danger' });
-            }
+        request.on('error', (e) => {
+            console.error('[Solari] Changelog network error:', e);
         });
-        req.setTimeout(5000, () => {
-            req.destroy();
-            if (force && mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('show-toast', { message: 'A busca pelo Changelog demorou muito.', type: 'danger' });
-            }
-        });
-        req.end();
+        request.end();
     } catch (e) {
         console.error('[Solari] showChangelog error:', e);
     }
@@ -1166,8 +1164,8 @@ async function updatePluginsOnStartup() {
     if (!fs.existsSync(pluginsPath)) return;
 
     const plugins = [
-        { name: 'SpotifySync.plugin.js', url: 'https://solarirpc.com/downloads/SpotifySync.plugin.js' },
-        { name: 'SmartAFKDetector.plugin.js', url: 'https://solarirpc.com/downloads/SmartAFKDetector.plugin.js' }
+        { name: 'SpotifySync.plugin.js', url: 'https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/SpotifySync.plugin.js' },
+        { name: 'SmartAFKDetector.plugin.js', url: 'https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/SmartAFKDetector.plugin.js' }
     ];
 
     let updatedCount = 0;
@@ -1199,8 +1197,17 @@ const MAX_PLUGIN_SIZE = 2 * 1024 * 1024; // 2MB
 
 function downloadPluginToString(url) {
     return new Promise(resolve => {
-        const https = require('https');
-        https.get(url, res => {
+        const request = net.request({
+            url: url,
+            method: 'GET',
+            redirect: 'follow',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Solari/1.9.1; Windows 10)',
+                'Accept': '*/*'
+            }
+        });
+
+        request.on('response', (res) => {
             if (res.statusCode !== 200) { resolve(null); return; }
             let data = '';
             let size = 0;
@@ -1208,14 +1215,17 @@ function downloadPluginToString(url) {
                 size += c.length;
                 if (size > MAX_PLUGIN_SIZE) {
                     console.error('[Solari] Plugin download exceeds 2MB limit, aborting.');
-                    res.destroy();
+                    request.abort();
                     resolve(null);
                     return;
                 }
-                data += c;
+                data += c.toString('utf8');
             });
             res.on('end', () => resolve(data));
-        }).on('error', () => resolve(null));
+        });
+
+        request.on('error', () => resolve(null));
+        request.end();
     });
 }
 
@@ -1798,28 +1808,36 @@ function initializeDiscordRPC(targetClientId = null) {
                 if (!appName) {
                     try {
                         // Fetch app info from Discord API with timeout
-                        const https = require('https');
-                        const res = await Promise.race([
-                            new Promise((resolve, reject) => {
-                                const req = https.get(`https://discord.com/api/v10/applications/${clientId}/rpc`, (resp) => {
-                                    let data = '';
-                                    resp.on('data', (chunk) => data += chunk);
-                                    resp.on('end', () => {
-                                        try {
-                                            resolve(JSON.parse(data));
-                                        } catch (e) {
-                                            reject(e);
-                                        }
-                                    });
+                        // Fetch app info from Discord API with native Electron net
+                        const res = await new Promise((resolve, reject) => {
+                            const request = net.request({
+                                url: `https://discord.com/api/v10/applications/${clientId}/rpc`,
+                                method: 'GET',
+                                headers: {
+                                    'User-Agent': 'Solari/1.9.1',
+                                    'Accept': 'application/json'
+                                }
+                            });
+                            request.on('response', (resp) => {
+                                let data = '';
+                                resp.on('data', (chunk) => data += chunk);
+                                resp.on('end', () => {
+                                    try {
+                                        resolve(JSON.parse(data));
+                                    } catch (e) { reject(e); }
                                 });
-                                req.on('error', reject);
-                                req.setTimeout(5000, () => {
-                                    req.destroy();
+                            });
+                            request.on('error', reject);
+                            request.end();
+
+                            // Timeout handling
+                            setTimeout(() => {
+                                if (!request.destroyed) {
+                                    request.abort();
                                     reject(new Error('Timeout'));
-                                });
-                            }),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-                        ]);
+                                }
+                            }, 5000);
+                        });
                         appName = res.name || 'Discord App';
                         console.log('[Solari] Fetched app name from API:', appName);
                     } catch (err) {
@@ -2664,7 +2682,7 @@ function handleBrowserMediaUpdate(message, ws) {
     // 1. CLEAR LOGIC
     if (!data) {
         if (presenceSources.browserExtension.active && presenceSources.browserExtension.platform === platform) {
-        if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Clearing ${platform} state (debounce started)`);
+            if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Clearing ${platform} state (debounce started)`);
 
             // Debounce: Wait 1s before actually clearing to prevent flickering on tab switches
             if (presenceSources.browserExtension.clearTimeout) {
@@ -3640,23 +3658,25 @@ async function actualInstallBDLogic() {
             if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
         }
 
-        const https = require('https');
-        const followRedirects = (url, maxRedirects = 10) => {
+        const followRedirectsNative = (url) => {
             return new Promise((resolve, reject) => {
-                const doRequest = (currentUrl, redirectsLeft) => {
-                    https.get(currentUrl, { headers: { 'User-Agent': 'Solari/1.8.1' } }, (res) => {
-                        if ((res.statusCode === 302 || res.statusCode === 301) && res.headers.location && redirectsLeft > 0) {
-                            doRequest(res.headers.location, redirectsLeft - 1);
-                        } else if (res.statusCode === 200) resolve(res);
-                        else reject(new Error('HTTP ' + res.statusCode));
-                    }).on('error', reject);
-                };
-                doRequest(url, maxRedirects);
+                const request = net.request({
+                    url: url,
+                    method: 'GET',
+                    redirect: 'follow', // Use native redirect following
+                    headers: { 'User-Agent': 'Solari/1.9.1' }
+                });
+                request.on('response', (res) => {
+                    if (res.statusCode === 200) resolve(res);
+                    else reject(new Error('HTTP Status ' + res.statusCode));
+                });
+                request.on('error', reject);
+                request.end();
             });
         };
 
         const dlUrl = 'https://github.com/BetterDiscord/BetterDiscord/releases/latest/download/betterdiscord.asar';
-        const response = await followRedirects(dlUrl);
+        const response = await followRedirectsNative(dlUrl);
         const prevNoAsar = process.noAsar;
         process.noAsar = true;
         await new Promise((resolve, reject) => {
@@ -3713,8 +3733,6 @@ ipcMain.handle('plugin:check-installed', async (event, fileName) => {
 });
 
 ipcMain.handle('plugin:download', async (event, { url, fileName }) => {
-    const https = require('https');
-    const http = require('http');
     const pluginsPath = getBDPluginsPath();
     const filePath = path.join(pluginsPath, fileName);
 
@@ -3731,34 +3749,26 @@ ipcMain.handle('plugin:download', async (event, { url, fileName }) => {
         }
     }
 
-    // Download with redirect following and META validation
-    const downloadWithRedirects = (downloadUrl, maxRedirects = 5) => {
+    // Modern native Electron downloader with automatic GitLab fallback for GitHub links
+    const downloadNative = async (downloadUrl) => {
+        console.log(`[Solari] Downloading: ${downloadUrl}`);
         return new Promise((resolve) => {
-            if (maxRedirects <= 0) {
-                return resolve({ success: false, error: 'Too many redirects' });
-            }
-
-            const protocol = downloadUrl.startsWith('https') ? https : http;
-
-            protocol.get(downloadUrl, (response) => {
-                // Follow redirects
-                if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
-                    const redirectUrl = response.headers.location;
-                    if (!redirectUrl) {
-                        return resolve({ success: false, error: 'Redirect with no location header' });
-                    }
-                    console.log(`[Solari] Following redirect to: ${redirectUrl}`);
-                    // Consume the response to free the socket
-                    response.resume();
-                    return resolve(downloadWithRedirects(redirectUrl, maxRedirects - 1));
+            const request = net.request({
+                url: downloadUrl,
+                method: 'GET',
+                redirect: 'follow', // Handles redirects automatically
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Solari/1.9.1; Windows 10)',
+                    'Accept': '*/*'
                 }
+            });
 
+            request.on('response', (response) => {
                 if (response.statusCode !== 200) {
-                    response.resume();
-                    return resolve({ success: false, error: `HTTP Status ${response.statusCode}` });
+                    console.error(`[Solari] Download failed with HTTP Status ${response.statusCode}`);
+                    return resolve({ success: false, statusCode: response.statusCode });
                 }
 
-                // Collect data in memory first (for validation)
                 const chunks = [];
                 response.on('data', (chunk) => chunks.push(chunk));
                 response.on('end', () => {
@@ -3768,46 +3778,46 @@ ipcMain.handle('plugin:download', async (event, { url, fileName }) => {
                     // Validate BetterDiscord META block
                     const trimmed = content.trimStart();
                     if (!trimmed.startsWith('/**')) {
-                        console.error('[Solari] Downloaded content does NOT start with META block (/**). First 200 chars:', trimmed.substring(0, 200));
-                        return resolve({
-                            success: false,
-                            error: 'Downloaded file is invalid (missing BetterDiscord META header). The server may have returned an error page.'
-                        });
+                        console.error('[Solari] Invalid content (no META block)');
+                        return resolve({ success: false, error: 'Invalid file Header' });
                     }
 
-                    // Check that @name exists in the META block
-                    const metaEnd = trimmed.indexOf('*/');
-                    if (metaEnd === -1 || !trimmed.substring(0, metaEnd).includes('@name')) {
-                        console.error('[Solari] META block found but @name is missing');
-                        return resolve({
-                            success: false,
-                            error: 'Downloaded file has incomplete META header (missing @name).'
-                        });
-                    }
-
-                    // Write validated content to disk
                     try {
-                        // Write validated content to disk
                         fs.writeFileSync(filePath, buffer);
-                        console.log('[Solari] Plugin downloaded and validated successfully');
+                        console.log('[Solari] Plugin downloaded successfully');
                         resolve({ success: true });
-                    } catch (writeErr) {
-                        console.error('[Solari] Write error:', writeErr);
-                        resolve({ success: false, error: 'Failed to write plugin file: ' + writeErr.message });
+                    } catch (err) {
+                        resolve({ success: false, error: err.message });
                     }
                 });
-                response.on('error', (err) => {
-                    console.error('[Solari] Response stream error:', err);
-                    resolve({ success: false, error: err.message });
-                });
-            }).on('error', (err) => {
-                console.error('[Solari] Download error:', err);
+            });
+
+            request.on('error', (err) => {
+                console.error('[Solari] Network error:', err.message);
                 resolve({ success: false, error: err.message });
             });
+
+            request.end();
         });
     };
 
-    return downloadWithRedirects(url);
+    // Primary download attempt
+    let result = await downloadNative(url);
+
+    // AUTOMATIC FALLBACK: If GitHub fails (suspended) or returns 404, try GitLab Mirror
+    if (!result.success && (url.includes('github') || result.statusCode === 404)) {
+        console.warn('[Solari] Primary download failed. Attempting GitLab Fallback...');
+
+        // Transform the URL to a GitLab Raw URL (Assuming mirror structure matches)
+        // From: https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
+        // To: https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/SpotifySync.plugin.js
+        const gitlabUrl = url.replace('raw.githubusercontent.com/TheDroidBR/Solari', 'gitlab.com/TheDroidBR/solari/-/raw');
+
+        console.log(`[Solari] Fallback URL: ${gitlabUrl}`);
+        result = await downloadNative(gitlabUrl);
+    }
+
+    return result;
 });
 
 // Get installed plugin version by reading META header
@@ -3829,50 +3839,57 @@ ipcMain.handle('plugin:get-version', async (event, fileName) => {
 // Get remote plugin version by fetching first chunk of the file
 ipcMain.handle('plugin:get-remote-version', async (event, url) => {
     if (!url) return null;
-    const https = require('https');
-    const http = require('http');
 
-    const fetchVersion = (fetchUrl, maxRedirects = 5) => {
+    const fetchVersionNative = async (fetchUrl) => {
         return new Promise((resolve) => {
-            if (maxRedirects <= 0) return resolve(null);
-            const protocol = fetchUrl.startsWith('https') ? https : http;
+            const request = net.request({
+                url: fetchUrl,
+                method: 'GET',
+                redirect: 'follow',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Solari/1.9.1; Windows 10)',
+                    'Accept': '*/*',
+                    'Range': 'bytes=0-4096' // Fetch first 4KB for version metadata
+                }
+            });
 
-            try {
-                protocol.get(fetchUrl, (res) => {
-                    if ([301, 302, 303, 307, 308].includes(res.statusCode)) {
-                        const redirectUrl = res.headers.location;
-                        if (!redirectUrl) { res.resume(); return resolve(null); }
-                        res.resume();
-                        return resolve(fetchVersion(redirectUrl, maxRedirects - 1));
+            request.on('response', (response) => {
+                if (response.statusCode !== 200 && response.statusCode !== 206) {
+                    return resolve(null);
+                }
+
+                let buffer = '';
+                response.on('data', (chunk) => {
+                    buffer += chunk.toString('utf8');
+                    // Look for @version in the metadata block
+                    const match = buffer.match(/@version\s+([^\s\n\r]+)/);
+                    if (match) {
+                        request.abort();
+                        resolve(match[1]);
                     }
-                    if (res.statusCode !== 200) { res.resume(); return resolve(null); }
+                });
 
-                    let buffer = '';
-                    res.setEncoding('utf8');
-                    res.on('data', (chunk) => {
-                        buffer += chunk;
-                        // Version should be in the first ~2KB
-                        const match = buffer.match(/@version\s+([^\s\n\r]+)/);
-                        if (match) {
-                            res.destroy(); // Kill the stream once found
-                            resolve(match[1]);
-                        }
-                        if (buffer.length > 5000) { // Safety limit
-                            res.destroy();
-                            resolve(null);
-                        }
-                    });
-                    res.on('end', () => {
-                        const match = buffer.match(/@version\s+([^\s\n\r]+)/);
-                        resolve(match ? match[1] : null);
-                    });
-                    res.on('error', () => resolve(null));
-                }).on('error', () => resolve(null));
-            } catch (e) { resolve(null); }
+                response.on('end', () => {
+                    const match = buffer.match(/@version\s+([^\s\n\r]+)/);
+                    resolve(match ? match[1] : null);
+                });
+            });
+
+            request.on('error', () => resolve(null));
+            request.end();
         });
     };
 
-    return await fetchVersion(url);
+    let version = await fetchVersionNative(url);
+
+    // AUTOMATIC FALLBACK: If GitHub fails/404s, try the GitLab Mirror
+    if (!version && url.includes('github')) {
+        console.log('[Solari] Version check on GitHub failed. Trying GitLab mirror...');
+        const gitlabUrl = url.replace('raw.githubusercontent.com/TheDroidBR/Solari', 'gitlab.com/TheDroidBR/solari/-/raw');
+        version = await fetchVersionNative(gitlabUrl);
+    }
+
+    return version;
 });
 
 // Delete a plugin file from BD plugins folder
