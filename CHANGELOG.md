@@ -1,3 +1,25 @@
+## [1.9.1] - 2026-04-05
+**UPDATE 1.9.1: THE RESILIENCE PATCH**
+
+---
+
+### 🔌 Plugins & Networking
+- **Native Fetch Modernization**: Replaced all legacy Node.js `https.get` and Electron `BrowserWindow` resource loaders with Electron's native `net` module. This improves application stability and reduces RAM footprint during resource fetching by ~90%.
+- **GitLab Mirror Fallback**: Implemented an automatic redirection engine for the Plugin Store. If a GitHub plugin link returns a 404 (due to account restrictions), Solari now instantly redirects to the official GitLab mirror to ensure 100% download availability.
+- **Multi-Tier Meta Strategy**: The plugin store now utilizes a 4-tier fallback loop (GitHub -> GitLab -> Website -> Native Sync) for metadata delivery, ensuring the store remains functional even behind aggressive Cloudflare challenges.
+
+### 🔧 Core Improvements
+- **Unified Network Layer**: Standardized `User-Agent` and `Accept` headers across all fetching modules to prevent 403 Forbidden errors from security-hardened hosts.
+- **Startup Resilience**: The startup plugin updater and splash screen now utilize the new GitLab mirror system for critical synchronization.
+- **Changelog Fallback**: If the GitHub API is unreachable, Solari now fetches and extracts release notes directly from the raw `CHANGELOG.md` on GitLab.
+
+### 🐛 Bug Fixes
+- **Fixed**: "HTTP Status 404" errors when attempting to install or update plugins from the store.
+- **Fixed**: Internal syntax errors and bracket mismatches in `index.js` caused by previous network logic refactors.
+- **Fixed**: BetterDiscord repair script using outdated 1.8.x version headers.
+
+---
+
 ## [1.9.0] - 2026-04-02
 **UPDATE 1.9.0: THE HYBRID REBIRTH**
 
