@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "सक्षम",
+    "autoDetect": "ऑटो-डिटेक्ट",
+    "starting": "शुरू हो रहा है..."
+  },
+  "tabs": {
+    "rpc": "Rich Presence",
+    "soundboard": "साउंडबोर्ड",
+    "plugins": "प्लगइन्स",
+    "settings": "सेटिंग्स"
+  },
+  "menu": {
+    "startWithWindows": "विंडोज के साथ शुरू करें",
+    "startMinimized": "ट्रे में शुरू करें",
+    "exit": "बाहर निकलें",
+    "language": "भाषा"
+  },
+  "tray": {
+    "openSolari": "Solari खोलें",
+    "exit": "बाहर निकलen",
+    "showConsole": "कंसोल दिखाएं",
+    "hideConsole": "कंसोल छिपाएं"
+  }
+}

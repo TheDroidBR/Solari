@@ -38,13 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (targetId === 'plugins-tab') {
             if (typeof PluginsTabManager !== 'undefined') {
                 PluginsTabManager.init();
-                PluginsTabManager.startBDPolling();
             }
         } else {
-            // Stop BD polling when leaving plugins tab
-            if (typeof PluginsTabManager !== 'undefined' && PluginsTabManager._bdPollInterval) {
-                PluginsTabManager.stopBDPolling();
-            }
+            // No cleanup needed for background refresh
         }
     }
 

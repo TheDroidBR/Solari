@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "Aktif",
+    "autoDetect": "Deteksi Otomatis",
+    "starting": "Memulai..."
+  },
+  "tabs": {
+    "rpc": "Rich Presence",
+    "soundboard": "Papan Suara",
+    "plugins": "Plugin",
+    "settings": "Pengaturan"
+  },
+  "menu": {
+    "startWithWindows": "Mulai dengan Windows",
+    "startMinimized": "Mulai diminimalkan",
+    "exit": "Keluar",
+    "language": "Bahasa"
+  },
+  "tray": {
+    "openSolari": "Buka Solari",
+    "exit": "Keluar",
+    "showConsole": "Tampilkan Konsol",
+    "hideConsole": "Sembunyikan Konsol"
+  }
+}

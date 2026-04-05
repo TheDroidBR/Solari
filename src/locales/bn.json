@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "সক্রিয়",
+    "autoDetect": "অটো-ডিটেক্ট",
+    "starting": "শুরু হচ্ছে..."
+  },
+  "tabs": {
+    "rpc": "Rich Presence",
+    "soundboard": "সাউন্ডবোর্ড",
+    "plugins": "প্লাগিন",
+    "settings": "সেটিংস"
+  },
+  "menu": {
+    "startWithWindows": "উইন্ডোজের সাথে শুরু করুন",
+    "startMinimized": "ট্রেতে শুরু করুন",
+    "exit": "প্রস্থান",
+    "language": "ভাষা"
+  },
+  "tray": {
+    "openSolari": "Solari খুলুন",
+    "exit": "প্রস্থান",
+    "showConsole": "কনসোল দেখান",
+    "hideConsole": "কনসোল লুকান"
+  }
+}

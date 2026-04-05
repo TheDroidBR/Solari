@@ -141,7 +141,8 @@ autoUpdater.on('error', (error) => {
  * - false: no update available or check failed
  */
 function checkUpdateViaSplash() {
-    if (process.env.NODE_ENV === 'development') {
+    if (!app.isPackaged || process.env.NODE_ENV === 'development') {
+        console.log('[Solari Updater] Dev mode: Skipping update check');
         return Promise.resolve(false);
     }
 

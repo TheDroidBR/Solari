@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "Включено",
+    "autoDetect": "Авто-обнаружение",
+    "starting": "Запуск..."
+  },
+  "tabs": {
+    "rpc": "Rich Presence",
+    "soundboard": "Звуковая панель",
+    "plugins": "Плагины",
+    "settings": "Настройки"
+  },
+  "menu": {
+    "startWithWindows": "Запуск с Windows",
+    "startMinimized": "Запуск свернуто",
+    "exit": "Выход",
+    "language": "Язык"
+  },
+  "tray": {
+    "openSolari": "Открыть Solari",
+    "exit": "Выход",
+    "showConsole": "Показать консоль",
+    "hideConsole": "Скрыть консоль"
+  }
+}

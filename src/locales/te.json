@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "ప్రారంభించబడింది",
+    "autoDetect": "ఆటో-డిటెక్ట్",
+    "starting": "ప్రారంభిస్తోంది..."
+  },
+  "tabs": {
+    "rpc": "Rich Presence",
+    "soundboard": "సౌండ్‌బోర్డ్",
+    "plugins": "ప్లగిన్‌లు",
+    "settings": "సెట్టింగ్‌లు"
+  },
+  "menu": {
+    "startWithWindows": "విండోస్‌తో ప్రారంభించండి",
+    "startMinimized": "ట్రేలో ప్రారంభించండి",
+    "exit": "నిష్క్రమించు",
+    "language": "భాష"
+  },
+  "tray": {
+    "openSolari": "Solari తెరవండి",
+    "exit": "నిష్క్రమించు",
+    "showConsole": "కన్సోల్ చూపించు",
+    "hideConsole": "కన్సోల్ దాచు"
+  }
+}

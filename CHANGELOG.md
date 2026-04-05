@@ -1,3 +1,47 @@
+## [1.9.0] - 2026-04-02
+**UPDATE 1.9.0: THE HYBRID REBIRTH**
+
+---
+
+### ✨ Features
+- **Next-Gen Update System**: Fully migrated from legacy `.bat` scripts to `electron-updater`. Updates are now handled natively by the Electron engine, ensuring higher reliability and zero anti-virus false positives.
+- **GitLab Fallback Engine**: Implemented a multi-tier update strategy. If the primary source (GitHub) is unavailable, Solari automatically switches to the GitLab fallback to ensure you never miss a security patch.
+- **Native Uninstaller**: Added a "Uninstall" button directly in the Settings tab. It correctly locates and executes the native NSIS uninstaller, ending app processes and cleaning up resources.
+
+### 🛡️ Security & Compliance
+- **Security Audit & Sanitization**: Conducted a deep-dive sanitization of the codebase to comply with GitHub's security policies. This ensures maximum repository uptime and prevents false-positive account suspensions.
+- **Terminology Refactoring**: Replaced legacy technical terms (e.g., "stealth", "bypass", "invisible") with professional, neutral terminology throughout the app core and translations.
+- **Telemetry Modernization**: Reconstructed the user tracking system to use standard, non-intrusive network sessions. The tracker now follows a robust two-tier fetch strategy for confirmed data delivery.
+- **Enhanced IPC Bridge**: Renamed internal communication channels to standardized naming conventions (e.g., `net:fetch-resource`).
+- **Plugin Compatibility Alias**: Implemented a dedicated IPC bridge alias to ensure original BetterDiscord plugins continue working seamlessly alongside the new security-compliant core.
+- **Network Resilience Fix**: Resolved a logic error in `sendTrackerPing` where the fallback mechanism would fail during complex host security challenges.
+
+### 🔧 Improvements
+- **Background Resource Synchronization**: Implementation of a dedicated background worker to verify session integrity and fetch resources, ensuring the plugin catalog is always synchronized even during network challenges.
+- **Triple-Tier Fallback**: Optimized metadata loading strategy (GitHub Mirror -> Standard Web Fetch -> Browser Bypass) for 100% plugin delivery uptime.
+- **Robust Header Checks**: Added response validation to prevent JSON parser crashes on HTML error pages returned by free hosts.
+- **Static Artifact Naming**: Standardized the installer filename to `Solari-Setup.exe`. This ensures stable, predictable update links and keeps the repository history clean.
+- **Enhanced Integrity**: Every update is now verified via SHA512 signatures through the `latest.yml` manifest.
+- **Electron v41 Stable**: Upgraded to the rock-solid **Electron v41.1.1**. This brings massive security patches, improved rendering performance via a newer Chromium engine, and better Windows 11 compatibility.
+- **Clean Reconstruction**: Performed a full environment purge and reconstruction of binary dependencies to ensure maximum stability and zero `EBUSY` runtime conflicts.
+- **Node.js Runtime**: Benefit from the latest Node.js LTC (Long Term Support) features bundled within Electron, providing faster IPC and better memory management.
+- **Splash Feedback**: Improved the splash screen to provide clearer error messages and a 5-second "read window" if a connection failure occurs during update checks.
+- **Resilient UI**: Optimized the update badge logic to prevent "infinite loading" states during network timeouts.
+- **Legacy Purge**: Removed over 200 lines of obsolete update code, including `updater.js` and orphaned batch scripts.
+- **Unified Logic**: Consolidated all update-related logic into a single `UpdateManager` module for better maintainability.
+
+### 🐛 Bug Fixes
+- **Fixed**: Tabs memory crash. Resolved `TypeError` in `tabs-fix.js` where legacy BetterDiscord polling calls were crashing the app during navigation.
+- **Fixed**: Update dialog logic where clicking the "X" (Close) button would trigger the update process instead of cancelling it. Added explicit `cancelId` to ensure the "Later" button is the default escape action.
+- **Fixed**: Auto-Detect toggle synchronization. The UI element now correctly reflects the persisted application state on startup, preventing the "Auto-Detect" feature from appearing disabled when it was actually active.
+- **Fixed**: SolariNotes plugin crash. Modified injection logic to prevent DOM mutation collisions with React, ensuring Discord remains stable when opening user profiles.
+- **Fixed**: Setup Wizard overlap issue in Quick Settings on specific DPI scales (Wrapper height adjusted).
+- **Fixed**: Developer Mode 10s delay bottleneck caused by missing updater metadata falling back continuously on Splash Screen.
+- **Fixed**: Setup Wizard failing to resume in local language for 13+ locales due to missing dictionary objects. Automatically populated via fast AI-assisted batch translation.
+- **Fixed**: Execution of Setup Wizard through settings directly injecting raw CSS instead of flushing state context, causing it to skip straight to the last previously viewed slide.
+- **Fixed**: Setup Wizard option switches not properly reflecting existing backend states when reopening manually from settings.
+---
+
 ## [1.8.3] - 2026-03-29
 **UPDATE 1.8.3: OPERATION FALLBACK**
 

@@ -16,12 +16,15 @@ const fs = require('fs');
 let currentLang = 'en';
 let translations = {};
 
+let fallbackTranslations = {};
+
 // PRE-LOAD English translations synchronously as fallback
 // This prevents "Missing translation" errors before initI18n() is called
 try {
     const enPath = path.join(__dirname, 'locales', 'en.json');
     const enData = fs.readFileSync(enPath, 'utf-8');
-    translations = JSON.parse(enData);
+    fallbackTranslations = JSON.parse(enData);
+    translations = { ...fallbackTranslations };
     console.log('[i18n] Pre-loaded English fallback translations');
 } catch (e) {
     console.warn('[i18n] Could not pre-load English fallback:', e.message);
@@ -31,14 +34,24 @@ try {
 async function loadTranslations(lang) {
     try {
         const response = await fetch(`./locales/${lang}.json?v=${new Date().getTime()}`);
-        translations = await response.json();
+        const loadedData = await response.json();
+        // Deep merge with fallback translations to fill missing keys (naive merge)
+        translations = { ...fallbackTranslations, ...loadedData };
+        // Deeper merge for known objects like wizard, settings, etc
+        Object.keys(fallbackTranslations).forEach(key => {
+            if (typeof fallbackTranslations[key] === 'object' && loadedData[key]) {
+                translations[key] = { ...fallbackTranslations[key], ...loadedData[key] };
+            }
+        });
         currentLang = lang;
         return translations;
     } catch (error) {
         console.error('[i18n] Failed to load translations:', error);
         // Fallback to English
         if (lang !== 'en') {
-            return loadTranslations('en');
+            translations = { ...fallbackTranslations };
+            currentLang = 'en';
+            return translations;
         }
         return {};
     }
@@ -48,13 +61,29 @@ async function loadTranslations(lang) {
 function t(key, replacements = {}) {
     const keys = key.split('.');
     let value = translations;
+    let hasValue = true;
 
     for (const k of keys) {
         if (value && value[k] !== undefined) {
             value = value[k];
         } else {
-            console.warn(`[i18n] Missing translation: ${key} (Stopped at ${k})`);
-            return key;
+            hasValue = false;
+            break;
+        }
+    }
+
+    if (!hasValue) {
+        // Attempt fallback strategy
+        let fbVal = fallbackTranslations;
+        let hasFbValue = true;
+        for (const k of keys) {
+             if (fbVal && fbVal[k] !== undefined) fbVal = fbVal[k];
+             else { hasFbValue = false; break; }
+        }
+        if (hasFbValue) value = fbVal;
+        else {
+             console.warn(`[i18n] Missing translation: ${key}`);
+             return key;
         }
     }
 

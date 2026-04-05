@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "已启用",
+    "autoDetect": "自动检测",
+    "starting": "启动中..."
+  },
+  "tabs": {
+    "rpc": "Rich Presence",
+    "soundboard": "混音台",
+    "plugins": "插件",
+    "settings": "设置"
+  },
+  "menu": {
+    "startWithWindows": "随系统启动",
+    "startMinimized": "启动时最小化",
+    "exit": "退出",
+    "language": "语言"
+  },
+  "tray": {
+    "openSolari": "打开 Solari",
+    "exit": "退出",
+    "showConsole": "显示控制台",
+    "hideConsole": "隐藏控制台"
+  }
+}

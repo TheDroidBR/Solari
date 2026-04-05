@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "இயக்கப்பட்டது",
+    "autoDetect": "தானியங்கி கண்டறிதல்",
+    "starting": "தொடங்குகிறது..."
+  },
+  "tabs": {
+    "rpc": "Rich Presence",
+    "soundboard": "சவுண்ட்போர்டு",
+    "plugins": "செருகுநிரல்கள்",
+    "settings": "அமைப்புகள்"
+  },
+  "menu": {
+    "startWithWindows": "விண்டோஸுடன் தொடங்கவும்",
+    "startMinimized": "தட்டில் தொடங்கவும்",
+    "exit": "வெளியேறு",
+    "language": "மொழி"
+  },
+  "tray": {
+    "openSolari": "Solari திறக்கவும்",
+    "exit": "வெளியேறு",
+    "showConsole": "கான்சோலைக் காட்டு",
+    "hideConsole": "கான்சோலை மறை"
+  }
+}

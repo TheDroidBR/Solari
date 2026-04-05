@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "فعال",
+    "autoDetect": "خودکار شناخت",
+    "starting": "شروع ہو رہا ہے..."
+  },
+  "tabs": {
+    "rpc": "رچ پریزنس",
+    "soundboard": "ساؤنڈ بورڈ",
+    "plugins": "پلگ انز",
+    "settings": "ترتیبات"
+  },
+  "menu": {
+    "startWithWindows": "ونڈوز کے ساتھ شروع کریں",
+    "startMinimized": "ٹرے میں شروع کریں",
+    "exit": "باہر نکلیں",
+    "language": "زبان"
+  },
+  "tray": {
+    "openSolari": "Solari کھولیں",
+    "exit": "باہر نکلیں",
+    "showConsole": "کنسول دکھائیں",
+    "hideConsole": "کنسول چھپائیں"
+  }
+}

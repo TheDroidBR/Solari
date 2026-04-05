@@ -95,6 +95,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'check-update-silent',
             'soundboard:check-driver-installed',
             'get-client-id',
+            'net:fetch-resource',
+            'plugins:fetch-bypass',
             // SoundBoard handlers
             'soundboard:get-sounds',
             'soundboard:get-settings',

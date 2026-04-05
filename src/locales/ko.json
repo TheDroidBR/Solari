@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "활성화됨",
+    "autoDetect": "자동 감지",
+    "starting": "시작 중..."
+  },
+  "tabs": {
+    "rpc": "Rich Presence",
+    "soundboard": "사운드보드",
+    "plugins": "플러그인",
+    "settings": "설정"
+  },
+  "menu": {
+    "startWithWindows": "Windows와 함께 시작",
+    "startMinimized": "최소화된 상태로 시작",
+    "exit": "종료",
+    "language": "언어"
+  },
+  "tray": {
+    "openSolari": "Solari 열기",
+    "exit": "종료",
+    "showConsole": "콘솔 표시",
+    "hideConsole": "콘sole 숨기기"
+  }
+}
