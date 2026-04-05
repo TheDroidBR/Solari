@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Detects AFK and changes Discord status. ⚠️ LIMITATION: BetterDiscord plugins have limited AFK detection (only works while Discord is focused). For full system-wide AFK detection, use the Solari app!
- * @version 1.1.2
+ * @version 1.1.3
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SmartAFKDetector.plugin.js
@@ -478,9 +478,10 @@ module.exports = class SmartAFKDetector {
                     this.applyTierStatus(newTierIndex);
                     this.lastStatusRenewal = Date.now();
                 } else {
-                    // Same tier - renew status every 5 seconds to prevent 5-min expiration
+                    // Same tier - renew status every 4 minutes to prevent 5-min expiration
                     // This ensures status stays alive while PC is on, but expires if PC shuts down
-                    if (!this.lastStatusRenewal || Date.now() - this.lastStatusRenewal > 5000) {
+                    // (Changed from 5 seconds to 4 minutes to prevent Discord API Rate Limiting)
+                    if (!this.lastStatusRenewal || Date.now() - this.lastStatusRenewal > 240000) {
                         const tier = this.config.afkTiers[this.currentTierIndex];
                         console.log(`[SmartAFK] Renewing status for tier ${this.currentTierIndex + 1}`);
                         this.setCustomStatus(tier.status);
@@ -735,10 +736,7 @@ module.exports = class SmartAFKDetector {
             if (UserSettingsProtoUtils && UserSettingsProtoUtils.updateAsync) {
                 console.log("[SmartAFK] Using UserSettingsProtoUtils for custom status");
 
-                // Use aca=1 for better server synchronization
-                // aca=0 can sometimes only update locally without syncing to Discord's servers
-                // aca=1 (USER_GUILD_UPDATE) ensures the change is propagated
-                const performUpdate = (attempt = 1) => {
+                const performUpdate = () => {
                     UserSettingsProtoUtils.updateAsync(
                         "status",
                         (statusSetting) => {
@@ -750,33 +748,20 @@ module.exports = class SmartAFKDetector {
                                     emojiId: "0", // Use "0" instead of null
                                     emojiName: ""
                                 };
-                                console.log(`[SmartAFK] Custom status set to: ${text} (attempt ${attempt})`);
+                                console.log(`[SmartAFK] Custom status set to: ${text}`);
                             } else {
                                 statusSetting.customStatus = null;
-                                console.log(`[SmartAFK] Custom status cleared (attempt ${attempt})`);
+                                console.log(`[SmartAFK] Custom status cleared`);
                             }
                         },
-                        1 // aca=1 for better server sync (was 0)
+                        0 // 0 = Safe standard update value
                     );
                 };
 
-                // First attempt
-                performUpdate(1);
-
-                // Retry mechanism: If clearing status, do multiple attempts with delay
-                // This ensures the clear propagates to Discord's servers
-                if (!text) {
-                    // Send a second update after 500ms to ensure propagation
-                    setTimeout(() => {
-                        performUpdate(2);
-                    }, 500);
-
-                    // Third update after 1.5s as final confirmation
-                    setTimeout(() => {
-                        performUpdate(3);
-                        console.log("[SmartAFK] Status clear retry sequence completed");
-                    }, 1500);
-                }
+                // Remove multiple attempts, just do it once cleanly!
+                // Multiple rapid updates cause Discord HTTP 429 Rate Limits
+                // which makes the clear happen locally but fail to reach the server.
+                performUpdate();
 
                 this.log(`${this.t('customStatusChangedTo')} ${text || this.t('cleared')}`);
                 return true;
