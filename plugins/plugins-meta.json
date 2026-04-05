@@ -1,11 +1,11 @@
 {
   "smartafk": {
-    "version": "1.1.2",
+    "version": "1.1.3",
     "author": "TheDroid",
     "description": "Automatically detects inactivity and updates your Discord status. Syncs with Solari via WebSocket.",
     "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SmartAFKDetector.plugin.js",
     "fileName": "SmartAFKDetector.plugin.js",
-    "changelog": "### v1.1.2 (2026-01-28)\n- 🐛 **Fixed:** Infinite reconnection loop (\"zombie connection\") when plugin is disabled\n- ⚡ **Optimized:** Connection cleanup logic\n\n### v1.1.1 (2026-01-20)\n- 🐛 **Fixed:** Custom status sync with Discord servers when cleared\n- 🐛 **Fixed:** Status persistence on other devices fixed\n- ⚡ **Improved:** Reliability with new retry mechanism\n\n### v1.1.0 (2024-12-24)\n- 🐛 **Fixed:** Status no longer gets stuck on 'Idle' when opening Discord on mobile/browser\n- ⚡ **New:** Patches Discord's native idle timeout instead of manually setting status\n- ⚡ Discord now handles idle detection natively, syncing correctly across devices\n\n### v1.0.0\n- 🚀 Initial release\n- ✅ Auto-detect mouse/keyboard inactivity\n- ✅ Customizable timeout settings\n- ✅ Syncs with Solari app via WebSocket"
+    "changelog": "### v1.1.3 (2026-04-05)\n- 🚀 **Critical Fix (Status Stuck):** Solved a Discord API Rate Limiting issue (HTTP 429) that caused the AFK Custom Status to appear cleared locally, but remain stuck globally.\n- 🛡️ **Improvement:** Removed 5-second aggressive spam and implemented a safe 4-minute network renewal to keep the AFK Status perfectly synced and stable.\n\n### v1.1.2 (2026-01-28)\n- 🐛 **Fixed:** Infinite reconnection loop (\"zombie connection\") when plugin is disabled\n- ⚡ **Optimized:** Connection cleanup logic\n\n### v1.1.1 (2026-01-20)\n- 🐛 **Fixed:** Custom status sync with Discord servers when cleared\n- 🐛 **Fixed:** Status persistence on other devices fixed\n- ⚡ **Improved:** Reliability with new retry mechanism\n\n### v1.1.0 (2024-12-24)\n- 🐛 **Fixed:** Status no longer gets stuck on 'Idle' when opening Discord on mobile/browser\n- ⚡ **New:** Patches Discord's native idle timeout instead of manually setting status\n- ⚡ Discord now handles idle detection natively, syncing correctly across devices\n\n### v1.0.0\n- 🚀 Initial release\n- ✅ Auto-detect mouse/keyboard inactivity\n- ✅ Customizable timeout settings\n- ✅ Syncs with Solari app via WebSocket"
   },
   "spotifysync": {
     "version": "2.1.3",
