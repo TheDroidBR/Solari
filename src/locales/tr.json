@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "Etkin",
+    "autoDetect": "Otomatik Algıla",
+    "starting": "Başlatılıyor..."
+  },
+  "tabs": {
+    "rpc": "Zengin Varlık",
+    "soundboard": "Ses Tahtası",
+    "plugins": "Eklentiler",
+    "settings": "Ayarlar"
+  },
+  "menu": {
+    "startWithWindows": "Windows ile başlat",
+    "startMinimized": "Simge durumunda başlat",
+    "exit": "Çıkış",
+    "language": "Dil"
+  },
+  "tray": {
+    "openSolari": "Solari'yi Aç",
+    "exit": "Çıkış",
+    "showConsole": "Konsolu Göster",
+    "hideConsole": "Konsolu Gizle"
+  }
+}

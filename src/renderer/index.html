@@ -13,7 +13,7 @@
     <header>
       <div class="brand">
         <h1>Solari</h1>
-        <span class="version">v1.8.3</span>
+        <span class="version">v1.9.0</span>
         <button id="updateAvailableBtn" class="update-available-btn" style="display: none;" title="Update available!">
           <span class="update-icon">⬇️</span> <span id="updateVersionLabel"></span>
         </button>
@@ -107,7 +107,8 @@
                     <span data-i18n="settings.labelStart">Início</span>
                     <div>
                       <span data-i18n="menu.startWithWindows">Iniciar com o Windows</span>
-                      <span class="settings-row-desc">Inicia o Solari automaticamente ao ligar o PC.</span>
+                      <span class="settings-row-desc" data-i18n="settings.startWithWindowsDesc">Inicia o Solari
+                        automaticamente ao ligar o PC.</span>
                     </div>
                   </div>
                   <label class="switch">
@@ -121,7 +122,8 @@
                     <span data-i18n="settings.labelHidden">Oculto</span>
                     <div>
                       <span data-i18n="menu.startMinimized" id="label-startMinimized">Iniciar Minimizado</span>
-                      <span class="settings-row-desc">Inicia diretamente na Bandeja do Sistema.</span>
+                      <span class="settings-row-desc" data-i18n="settings.startMinimizedDesc">Inicia diretamente na
+                        Bandeja do Sistema.</span>
                     </div>
                   </div>
                   <label class="switch">
@@ -135,7 +137,8 @@
                     <span data-i18n="settings.labelTray">Bandeja</span>
                     <div>
                       <span data-i18n="menu.minimizeToTray">Minimizar para a Bandeja</span>
-                      <span class="settings-row-desc">Oculta o app ao invés de fechar.</span>
+                      <span class="settings-row-desc" data-i18n="settings.minimizeToTrayDesc">Oculta o app ao invés de
+                        fechar.</span>
                     </div>
                   </div>
                   <label class="switch">
@@ -169,8 +172,25 @@
                     <option value="en">English</option>
                     <option value="pt-BR">Português (Brasil)</option>
                     <option value="es">Español</option>
+                    <option value="fr">Français</option>
                     <option value="de">Deutsch</option>
+                    <option value="it">Italiano</option>
+                    <option value="ru">Русский</option>
+                    <option value="tr">Türkçe</option>
+                    <option value="hi">हिन्दी</option>
+                    <option value="zh-CN">简体中文</option>
+                    <option value="zh-HK">粵語</option>
+                    <option value="ja">日本語</option>
+                    <option value="ko">한국어</option>
+                    <option value="id">Bahasa Indonesia</option>
+                    <option value="bn">বাংলা</option>
+                    <option value="ur">اردو</option>
+                    <option value="mr">मराठी</option>
+                    <option value="te">తెలుగు</option>
+                    <option value="ta">தமிழ்</option>
+                    <option value="pcm">Naijá</option>
                   </select>
+
                 </div>
               </div>
             </div>
@@ -1210,7 +1230,7 @@
   <div id="aboutModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px; text-align: center;">
       <h2 style="font-size: 2em; margin-bottom: 5px; color: var(--primary);">Solari RPC</h2>
-      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.8.3</p>
+      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.9.0</p>
       <div style="text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
         <p style="margin-bottom: 15px;">
           <span data-i18n="about.description">Premium Discord Rich Presence Manager</span><br>
@@ -1321,7 +1341,7 @@
   <div id="setupWizard" class="wizard-overlay" style="display: none;">
     <div class="wizard-containerglass">
 
-      <!-- Slide 1: Welcome -->
+      <!-- Slide 1: Welcome + Language Grid -->
       <div class="wizard-slide active" data-slide="1">
         <div class="wizard-content-centered">
           <img src="../../SolariPhotoTransparente.png" alt="Solari Logo" class="wizard-logo-large-img">
@@ -1330,25 +1350,73 @@
 
           <div class="wizard-language-select">
             <p data-i18n="wizard.selectLanguage">Select your language</p>
-            <div class="language-cards">
+            <div class="lang-grid">
               <div class="lang-card" data-lang="en">
-                <span class="flag">🇺🇸</span>
-                <span>English</span>
+                <span class="flag">🇺🇸</span><span>English</span>
               </div>
               <div class="lang-card" data-lang="pt-BR">
-                <span class="flag">🇧🇷</span>
-                <span>Português</span>
+                <span class="flag">🇧🇷</span><span>Português</span>
               </div>
               <div class="lang-card" data-lang="es">
-                <span class="flag">🇪🇸</span>
-                <span>Español</span>
+                <span class="flag">🇪🇸</span><span>Español</span>
+              </div>
+              <div class="lang-card" data-lang="fr">
+                <span class="flag">🇫🇷</span><span>Français</span>
+              </div>
+              <div class="lang-card" data-lang="de">
+                <span class="flag">🇩🇪</span><span>Deutsch</span>
+              </div>
+              <div class="lang-card" data-lang="it">
+                <span class="flag">🇮🇹</span><span>Italiano</span>
+              </div>
+              <div class="lang-card" data-lang="ru">
+                <span class="flag">🇷🇺</span><span>Русский</span>
+              </div>
+              <div class="lang-card" data-lang="tr">
+                <span class="flag">🇹🇷</span><span>Türkçe</span>
+              </div>
+              <div class="lang-card" data-lang="hi">
+                <span class="flag">🇮🇳</span><span>हिन्दी</span>
+              </div>
+              <div class="lang-card" data-lang="zh-CN">
+                <span class="flag">🇨🇳</span><span>简体中文</span>
+              </div>
+              <div class="lang-card" data-lang="zh-HK">
+                <span class="flag">🇭🇰</span><span>粵語</span>
+              </div>
+              <div class="lang-card" data-lang="ja">
+                <span class="flag">🇯🇵</span><span>日本語</span>
+              </div>
+              <div class="lang-card" data-lang="ko">
+                <span class="flag">🇰🇷</span><span>한국어</span>
+              </div>
+              <div class="lang-card" data-lang="id">
+                <span class="flag">🇮🇩</span><span>Indonesia</span>
+              </div>
+              <div class="lang-card" data-lang="bn">
+                <span class="flag">🇧🇩</span><span>বাংলা</span>
+              </div>
+              <div class="lang-card" data-lang="ur">
+                <span class="flag">🇵🇰</span><span>اردو</span>
+              </div>
+              <div class="lang-card" data-lang="mr">
+                <span class="flag">🇮🇳</span><span>मराठी</span>
+              </div>
+              <div class="lang-card" data-lang="te">
+                <span class="flag">🇮🇳</span><span>తెలుగు</span>
+              </div>
+              <div class="lang-card" data-lang="ta">
+                <span class="flag">🇮🇳</span><span>தமிழ்</span>
+              </div>
+              <div class="lang-card" data-lang="pcm">
+                <span class="flag">🇳🇬</span><span>Naijá</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Slide 2: Theme -->
+      <!-- Slide 2: Theme (mantido) -->
       <div class="wizard-slide" data-slide="2">
         <h2 data-i18n="wizard.chooseStyle">Choose your Style</h2>
         <p class="wizard-subtitle" data-i18n="wizard.styleSubtitle">Select a theme that fits your vibe.</p>
@@ -1414,7 +1482,7 @@
         </div>
       </div>
 
-      <!-- Slide 3: Core Concepts -->
+      <!-- Slide 3: How It Works (mantido) -->
       <div class="wizard-slide" data-slide="3">
         <h2 data-i18n="wizard.howItWorks">How Solari Works</h2>
         <div class="concepts-grid">
@@ -1430,12 +1498,82 @@
             <p data-i18n="wizard.profilesDesc">Each preset can have its own <strong>Client ID</strong>. You can appear
               as "Playing Visual Studio" and "Playing GTA" correctly without changing settings manually.</p>
           </div>
+          <div class="concept-card">
+            <div class="concept-icon">🔊</div>
+            <h3 data-i18n="wizard.soundBoardTitle">SoundBoard</h3>
+            <p data-i18n="wizard.soundBoardDesc">Play sounds directly into your Discord voice channel. Requires VB-Cable
+              driver (can be set up later).</p>
+          </div>
         </div>
       </div>
 
-      <!-- Slide 4: Client ID -->
+      <!-- Slide 4: Behavior Settings (NOVO) -->
       <div class="wizard-slide" data-slide="4">
-        <h2 data-i18n="wizard.clientIdTitle">Global Client ID</h2>
+        <h2 data-i18n="wizard.behaviorTitle">⚙️ Quick Settings</h2>
+        <p class="wizard-subtitle" data-i18n="wizard.behaviorSubtitle">Configure how Solari behaves on your system.</p>
+
+        <div class="plugin-toggles-list">
+          <div class="plugin-toggle-item">
+            <div class="plugin-info">
+              <span class="plugin-icon">🚀</span>
+              <div>
+                <h3 data-i18n="wizard.startWithWindows">Start with Windows</h3>
+                <p data-i18n="wizard.startWithWindowsDesc">Launch Solari automatically when your PC boots.</p>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="wizardToggleStartWindows" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="plugin-toggle-item">
+            <div class="plugin-info">
+              <span class="plugin-icon">📥</span>
+              <div>
+                <h3 data-i18n="wizard.startMinimized">Start Minimized</h3>
+                <p data-i18n="wizard.startMinimizedDesc">Open in the system tray instead of showing the window.</p>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="wizardToggleStartMinimized">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="plugin-toggle-item">
+            <div class="plugin-info">
+              <span class="plugin-icon">🔽</span>
+              <div>
+                <h3 data-i18n="wizard.minimizeToTray">Minimize on Close</h3>
+                <p data-i18n="wizard.minimizeToTrayDesc">Closing the window keeps Solari running in the tray.</p>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="wizardToggleMinimizeToTray" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="plugin-toggle-item">
+            <div class="plugin-info">
+              <span class="plugin-icon">🔄</span>
+              <div>
+                <h3 data-i18n="wizard.autoUpdates">Auto-Check Updates</h3>
+                <p data-i18n="wizard.autoUpdatesDesc">Automatically check for new Solari versions on startup.</p>
+              </div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="wizardToggleAutoUpdates" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slide 5: Client ID -->
+      <div class="wizard-slide" data-slide="5">
+        <h2 data-i18n="wizard.clientIdTitle">🆔 Global Client ID</h2>
         <p class="wizard-subtitle" data-i18n="wizard.clientIdSubtitle">This is used when no specific profile is active.
         </p>
 
@@ -1444,16 +1582,16 @@
             placeholder="Paste your Discord Application ID here">
           <button class="btn-help-icon" title="Need help?" data-i18n-title="about.help">?</button>
         </div>
-        <p class="wizard-hint" data-i18n="wizard.clientIdHint">Don't have one? You can configure this later or use the
-          default one.</p>
+        <p class="wizard-hint" data-i18n="wizard.clientIdHint">Most users can skip this step. You can configure it
+          later.</p>
         <a href="#" id="wizardPortalLink" class="wizard-link"
           style="color: var(--accent-color); text-decoration: none; margin-top: 10px; display: inline-block; font-size: 0.9rem; width: fit-content;"
           data-i18n="wizard.getPortalLink">Create Discord Application</a>
       </div>
 
-      <!-- Slide 5: Plugins -->
-      <div class="wizard-slide" data-slide="5">
-        <h2 data-i18n="wizard.powerUpTitle">Power Up</h2>
+      <!-- Slide 6: Power Up (expandido) -->
+      <div class="wizard-slide" data-slide="6">
+        <h2 data-i18n="wizard.powerUpTitle">⚡ Power Up</h2>
         <p class="wizard-subtitle" data-i18n="wizard.powerUpSubtitle">Enable extra features to get the most out of
           Solari.</p>
 
@@ -1485,15 +1623,23 @@
               <span class="slider round"></span>
             </label>
           </div>
+
         </div>
       </div>
 
-      <!-- Slide 6: Finish -->
-      <div class="wizard-slide" data-slide="6">
+      <!-- Slide 7: Finish -->
+      <div class="wizard-slide" data-slide="7">
         <div class="wizard-content-centered">
-          <div class="wizard-rocket-anim">🚀</div>
+          <img src="../../SolariPhotoTransparente.png" alt="Solari Logo"
+            class="wizard-logo-large-img wizard-finish-logo">
           <h2 data-i18n="wizard.readyTitle">Ready to lift off?</h2>
-          <p data-i18n="wizard.readySubtitle">You're all set! Enjoy Solari.</p>
+          <p class="wizard-subtitle" data-i18n="wizard.readySubtitle">You're all set! Enjoy Solari.</p>
+          <div class="wizard-setup-summary">
+            <span class="summary-badge">🌐 <span data-i18n="wizard.summaryLang">Language</span></span>
+            <span class="summary-badge">🎨 <span data-i18n="wizard.summaryTheme">Theme</span></span>
+            <span class="summary-badge">⚙️ <span data-i18n="wizard.summarySettings">Settings</span></span>
+            <span class="summary-badge">⚡ <span data-i18n="wizard.summaryFeatures">Features</span></span>
+          </div>
         </div>
       </div>
 
@@ -1501,6 +1647,7 @@
       <div class="wizard-footer">
         <div class="step-indicators">
           <span class="step-dot active"></span>
+          <span class="step-dot"></span>
           <span class="step-dot"></span>
           <span class="step-dot"></span>
           <span class="step-dot"></span>
@@ -1516,7 +1663,6 @@
 
   </div>
   </div>
-
   <!-- Drag-and-Drop Handler (inline for maximum reliability) -->
   <script>
     (function () {

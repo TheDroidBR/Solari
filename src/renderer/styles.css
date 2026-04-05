@@ -4438,7 +4438,7 @@ body.neon-mode input[type="range"]::-webkit-slider-thumb {
   /* border: 4px solid cyan !important; REMOVED */
   width: 700px;
   /* Wider for premium feel */
-  height: 600px;
+  height: 680px;
   background: transparent;
   /* TRANSPARENT DEFAULT - No square background */
   border: none;
@@ -4500,48 +4500,127 @@ body.neon-mode input[type="range"]::-webkit-slider-thumb {
   margin-bottom: 30px;
 }
 
-/* Language Selection */
+/* Language Selection — 20-Language Grid */
 .wizard-language-select {
-  margin-top: 20px;
+  margin-top: 15px;
   width: 100%;
 }
 
-.language-cards {
-  display: flex;
-  gap: 15px;
-  justify-content: center;
-  margin-top: 15px;
+.lang-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+.lang-grid::-webkit-scrollbar {
+  width: 4px;
+}
+.lang-grid::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
 }
 
 .lang-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 15px 25px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px 6px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.23, 1, 0.32, 1);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  min-width: 120px;
+  gap: 4px;
+  font-size: 0.78rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Hover Ripple Effect */
+.lang-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.12) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.lang-card:hover::after {
+  opacity: 1;
 }
 
 .lang-card:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-3px);
-  border-color: var(--primary);
+  background: rgba(255, 255, 255, 0.09);
+  transform: translateY(-2px) scale(1.03);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Selection Pulse Animation */
+@keyframes langSelectPulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(255, 107, 53, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0); }
 }
 
 .lang-card.active {
-  background: rgba(255, 107, 53, 0.2);
+  background: rgba(255, 107, 53, 0.15);
   border-color: var(--primary);
-  box-shadow: 0 0 20px rgba(255, 107, 53, 0.2);
+  box-shadow: 0 0 18px rgba(255, 107, 53, 0.2);
+  animation: langSelectPulse 0.6s ease-out;
 }
 
 .lang-card .flag {
-  font-size: 2rem;
+  font-size: 1.4rem;
+  line-height: 1;
 }
+
+/* Wizard Finish Logo */
+.wizard-finish-logo {
+  animation: float 6s ease-in-out infinite, wizardFinishGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes wizardFinishGlow {
+  0% { filter: drop-shadow(0 0 15px rgba(88, 101, 242, 0.4)); }
+  100% { filter: drop-shadow(0 0 30px rgba(255, 107, 53, 0.5)); }
+}
+
+/* Setup Summary Badges */
+.wizard-setup-summary {
+  display: flex;
+  gap: 12px;
+  margin-top: 25px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.summary-badge {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Concepts Grid — Now 3 columns for SoundBoard */
+.concepts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-top: 20px;
+}
+
 
 /* Theme Previews */
 .theme-preview-grid {

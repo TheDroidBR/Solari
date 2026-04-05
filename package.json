@@ -1,7 +1,7 @@
 {
   "name": "solari",
   "productName": "Solari",
-  "version": "1.9.0-alpha2",
+  "version": "1.9.0",
   "description": "Solari - Advanced Discord Rich Presence",
   "main": "src/main/index.js",
   "scripts": {
@@ -17,7 +17,7 @@
   "author": "TheDroid",
   "license": "GPL-2.0",
   "devDependencies": {
-    "electron": "^40.0.0",
+    "electron": "^41.1.1",
     "electron-builder": "^25.0.0"
   },
   "dependencies": {
@@ -59,6 +59,7 @@
         "nsis"
       ],
       "icon": "SolariPhotoTransparente.ico",
+      "publisherName": "TheDroid",
       "verifyUpdateCodeSignature": false
     },
     "nsis": {

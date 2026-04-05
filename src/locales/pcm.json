@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "Active",
+    "autoDetect": "Detect am self",
+    "starting": "E de start..."
+  },
+  "tabs": {
+    "rpc": "Rich Presence",
+    "soundboard": "SoundBoard",
+    "plugins": "Plugins",
+    "settings": "Settings"
+  },
+  "menu": {
+    "startWithWindows": "Start with Windows",
+    "startMinimized": "Start for Tray",
+    "exit": "Commot",
+    "language": "Language"
+  },
+  "tray": {
+    "openSolari": "Open Solari",
+    "exit": "Commot",
+    "showConsole": "Show Console",
+    "hideConsole": "Hide Console"
+  }
+}

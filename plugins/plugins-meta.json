@@ -26,7 +26,7 @@
   "solarimessagetools": {
     "version": "1.0.0",
     "author": "TheDroid",
-    "description": "Unlock advanced powers: Quick Edit, Anti-Typing stealth, instant translation, and macro shortcuts.",
+    "description": "Unlock advanced powers: Quick Edit, Anti-Typing incognito, instant translation, and macro shortcuts.",
     "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMessageTools.plugin.js",
     "fileName": "SolariMessageTools.plugin.js",
     "changelog": "### v1.0.0\n- 🚀 **Initial Release**: Message utilities integrated natively with Solari App.\n- ⚡ **Text Macros**: Instant shortcuts like /shrug and /solari.\n- 🌍 **Active Translation**: Translate incoming messages on the fly via context menus.\n- ⚡ **Quick Edit**: Double click to edit, Shift+Click to delete instantly.\n- 🤫 **Anti-Typing**: Prevent Discord from broadcasting your typing status."

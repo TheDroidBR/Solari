@@ -45,7 +45,7 @@ const defStateInput = document.getElementById('defState');
 const saveDefaultBtn = document.getElementById('saveDefaultBtn');
 const presetNameInput = document.getElementById('presetName');
 const savePresetBtn = document.getElementById('savePresetBtn');
-const presetList = document.getElementById('presetList');
+// const presetList = document.getElementById('presetList'); // Removed static lookup
 
 const testConnectionBtn = document.getElementById('testConnectionBtn');
 const testResult = document.getElementById('testResult');
@@ -157,6 +157,10 @@ const settingsCheckUpdatesBtn = document.getElementById('settings-checkUpdatesBt
 const settingsChangelogBtn = document.getElementById('settings-changelogBtn');
 const settingsSetupWizardBtn = document.getElementById('settings-setupWizardBtn');
 const settingsAboutBtn = document.getElementById('settings-aboutBtn');
+
+// State Locks
+let isSyncingLanguage = false;
+let languageSyncTimeout = null;
 
 const customCssModal = document.getElementById('customCssModal');
 const customCssInput = document.getElementById('customCssInput');
@@ -664,8 +668,12 @@ if (settingsChangelogBtn) {
 }
 if (settingsSetupWizardBtn) {
     settingsSetupWizardBtn.addEventListener('click', () => {
-        const wizard = document.getElementById('setupWizard');
-        if (wizard) wizard.style.display = 'flex';
+        if (typeof showSetupWizard === 'function') {
+            showSetupWizard();
+        } else {
+            const wizard = document.getElementById('setupWizard');
+            if (wizard) wizard.style.display = 'flex';
+        }
     });
 }
 if (settingsAboutBtn) {
@@ -687,8 +695,15 @@ if (settingsUninstallBtn) {
 function syncSettingsUI(loadedSettings) {
     if (!loadedSettings) return;
 
+    // Nuclear State Protection: If we are currently syncing a new language, 
+    // keep the NEW language even if the incoming sync has OLD data.
+    const currentLang = isSyncingLanguage && appSettings.language ? appSettings.language : loadedSettings.language;
+
     // Setup global state first so UI helper functions can read it correctly
-    appSettings = loadedSettings;
+    appSettings = { ...loadedSettings };
+    if (isSyncingLanguage) {
+        appSettings.language = currentLang;
+    }
 
     // Checkboxes
     if (settingsStartWithWindows) settingsStartWithWindows.checked = appSettings.startWithWindows || false;
@@ -702,8 +717,8 @@ function syncSettingsUI(loadedSettings) {
     updateStartMinimizedUI();
     updateEcoModeVisibility();
 
-    // Dropdown
-    if (settingsLanguage) {
+    // Dropdown (PROTECTED BY LOCK)
+    if (settingsLanguage && !isSyncingLanguage) {
         settingsLanguage.value = appSettings.language || 'en';
     }
 }
@@ -715,15 +730,37 @@ ipcRenderer.on('app-data-synced', (event, appSettings) => {
 ipcRenderer.send('get-data');
 
 ipcRenderer.on('data-loaded', async (event, data) => {
+    // 1. Update Global State First
+    if (data.identities) identities = data.identities;
+
+    // 2. Render presets IMMEDIATELY so UI is populated
+    try {
+        renderPresets(data.presets);
+    } catch (presetError) {
+        console.error('[Solari] Failed to render presets early:', presetError);
+    }
+
+    // 3. Restore UI Toggles (Auto-Detect, Eco Mode, etc.)
+    if (data.autoDetectEnabled !== undefined && autoDetectToggle) {
+        autoDetectToggle.checked = data.autoDetectEnabled;
+    }
+
+    if (data.ecoMode !== undefined && ecoModeToggle) {
+        ecoModeToggle.checked = data.ecoMode;
+        if (data.ecoMode) document.body.classList.add('eco-mode');
+        else document.body.classList.remove('eco-mode');
+    }
+
     // Initialize i18n with saved language
     const lang = data.language || (data.appSettings && data.appSettings.language) || 'en';
-    syncSettingsUI(data.appSettings); // Feed the settings UI on first boot
+    try {
+        syncSettingsUI(data.appSettings); // Feed the settings UI on first boot
+    } catch (err) {
+        console.error('[Solari DEBUG] syncSettingsUI crashed:', err);
+    }
 
-    await initI18n(lang);
-    console.log('[Solari] Initialized language:', lang);
-
-    // Apply translations to UI (function is defined at end of file)
-    setTimeout(() => updateUILanguage(), 100);
+    await handleGlobalLanguageChange(lang);
+    syncSettingsUI(data.appSettings); // Sync other settings after language is ready
 
     // CRITICAL: Await identities before hydrating forms so the dropdown options exist!
     if (identities.length === 0) {
@@ -736,7 +773,6 @@ ipcRenderer.on('data-loaded', async (event, data) => {
 
     // Load cached AFK config from plugin (fix for tiers reset bug)
     if (data.afkConfig) {
-        console.log('[Solari] Loaded cached AFK config from plugin:', data.afkConfig);
         if (data.afkConfig.afkTiers && data.afkConfig.afkTiers.length > 0) {
             afkTiers = data.afkConfig.afkTiers;
         }
@@ -756,15 +792,18 @@ ipcRenderer.on('data-loaded', async (event, data) => {
         }
     }
 
-    // Populate preset dropdown from auto-detect mappings
-    if (data.autoDetectMappings && addPresetToAfkDisable) {
+    // Populate preset dropdown for Auto-Detect mapping form
+    if (addPresetToAfkDisable) {
         addPresetToAfkDisable.innerHTML = '<option value="">Selecione um preset...</option>';
-        data.autoDetectMappings.forEach(mapping => {
-            const option = document.createElement('option');
-            option.value = mapping.presetName;
-            option.textContent = `${mapping.presetName} (${mapping.processName})`;
-            addPresetToAfkDisable.appendChild(option);
-        });
+        // Correct logic: Populate from the received presets list
+        if (data.presets && Array.isArray(data.presets)) {
+            data.presets.forEach(preset => {
+                const option = document.createElement('option');
+                option.value = preset.name;
+                option.textContent = `🎮 ${preset.name}`;
+                addPresetToAfkDisable.appendChild(option);
+            });
+        }
     }
 
     if (data.defaultActivity) {
@@ -831,7 +870,7 @@ ipcRenderer.on('data-loaded', async (event, data) => {
                         largeImageInput.value = resolved;
                         needsUpdate = true;
                     }
-                } catch (e) { console.error('[Solari] Startup img resolution failed:', e); }
+                } catch (e) { }
             }
             if (smImg && smImg.includes('imgur.com') && !smImg.startsWith('https://i.imgur.com/')) {
                 try {
@@ -840,7 +879,7 @@ ipcRenderer.on('data-loaded', async (event, data) => {
                         smallImageInput.value = resolved;
                         needsUpdate = true;
                     }
-                } catch (e) { console.error('[Solari] Startup small img resolution failed:', e); }
+                } catch (e) { }
             }
             if (needsUpdate) {
                 // Resolution applied inside the variables, now trigger preview
@@ -869,7 +908,7 @@ ipcRenderer.on('data-loaded', async (event, data) => {
         else document.body.classList.remove('eco-mode');
     }
 
-    renderPresets(data.presets);
+    // Presets were already rendered early at the start of this handler.
 
     // Update preview app name
     // Since identities and presets are fully loaded by now from renderPresets(),
@@ -889,7 +928,6 @@ ipcRenderer.on('data-loaded', async (event, data) => {
     // --- QUICK SETUP WIZARD CHECK ---
     // Check if setup is completed. If not, show wizard.
     if (!data.setupCompleted) {
-        console.log('[Solari] Setup not completed. Launching Wizard...');
         setTimeout(() => showSetupWizard(), 500); // Small delay for smooth fade-in
     }
 
@@ -919,7 +957,11 @@ ipcRenderer.on('run-setup-wizard', () => {
 });
 
 ipcRenderer.on('presets-updated', (event, presets) => {
-    renderPresets(presets);
+    try {
+        renderPresets(presets);
+    } catch (presetError) {
+        console.error('[Solari] Failed to render updated presets:', presetError);
+    }
 });
 
 // --- RPC Status Updates (Connection Indicator in Header + Server Status Section) ---
@@ -988,7 +1030,6 @@ ipcRenderer.on('rpc-status', (event, data) => {
 
 // --- Plugin List Updates ---
 ipcRenderer.on('plugin-list-updated', async (event, plugins) => {
-    console.log('[Solari Renderer] plugin-list-updated received:', plugins.map(p => p.name));
     connectedPlugins = plugins;
     renderPluginList();
 });
@@ -1014,23 +1055,18 @@ ipcRenderer.on('afk-logs-updated', (event, logs) => {
 
 // Receive config from plugin and update UI
 ipcRenderer.on('afk-config-updated', (event, config) => {
-    console.log('[Solari] Received afk-config-updated:', config?.afkTiers?.length || 0, 'tiers');
-
     // Skip update if we just saved (within 2 seconds)
     // This prevents the plugin's response from overwriting local values
     if (Date.now() - lastAfkSaveTime < 2000) {
-        console.log('[Solari] Skipping afk-config-updated (saved recently)');
         return;
     }
 
     if (config.enabled !== undefined) afkToggle.checked = config.enabled;
     if (config.afkTiers && config.afkTiers.length > 0) {
-        console.log('[Solari] Updating tiers from plugin:', config.afkTiers);
         afkTiers = config.afkTiers;
         renderAfkTiers();
     } else if (config.timeoutMinutes !== undefined) {
         // Legacy support - convert single timeout to tier
-        console.log('[Solari] Legacy mode - converting timeout to tier');
         afkTiers = [{ minutes: config.timeoutMinutes, status: config.afkStatusText || t('smartAfk.defaultStatus') || 'Away' }];
         renderAfkTiers();
     }
@@ -1136,12 +1172,20 @@ function showConfirmModal(title, message) {
 
 // --- Render Functions ---
 function renderPresets(presets) {
+    const presetList = document.getElementById('presetList');
+    if (!presetList) return;
+    
     presetList.innerHTML = '';
+    
+    // Defensive check
+    if (!presets || !Array.isArray(presets)) {
+        return;
+    }
+
     presets.forEach((preset, index) => {
         const div = document.createElement('div');
         div.className = 'preset-item';
 
-        // Find app profile name if preset has clientId
         let appBadge = '';
         if (preset.clientId) {
             const profile = identities.find(i => i.id === preset.clientId);
@@ -1222,7 +1266,6 @@ function updateSoundBoardUI() {
             // Driver installed - show SoundBoard UI
             soundboardDriverNotInstalled.style.display = 'none';
             soundboardReady.style.display = 'block';
-            console.log('[Solari Renderer] VB-Cable driver found - showing SoundBoard UI');
 
             // Initialize SoundBoard if function exists (guard against double init)
             if (typeof window.initSoundBoard === 'function' && !window.sbInitialized) {
@@ -1233,10 +1276,7 @@ function updateSoundBoardUI() {
             // Driver not installed - show installation instructions
             soundboardDriverNotInstalled.style.display = 'flex';
             soundboardReady.style.display = 'none';
-            console.log('[Solari Renderer] VB-Cable driver not found - showing installation instructions');
         }
-    } else {
-        console.warn('[Solari Renderer] SoundBoard UI elements not found!');
     }
 }
 
@@ -1275,8 +1315,6 @@ function openPluginConfig(pluginName) {
     if (panel) {
         panel.style.display = 'block';
         modal.classList.add('active'); // Show modal
-    } else {
-        console.warn(`No config panel found for ${pluginName} (ID: ${panelId})`);
     }
 }
 
@@ -1450,7 +1488,6 @@ let globalDefaultAppName = 'Discord App'; // Store the original global app name 
 let appNameReceived = false;
 
 ipcRenderer.on('app-name-loaded', (event, appName) => {
-    console.log('[Solari] Discord app name loaded:', appName);
     globalDefaultAppName = appName; // Store as global default
     appNameReceived = true;
     
@@ -1633,7 +1670,6 @@ updateBtn?.addEventListener('click', async () => {
             imageUrl = await ipcRenderer.invoke('resolve-imgur-url', imageUrl);
             if (imageUrl) {
                 largeImageInput.value = imageUrl;
-                console.log('[Solari] Resolved large image URL to:', imageUrl);
             }
         } catch (err) {
             console.error('[Solari] Failed to resolve large image URL:', err);
@@ -1647,7 +1683,6 @@ updateBtn?.addEventListener('click', async () => {
             smallImageUrl = await ipcRenderer.invoke('resolve-imgur-url', smallImageUrl);
             if (smallImageUrl) {
                 smallImageInput.value = smallImageUrl;
-                console.log('[Solari] Resolved small image URL to:', smallImageUrl);
             }
         } catch (err) {
             console.error('[Solari] Failed to resolve small image URL:', err);
@@ -1942,17 +1977,13 @@ if (addAfkTierBtn) {
 saveAfkBtn?.addEventListener('click', () => {
     // Collect all tier values from UI
     const rows = afkTiersContainer.querySelectorAll('.tier-row');
-    console.log('[Solari] Save clicked - Found rows:', rows.length);
 
     const newTiers = [];
     rows.forEach((row, index) => {
         const minutes = parseInt(row.querySelector('.tier-minutes').value) || 5;
         const status = row.querySelector('.tier-status').value || t('smartAfk.defaultStatus') || 'Away';
-        console.log(`[Solari] Row ${index}: ${minutes} min, "${status}"`);
         newTiers.push({ minutes, status });
     });
-
-    console.log('[Solari] Collected tiers:', newTiers.length, newTiers);
 
     // Sort by minutes ascending
     newTiers.sort((a, b) => a.minutes - b.minutes);
@@ -1965,7 +1996,6 @@ saveAfkBtn?.addEventListener('click', () => {
         afkTiers: newTiers,
         afkDisabledPresets: afkDisabledPresets // Presets that disable AFK
     };
-    console.log('[Solari] Sending settings:', settings);
     ipcRenderer.send('update-afk-settings', settings);
     lastAfkSaveTime = Date.now(); // Ignore config updates for 2 seconds
 
@@ -1973,9 +2003,6 @@ saveAfkBtn?.addEventListener('click', () => {
         afkSaveStatus.style.display = 'block';
         setTimeout(() => afkSaveStatus.style.display = 'none', 2000);
     }
-
-    // DON'T re-render - the UI already shows the correct values
-    // renderAfkTiers(); 
 });
 
 // Add Preset to Disable AFK Button
@@ -1986,14 +2013,12 @@ if (addPresetToDisableBtn) {
 
         // Don't add duplicates
         if (afkDisabledPresets.includes(selectedPreset)) {
-            console.log('[Solari] Preset already in list:', selectedPreset);
             return;
         }
 
         afkDisabledPresets.push(selectedPreset);
         renderAfkDisabledPresets();
         addPresetToAfkDisable.value = ''; // Reset dropdown
-        console.log('[Solari] Added preset to AFK disable list:', selectedPreset);
     });
 }
 
@@ -2009,7 +2034,6 @@ if (exitManualModeBtn) {
 
     // Listen for manual mode status from main process
     ipcRenderer.on('manual-mode-changed', (event, isActive) => {
-        console.log('[Solari] Manual mode changed:', isActive);
         exitManualModeBtn.style.display = isActive ? 'inline-block' : 'none';
     });
 }
@@ -2033,7 +2057,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const lang = await ipcRenderer.invoke('get-current-language');
         await initI18n(lang || 'en');
     } catch (e) {
-        console.error('Failed to init i18n:', e);
         await initI18n('en');
     }
 
@@ -2045,13 +2068,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const result = await ipcRenderer.invoke('soundboard:check-driver-installed');
         vbCableDriverInstalled = result.installed;
-        console.log('[Solari] VB-Cable driver check:', vbCableDriverInstalled ? 'INSTALLED' : 'NOT INSTALLED');
         updateSoundBoardUI();
     } catch (e) {
         console.error('[Solari] Error checking VB-Cable driver:', e);
     }
-
-    console.log('[Solari] Initialized');
 });
 
 // System AFK Indicator
@@ -2059,17 +2079,14 @@ ipcRenderer.on('system-afk-update', (event, data) => {
     if (afkIndicator) {
         if (data.isIdle) {
             afkIndicator.style.display = 'flex';
-            console.log(`[Solari] AFK Indicator shown (idle for ${data.idleMinutes.toFixed(1)} min)`);
         } else {
             afkIndicator.style.display = 'none';
-            console.log('[Solari] AFK Indicator hidden (user active)');
         }
     }
 });
 
 // Listen for global language changes
 document.addEventListener('languageChanged', (e) => {
-    console.log('[Diff] Language changed to:', e.detail.lang);
     updateUILanguage();
     updatePreview(); // Re-render preview to apply new text and restore dynamic app name
 });
@@ -2241,7 +2258,6 @@ function updateUILanguage() {
     const afkToggleLabel = document.querySelector('#configSmartAFKDetector .toggle-label');
     if (afkToggleLabel) afkToggleLabel.textContent = t('smartAfk.enableDetector');
 
-    const afkLevelsLabel = document.querySelector('#configSmartAFKDetector label[style*="NÍVEIS"], #configSmartAFKDetector label[style*="font-size: 0.95em"]');
     const afkLabels = document.querySelectorAll('#configSmartAFKDetector .form-group > label');
     afkLabels.forEach(lbl => {
         if (lbl.textContent.includes('NÍVEIS') || lbl.textContent.includes('LEVELS')) {
@@ -2285,8 +2301,6 @@ function updateUILanguage() {
     if (solariUserLabel) solariUserLabel.textContent = t('solariPlugin.discordUser');
 
     const toastLabel = document.querySelector('label[for="toastMessage"]');
-    if (toastLabel) toastLabel.textContent = t('solariPlugin.sendNotification');
-
     if (toastLabel) toastLabel.textContent = t('solariPlugin.sendNotification');
 
     // Dynamic Log Translation (Hybrid Approach) - Translate existing logs
@@ -2380,15 +2394,45 @@ function updateUILanguage() {
         PluginsTabManager.checkBD();
         PluginsTabManager.loadPlugins(false, true);
     }
+}
 
-    console.log('[Solari] UI language updated to:', getCurrentLang());
+// Centralized Language Manager for Renderer
+async function handleGlobalLanguageChange(lang) {
+    if (!lang) return;
+    
+    // Activate Lock
+    isSyncingLanguage = true;
+    if (languageSyncTimeout) clearTimeout(languageSyncTimeout);
+    
+    // 1. Sync local settings object immediately
+    if (typeof appSettings !== 'undefined') {
+        appSettings.language = lang;
+    }
+
+    // 2. Sync Settings Dropdown (Visual Sync)
+    if (typeof settingsLanguage !== 'undefined' && settingsLanguage) {
+        settingsLanguage.value = lang;
+    }
+
+    // 3. Update i18n Engine (Load JSON + Apply data-i18n attributes)
+    if (typeof initI18n === 'function') {
+        await initI18n(lang);
+    }
+
+    // 4. Update Manual UI Labels (Dynamic Text)
+    if (typeof updateUILanguage === 'function') {
+        updateUILanguage();
+    }
+
+    // Release Lock after 1 second (Buffer for any incoming IPC syncs)
+    languageSyncTimeout = setTimeout(() => {
+        isSyncingLanguage = false;
+    }, 1000);
 }
 
 // Listen for language change from main process
 ipcRenderer.on('language-changed', async (event, lang) => {
-    console.log('[Solari] Language changed to:', lang);
-    await loadTranslations(lang);
-    updateUILanguage();
+    await handleGlobalLanguageChange(lang);
 });
 
 // ===== THEME SYSTEM =====
@@ -2409,7 +2453,6 @@ function setTheme(theme) {
 
     // Save theme preference
     ipcRenderer.send('save-theme', theme);
-    console.log('[Solari] Theme changed to:', theme);
 }
 
 // Theme button click handlers
@@ -2454,7 +2497,6 @@ ipcRenderer.on('show-toast', (event, data) => {
 
 // Show toast when preset is auto-loaded (game detected)
 ipcRenderer.on('preset-auto-loaded', (event, presetName) => {
-    console.log(`[Solari] Preset auto-loaded: ${presetName}`);
     showToast('🎮 ' + t('autoDetect.title'), `Preset: ${presetName}`, 'success');
     statusText.textContent = `Auto: ${presetName}`;
     setTimeout(() => {
@@ -2472,7 +2514,6 @@ ipcRenderer.send('get-spotify-data');
 
 // Handle Spotify data loaded
 ipcRenderer.on('spotify-data-loaded', (event, data) => {
-    console.log('[Solari] Spotify data loaded:', data);
     if (data.settings) {
         if (spotifySyncToggle) spotifySyncToggle.checked = data.settings.enabled !== false;
         if (spotifyRpcToggle) spotifyRpcToggle.checked = data.settings.showInRichPresence !== false;
@@ -2499,7 +2540,6 @@ ipcRenderer.on('spotify-track-updated', (event, track) => {
 
 // Handle Spotify config updates (plugin connected)
 ipcRenderer.on('spotify-config-updated', (event, config) => {
-    console.log('[Solari] Spotify plugin connected:', config);
     spotifyConnected = true;
     updateSpotifyConnectionStatus(true);
 });
@@ -2508,7 +2548,6 @@ ipcRenderer.on('spotify-config-updated', (event, config) => {
 
 // Handle Notes data loaded
 ipcRenderer.on('notes-data-loaded', (event, data) => {
-    console.log('[Solari] Notes data loaded:', data);
     if (data.settings && data.schema) {
         renderPluginSettings(data.schema, data.settings, 'notes', 'solari-notes-settings-container');
     }
@@ -2516,7 +2555,6 @@ ipcRenderer.on('notes-data-loaded', (event, data) => {
 
 // Handle Notes status updates
 ipcRenderer.on('notes-status-update', (event, status) => {
-    console.log('[Solari] Notes status update:', status);
 });
 
 // Update plugin list to check for SpotifySync
@@ -2919,7 +2957,6 @@ function createSettingElement(item, config, pluginName = 'spotify') {
             input.type = 'checkbox';
             input.checked = config[item.key] !== false; // Default true if undefined
             input?.addEventListener('change', () => {
-                console.log(`[Solari] Auto-save ${item.key}: ${input.checked}`);
                 ipcRenderer.send(ipcChannel, { [item.key]: input.checked });
             });
 
@@ -3034,10 +3071,6 @@ function createSettingElement(item, config, pluginName = 'spotify') {
                 }
             };
             return btn;
-
-        // Fallback for legacy types if still used anywhere (text, action, input_action)
-        // I'll keep them minimalistic or remove if schema fully replaced
-        // Keeping as fallback for safety
     }
     return null;
 }
@@ -3050,16 +3083,6 @@ if (spotifyDetectionMethod) {
 }
 
 // === IPC Event Handlers ===
-
-ipcRenderer.on('spotify-status-update', (event, status) => {
-    // updateSpotifyApiUI(status); // Removed legacy UI update
-});
-
-// Initial check
-ipcRenderer.invoke('get-spotify-status').then(status => {
-    // updateSpotifyApiUI(status);
-});
-
 
 // =========================================
 // PLUGINS TAB MANAGER
@@ -3221,7 +3244,6 @@ var PluginsTabManager = {
                 const origLabel = labelEl ? labelEl.textContent : '';
                 if (headerBtn) {
                     headerBtn.disabled = true;
-                    if (labelEl) labelEl.textContent = 'Desinstalando...';
                     if (labelEl) {
                         labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnUninstalling');
                         labelEl.textContent = t('pluginStore.bdBtnUninstalling') || 'Desinstalando...';
@@ -3285,15 +3307,12 @@ var PluginsTabManager = {
         this.startAutoRefresh();
     },
 
-    // (v1.8.0) Background Polling handled in main process
-
     startAutoRefresh() {
         // Poll remote every 5 minutes
         setInterval(() => this.loadPlugins(false, true), 300000);
 
         // Listen for local file changes (Installer/Deleter)
         ipcRenderer.on('plugins:local-change', () => {
-            console.log('[Plugins] Local change detected, refreshing...');
             this.loadPlugins(false, true);
         });
     },
@@ -3304,6 +3323,23 @@ var PluginsTabManager = {
         const label = enabled ? 'Auto-Repair: ON' : 'Auto-Repair: OFF';
         btn.innerHTML = `<span>${icon}</span> ${label}`;
         btn.style.opacity = enabled ? '1' : '0.7';
+    },
+
+    // v1.8.x Compatibility Layer
+    async checkBD() {
+        try {
+            const data = await ipcRenderer.invoke('bd:get-status');
+            this._handleBDStatusUpdate(data);
+        } catch (e) { /* silent */ }
+    },
+
+    startBDPolling() {
+        // Main process handles polling in v1.8.2+, this is a stub for safety
+        console.log('[Plugins] startBDPolling (Stub) called.');
+    },
+
+    stopBDPolling() {
+        // Stub for safety
     },
 
     async _handleBDStatusUpdate(result) {
@@ -3414,99 +3450,59 @@ var PluginsTabManager = {
             if (errorEl) errorEl.style.display = 'none';
         }
 
-        const fallbackData = {
-            "smartafk": {
-                "version": "1.1.2",
-                "author": "TheDroid",
-                "description": "Detecta inatividade automaticamente e atualiza seu status no Discord. Sincroniza com o Solari via WebSocket.",
-                "downloadUrl": "https://solarirpc.com/downloads/SmartAFKDetector.plugin.js",
-                "fileName": "SmartAFKDetector.plugin.js",
-                "changelog": "### v1.1.2\n- 🐛 **Fixed:** Infinite reconnection loop when plugin is disabled"
-            },
-            "spotifysync": {
-                "version": "2.1.3",
-                "author": "TheDroid",
-                "description": "Sync Spotify with Discord Rich Presence and Controls.",
-                "downloadUrl": "https://solarirpc.com/downloads/SpotifySync.plugin.js",
-                "fileName": "SpotifySync.plugin.js",
-                "changelog": "### v2.1.3\n- 🔒 **Critical Fix: Token Amnesia**: The plugin now completely ignores Auth sync payloads pushed from the Solari Desktop App to prevent overwrites."
-            },
-            "solarinotes": {
-                "version": "1.0.0",
-                "author": "TheDroid",
-                "description": "Sleek, synchronized notepad integrated strictly into Discord UI.",
-                "downloadUrl": "https://solarirpc.com/downloads/SolariNotes.plugin.js",
-                "fileName": "SolariNotes.plugin.js",
-                "changelog": "### v1.0.0\n- 🚀 **Initial Release**: High-performance notepad built for Discord."
-            },
-            "solarimessagetools": {
-                "version": "1.0.0",
-                "author": "TheDroid",
-                "description": "Ferramentas completas de mensagens: Edição rápida, Tradução, Mensagens Fantasmas e Anti-Typing.",
-                "downloadUrl": "https://solarirpc.com/downloads/SolariMessageTools.plugin.js",
-                "fileName": "SolariMessageTools.plugin.js",
-                "changelog": "### v1.0.0\n- 🚀 **Initial Release**: Message utilities integrated natively with Solari App."
-            }
-        };
-
         try {
-            let data;
-            // If background update, try to use cache first to avoid flickering if possible, or just fetch.
-            // Actually, we want to check for UPDATES, so we should fetch default.
+            let data = null;
+            const primaryUrl = `https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json?v=${Date.now()}`;
+            // Root path verified on solariwebsite structure
+            const fallbackUrl = `https://solarirpc.com/plugins-meta.json?v=${Date.now()}`;
 
+            // 1. Primary Attempt (GitHub)
             try {
+                console.log('[Plugins] Fetching metadata from GitHub mirror...');
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                // Background updates can use cached version for 1 hour? No, we want real-time.
-                // But we don't want to spam. The polling is 5 min.
-                // Force refresh uses Date.now(). Regular uses 1h cache.
-                // For background polling, we might want to respect cache to avoid spamming the server, 
-                // OR if it's "local-change" event, we might just want to re-render.
-
-                // If it's a background update from FILE CHANGE, we probably don't need to refetch remote data effectively,
-                // we just need to re-render to check installed status.
-                // But here we are reloading everything.
-
-                // Optimization: We now fetch strictly from the GitHub Raw CDN, completely bypassing the 
-                // aggressive Javascript Bot Protection checks injected universally by free hosts like InfinityFree/Hostinger.
-                const url = `https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json?v=${Date.now()}`;
-                const response = await fetch(url, { 
-                    signal: controller.signal, 
-                    cache: 'no-store', // Request the browser network layer to never use cached responses
-                    headers: {
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache'
-                    }
-                });
+                const timeoutId = setTimeout(() => controller.abort(), 6000);
+                
+                const response = await fetch(primaryUrl, { signal: controller.signal });
                 clearTimeout(timeoutId);
                 
-                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 
                 const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('text/html')) {
-                    throw new Error(`Cloudflare/HTML Block Detected.`);
-                }
+                if (contentType && contentType.includes('text/html')) throw new Error('HTML Block');
                 
                 data = await response.json();
-            } catch (fetchErr) {
-                console.warn('[Plugins] Primary fetch failed. Initiating FALLBACK to solarirpc.com:', fetchErr.message);
+                console.log('[Plugins] Metadata loaded successfully from GitHub.');
+            } catch (primaryErr) {
+                console.warn(`[Plugins] GitHub mirror failed (${primaryErr.message}). Trying official website fallback...`);
+                
+                // 2. Fallback Attempt (Solari Website)
                 try {
-                    const fallbackUrl = `https://solarirpc.com/fallback/plugins-meta.json?v=${Date.now()}`;
-                    if (!isBackground) console.log('[Plugins] Fetching from Fallback:', fallbackUrl);
-                    const fbResponse = await fetch(fallbackUrl);
-                    if (!fbResponse.ok) throw new Error('Fallback HTTP Error');
+                    const fbResponse = await fetch(fallbackUrl, { cache: 'no-store' });
+                    if (!fbResponse.ok) throw new Error(`HTTP ${fbResponse.status}`);
+                    
+                    const fbContentType = fbResponse.headers.get('content-type');
+                    if (fbContentType && fbContentType.includes('text/html')) throw new Error('Host returned HTML (possibly 404 or block)');
+                    
                     data = await fbResponse.json();
-                } catch(fallbackFetchErr) {
-                    console.error('[Plugins] Fallback fetch also failed, activating Hardcoded Data Mode');
-                    if (this.metaData) {
-                        data = this.metaData; // Keep existing data if fetch fails in background (prevents layout flashing)
-                    } else {
-                        // Use local hardcoded fallback data as absolute last resort
-                        data = fallbackData;
+                    console.log('[Plugins] Metadata loaded successfully from official website fallback.');
+                } catch (fallbackErr) {
+                    // 3. Last Resort: Network Synchronization (Handle InfinityFree/Cloudflare challenges)
+                    console.warn(`[Plugins] Official website fetch failed (${fallbackErr.message}). Triggering network synchronization...`);
+                    try {
+                        const syncData = await ipcRenderer.invoke('net:fetch-resource', fallbackUrl);
+                        if (syncData) {
+                            data = JSON.parse(syncData);
+                            console.log('[Plugins] Metadata loaded successfully via network sync.');
+                        } else {
+                            throw new Error('Sync result empty');
+                        }
+                    } catch (syncErr) {
+                        console.error('[Plugins] All remote sources AND sync failed:', syncErr.message);
+                        data = this.metaData || {};
                     }
                 }
             }
+
             this.metaData = data;
 
             // Truly Dynamic: Verify actual remote versions from the download links themselves
@@ -3515,7 +3511,6 @@ var PluginsTabManager = {
                     if (plugin.downloadUrl) {
                         const actualVersion = await ipcRenderer.invoke('plugin:get-remote-version', plugin.downloadUrl);
                         if (actualVersion) {
-                            // If remote file has a newer version than JSON, use it
                             const isNewer = (v1, v2) => {
                                 const a = v1.split('.').map(Number);
                                 const b = v2.split('.').map(Number);
@@ -3526,17 +3521,13 @@ var PluginsTabManager = {
                                 return false;
                             };
                             if (isNewer(actualVersion, plugin.version)) {
-                                console.log(`[Plugins] ${key}: JSON version v${plugin.version} updated to actual remote v${actualVersion}`);
                                 plugin.version = actualVersion;
                             }
                         }
                     }
                 });
-                // Wait for all checks with a timeout-like behavior (effectively)
                 await Promise.all(versionChecks);
-            } catch (vErr) {
-                console.warn('[Plugins] Dynamic version check failed:', vErr);
-            }
+            } catch (vErr) { /* ok */ }
 
             await this.renderPlugins(data);
 
@@ -3546,7 +3537,6 @@ var PluginsTabManager = {
                 updateAllBtn.style.display = 'flex';
             }
         } catch (err) {
-            console.error('[Plugins] Erro crítico em loadPlugins:', err);
             if (errorEl && !isBackground) errorEl.style.display = 'flex';
         } finally {
             if (!isBackground) {
@@ -3698,7 +3688,6 @@ var PluginsTabManager = {
                 throw new Error(result.error);
             }
         } catch (e) {
-            console.error('[Plugins] Delete failed:', e);
             showToast('❌', `Erro ao desinstalar: ${e.message}`, 'error');
             btnElement.disabled = false;
             btnElement.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
@@ -3711,7 +3700,6 @@ var PluginsTabManager = {
         const installingLabel = t('pluginStore.installing') !== 'pluginStore.installing' ? t('pluginStore.installing') : 'Baixando...';
         const installedLabel = t('pluginStore.installed') !== 'pluginStore.installed' ? t('pluginStore.installed') : 'Instalado';
         const checkSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`;
-        const downloadSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
 
         const originalHtml = btnElement.innerHTML;
         btnElement.innerHTML = `<span class="plugins-spinner" style="width:16px;height:16px;border-width:2px;margin:0;"></span> ${installingLabel}`;
@@ -3730,7 +3718,6 @@ var PluginsTabManager = {
                 throw new Error(result.error);
             }
         } catch (e) {
-            console.error('[Plugins] Install failed:', e);
             btnElement.innerHTML = originalHtml;
             btnElement.disabled = false;
             showToast('❌', 'Erro ao instalar: ' + e.message, 'error');
@@ -3827,7 +3814,6 @@ var PluginsTabManager = {
 
         let successCount = 0;
         let errorCount = 0;
-        let skippedCount = 0;
 
         for (const [key, plugin] of Object.entries(this.metaData)) {
             try {
@@ -3835,14 +3821,10 @@ var PluginsTabManager = {
                 const installedVersion = await ipcRenderer.invoke('plugin:get-version', plugin.fileName);
 
                 if (!installedVersion) {
-                    console.log(`[Plugins] ${plugin.fileName} not installed, skipping`);
-                    skippedCount++;
                     continue;
                 }
 
                 if (!isNewer(plugin.version, installedVersion)) {
-                    console.log(`[Plugins] ${plugin.fileName} v${installedVersion} is up to date (remote: v${plugin.version})`);
-                    skippedCount++;
                     continue;
                 }
 
@@ -3850,18 +3832,15 @@ var PluginsTabManager = {
                     btn.innerHTML = `<span class="plugins-spinner" style="width:14px;height:14px;border-width:2px;margin:0;"></span> Atualizando ${key}...`;
                 }
 
-                console.log(`[Plugins] Updating ${plugin.fileName}: v${installedVersion || 'N/A'} → v${plugin.version}`);
                 const result = await ipcRenderer.invoke('plugin:download', {
                     url: plugin.downloadUrl,
                     fileName: plugin.fileName
                 });
                 if (result.success) successCount++;
                 else {
-                    console.error(`[Plugins] Update failed for ${key}:`, result.error);
                     errorCount++;
                 }
             } catch (e) {
-                console.error(`[Plugins] Update error for ${key}:`, e);
                 errorCount++;
             }
         }
@@ -3914,46 +3893,23 @@ if (pluginsTabBtn) {
     });
 }
 
-
-
-
-// === SpotifySync Plugin Settings ===
-// Static listeners removed. UI is now fully dynamic.
-// See renderPluginSettings()
-
-
 // Auto-Save Handler Helper
 const attachAutoSave = (id, settingKey) => {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('change', () => {
-            console.log(`[Solari] Auto-save ${settingKey}: ${el.checked}`);
             ipcRenderer.send('update-spotify-plugin-settings', { [settingKey]: el.checked });
-            // Optional: Show subtle toast or indicator? Maybe too spammy for toggles.
         });
     }
 };
 
 // Attach listeners
-attachAutoSave('spotifyPluginRpcToggle', 'showInRichPresence'); // Re-attach properly using helper
-
-// Also send on radio change for instant sync
-// Removed static listener as it's handled by dynamic renderer
-/*
-controlsVisibilityRadios.forEach(radio => {
-    radio.addEventListener('change', (e) => {
-        ipcRenderer.send('update-spotify-plugin-settings', {
-            controlsVisibility: e.target.value
-        });
-    });
-});
-*/
+attachAutoSave('spotifyPluginRpcToggle', 'showInRichPresence');
 
 // === IPC Event Handlers ===
 
 // Sync Auto-Detect toggle when changed from tray menu
 ipcRenderer.on('autodetect-toggled', (event, enabled) => {
-    console.log('[Renderer] Auto-Detect toggled from tray:', enabled);
     if (autoDetectToggle) {
         autoDetectToggle.checked = enabled;
     }
@@ -3978,7 +3934,6 @@ if (neonToggle) {
         const isEnabled = document.body.classList.toggle('neon-mode');
         neonToggle.classList.toggle('active', isEnabled);
         localStorage.setItem(neonModeKey, isEnabled);
-        console.log('[Solari] Neon Mode:', isEnabled ? 'ON' : 'OFF');
     });
 }
 
@@ -4226,28 +4181,53 @@ const wizardNextBtn = document.getElementById('wizardNextBtn');
 const wizardBackBtn = document.getElementById('wizardBackBtn');
 const stepDots = document.querySelectorAll('.step-dot');
 let currentWizardSlide = 1;
-const totalWizardSlides = 6;
-let wizardAudioCtx = null;
+const totalWizardSlides = 7;
 
 function showSetupWizard() {
     if (!wizardOverlay) {
-        console.error('Wizard Overlay not found!');
         return;
     }
     wizardOverlay.style.display = 'flex';
     wizardOverlay.style.opacity = '1';
+
+    // Sync wizard checkboxes with current actual app settings
+    if (typeof appSettings !== 'undefined') {
+        const tw = document.getElementById('wizardToggleStartWindows');
+        if (tw) tw.checked = appSettings.startWithWindows || false;
+        
+        const tm = document.getElementById('wizardToggleStartMinimized');
+        if (tm) tm.checked = appSettings.startMinimized || false;
+        
+        const tc = document.getElementById('wizardToggleMinimizeToTray');
+        if (tc) tc.checked = appSettings.closeToTray || false;
+        
+        const ta = document.getElementById('wizardToggleAutoUpdates');
+        if (ta) ta.checked = appSettings.autoCheckAppUpdates || false;
+    }
+
+    // Sync plugins
+    const ts = document.getElementById('wizardToggleSmartAfk');
+    if (ts && typeof smartAfkConnected !== 'undefined') ts.checked = smartAfkConnected;
+    const tsp = document.getElementById('wizardToggleSpotify');
+    if (tsp && typeof spotifyConnected !== 'undefined') tsp.checked = spotifyConnected;
+
     currentWizardSlide = 1;
     updateWizardUI();
 
-    // Premium: Play welcome sound
-    // Premium: Play welcome sound
-    // playWizardSound('welcome');
-
-    // Premium: Auto-detect language
-    const userLang = navigator.language;
-    if (userLang.startsWith('pt')) setWizardLanguage('pt-BR');
-    else if (userLang.startsWith('es')) setWizardLanguage('es');
-    else setWizardLanguage('en');
+    // Premium: Auto-detect language (Support 20 languages)
+    const userLang = navigator.language.split('-')[0].toLowerCase();
+    const map = {
+        'pt': 'pt-BR', 'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it',
+        'ja': 'ja', 'ko': 'ko', 'ru': 'ru', 'zh': 'zh-CN', 'tr': 'tr',
+        'pl': 'pl', 'nl': 'nl', 'sv': 'sv-SE', 'vi': 'vi', 'th': 'th',
+        'id': 'id', 'he': 'he', 'hi': 'hi', 'bn': 'bn'
+    };
+    
+    if (map[userLang]) {
+        setWizardLanguage(map[userLang]);
+    } else {
+        setWizardLanguage('en');
+    }
 }
 
 // ==========================================
@@ -4268,14 +4248,6 @@ function updateWizardUI() {
 
         if (slideNum === currentWizardSlide) {
             slide.classList.add('active');
-            // Force translation update for this slide
-            console.log('[Solari] Re-applying translations for slide', slideNum);
-
-            // DEBUG: Check if keys exist
-            const wizardTrans = require('./i18n').getTranslations().wizard;
-            console.log('[Solari Debug] Loaded keys for wizard:', wizardTrans ? Object.keys(wizardTrans) : 'UNDEFINED');
-            console.log('[Solari Debug] t(wizard.clientIdTitle) =', require('./i18n').t('wizard.clientIdTitle'));
-
             applyTranslations();
 
             // Explicitly find i18n elements in this slide to double-check
@@ -4297,8 +4269,6 @@ function updateWizardUI() {
     }
 
     if (currentWizardSlide === totalWizardSlides) {
-        // Translation for "Start" vs "Next" handled by data-i18n in updateUILanguage
-        // BUT we need to manually toggle keys for the button since it changes meaning
         const startText = t('wizard.start') || 'Start Solari!';
         wizardNextBtn.textContent = startText;
 
@@ -4322,7 +4292,6 @@ function updateWizardUI() {
         wizardOverlay.classList.remove('preview-mode');
 
         // RESET DRAG POSITIONING if user moved it
-        // This fixes the issue where wizard stays stuck in corner after theme slide
         const wizardContainer = document.querySelector('.wizard-containerglass');
         if (wizardContainer) {
             wizardContainer.style.position = '';
@@ -4352,8 +4321,32 @@ function prevWizardSlide() {
 }
 
 function finishWizard() {
+    // Save all explicitly toggled settings from Slide 4 and Slide 6 to ensure defaults hold
+    const toggleStartWindows = document.getElementById('wizardToggleStartWindows');
+    if (toggleStartWindows) ipcRenderer.send('set-setting', 'startWithWindows', toggleStartWindows.checked);
+
+    const toggleStartMinimized = document.getElementById('wizardToggleStartMinimized');
+    if (toggleStartMinimized) ipcRenderer.send('set-setting', 'startMinimized', toggleStartMinimized.checked);
+
+    const toggleMinimizeToTray = document.getElementById('wizardToggleMinimizeToTray');
+    if (toggleMinimizeToTray) ipcRenderer.send('set-setting', 'minimizeToTray', toggleMinimizeToTray.checked);
+
+    const toggleAutoUpdates = document.getElementById('wizardToggleAutoUpdates');
+    if (toggleAutoUpdates) ipcRenderer.send('set-setting', 'autoCheckAppUpdates', toggleAutoUpdates.checked);
+
+    const toggleSmartAfk = document.getElementById('wizardToggleSmartAfk');
+    if (toggleSmartAfk) ipcRenderer.send('plugin:toggle', 'smartAfk', toggleSmartAfk.checked);
+
+    const toggleSpotify = document.getElementById('wizardToggleSpotify');
+    if (toggleSpotify) ipcRenderer.send('plugin:toggle', 'spotify', toggleSpotify.checked);
+
     // Save completion state
     ipcRenderer.send('complete-setup');
+    
+    // Force UI refresh locally to reflect wizard choices in Settings Tab
+    setTimeout(() => {
+        ipcRenderer.send('get-data');
+    }, 100);
 
     // Fade out
     wizardOverlay.style.transition = 'opacity 0.5s';
@@ -4362,7 +4355,6 @@ function finishWizard() {
         wizardOverlay.style.display = 'none';
         wizardOverlay.style.opacity = '1'; // Reset for next time
     }, 500);
-    // playWizardSound('click');
 }
 
 // Wizard Event Listeners
@@ -4371,12 +4363,17 @@ if (wizardBackBtn) wizardBackBtn?.addEventListener('click', prevWizardSlide);
 
 // Step 1: Language
 document.querySelectorAll('.lang-card').forEach(card => {
+    // Mouse tracking for ripple effect
+    card?.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+        card.style.setProperty('--mouse-x', `${x}%`);
+        card.style.setProperty('--mouse-y', `${y}%`);
+    });
+
     card?.addEventListener('click', () => {
         setWizardLanguage(card.dataset.lang);
-        // playWizardSound('click');
-        // Auto advance after selection for speed
-        // Auto advance removed by user request
-        // setTimeout(() => nextWizardSlide(), 300);
     });
 });
 
@@ -4389,8 +4386,11 @@ function setWizardLanguage(code) {
     // Apply strict language settings to app
     initI18n(code).then(() => {
         updateUILanguage();
-        // Also update wizard text dynamically if needed (simple hardcoded switch for buttons)
         updateWizardUI();
+        
+        // Trigger centralized update
+        handleGlobalLanguageChange(code);
+
         ipcRenderer.send('save-language', code); // Save immediately
     });
 }
@@ -4399,8 +4399,6 @@ function setWizardLanguage(code) {
 document.querySelectorAll('.theme-card').forEach(card => {
     card?.addEventListener('click', () => {
         const theme = card.dataset.themePreview;
-
-        // LOGIC: Neon is COMPLEMENTARY (Toggle), others are MUTUALLY EXCLUSIVE (Radio)
 
         if (theme === 'neon') {
             // Toggle Neon
@@ -4412,33 +4410,25 @@ document.querySelectorAll('.theme-card').forEach(card => {
             // Ensure visual consistency if click didn't sync
             const isNeonActive = document.body.classList.contains('neon-mode');
             if (card.classList.contains('active') !== isNeonActive) {
-                // Force sync if needed, but existing click handler usually handles it
-                // If visual toggle failed:
                 if (card.classList.contains('active') && !isNeonActive) document.getElementById('neonToggle')?.click();
                 if (!card.classList.contains('active') && isNeonActive) document.getElementById('neonToggle')?.click();
             }
 
         } else {
             // Base Themes (Default, Dark, Light)
-            // Remove active from OTHER base themes only (preserve Neon)
             document.querySelectorAll('.theme-card:not([data-theme-preview="neon"])').forEach(c => c.classList.remove('active'));
             card.classList.add('active');
 
             // Apply Base Theme
-            // First, ensure we aren't clearing neon mode implicitly if the themes do that
-            // (Assuming main theme buttons might clear classes, so we might need to re-apply neon if it was active)
             const wasNeon = document.body.classList.contains('neon-mode');
 
             if (theme === 'dark') {
                 document.querySelector('[data-theme="dark"]')?.click();
             } else if (theme === 'light') {
-                // If we have a light theme button, click it. 
-                // Fallback: Default usually IS light in many apps, or specifically 'light'
                 const lightBtn = document.querySelector('[data-theme="light"]');
                 if (lightBtn) lightBtn.click();
                 else document.querySelector('[data-theme="default"]')?.click(); // Fallback
             } else {
-                // Default
                 document.querySelector('[data-theme="default"]')?.click();
             }
 
@@ -4447,9 +4437,6 @@ document.querySelectorAll('.theme-card').forEach(card => {
                 document.body.classList.add('neon-mode');
             }
         }
-
-        // Play sound (optional, disabled per user request previously)
-        // playWizardSound('hover');
     });
 });
 
@@ -4506,100 +4493,45 @@ async function handleWizardPluginToggle(key, isChecked) {
         const isInstalled = await ipcRenderer.invoke('plugin:check-installed', config.fileName);
 
         if (!isInstalled) {
-            console.log(`[Wizard] ${key} not installed. Downloading...`);
-            // Optional: Visual feedback (could disable toggle temporarily)
             config.toggle.disabled = true;
-
-            // Show toast or subtle indication via existing toast system?
-            // For now, rely on console/quick download
 
             const result = await ipcRenderer.invoke('plugin:download', {
                 url: config.url,
                 fileName: config.fileName
             });
 
-            config.toggle.disabled = false;
-
-            if (result.success) {
-                console.log(`[Wizard] ${key} downloaded successfully.`);
-                // Maybe play success sound
+            if (result && result.success) {
+                showToast('🚀', `wizard.pluginEnabled`, 'success');
             } else {
-                console.error(`[Wizard] Failed to download ${key}:`, result.error);
-                config.toggle.checked = false; // Revert
-                alert('Erro ao baixar plugin: ' + result.error); // Simple feedback
+                showToast('❌', `wizard.pluginError`, 'error');
+                config.toggle.checked = false;
             }
-        } else {
-            console.log(`[Wizard] ${key} already installed.`);
+            config.toggle.disabled = false;
         }
     }
 }
+
+// Multi-toggle handling for Slide 4 (Behavior) and Slide 6 (Auto-Detect)
+document.getElementById('wizardToggleStartWindows')?.addEventListener('change', (e) => {
+    ipcRenderer.send('set-setting', 'startWithWindows', e.target.checked);
+});
+document.getElementById('wizardToggleStartMinimized')?.addEventListener('change', (e) => {
+    ipcRenderer.send('set-setting', 'startMinimized', e.target.checked);
+});
+document.getElementById('wizardToggleMinimizeToTray')?.addEventListener('change', (e) => {
+    ipcRenderer.send('set-setting', 'minimizeToTray', e.target.checked);
+});
+document.getElementById('wizardToggleAutoUpdates')?.addEventListener('change', (e) => {
+    ipcRenderer.send('set-setting', 'autoCheckAppUpdates', e.target.checked);
+});
+
+
 
 if (wizardToggleSmartAfk) {
     wizardToggleSmartAfk?.addEventListener('change', (e) => handleWizardPluginToggle('smartAfk', e.target.checked));
 }
 if (wizardToggleSpotify) {
     wizardToggleSpotify?.addEventListener('change', (e) => handleWizardPluginToggle('spotify', e.target.checked));
-}
-
-// --- AUDIO ENGINE (Web Audio API) ---
-function playWizardSound(type) {
-    try {
-        if (!wizardAudioCtx) wizardAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (wizardAudioCtx.state === 'suspended') wizardAudioCtx.resume();
-
-        const osc = wizardAudioCtx.createOscillator();
-        const gain = wizardAudioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(wizardAudioCtx.destination);
-
-        const now = wizardAudioCtx.currentTime;
-
-        if (type === 'click') {
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(600, now);
-            osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
-            gain.gain.setValueAtTime(0.1, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-            osc.start(now);
-            osc.stop(now + 0.1);
-        } else if (type === 'hover') {
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(200, now);
-            gain.gain.setValueAtTime(0.05, now);
-            gain.gain.linearRampToValueAtTime(0, now + 0.05);
-            osc.start(now);
-            osc.stop(now + 0.05);
-        } else if (type === 'welcome') {
-            // Nice startup chime
-            const now = wizardAudioCtx.currentTime;
-            const osc1 = wizardAudioCtx.createOscillator();
-            const g1 = wizardAudioCtx.createGain();
-            osc1.connect(g1);
-            g1.connect(wizardAudioCtx.destination);
-            osc1.frequency.setValueAtTime(440, now);
-            osc1.frequency.exponentialRampToValueAtTime(880, now + 0.5);
-            g1.gain.setValueAtTime(0, now);
-            g1.gain.linearRampToValueAtTime(0.2, now + 0.1);
-            g1.gain.exponentialRampToValueAtTime(0.01, now + 2);
-            osc1.start(now);
-            osc1.stop(now + 2);
-        } else if (type === 'success') {
-            // Victory chord
-            [440, 554, 659].forEach((freq, i) => {
-                const o = wizardAudioCtx.createOscillator();
-                const g = wizardAudioCtx.createGain();
-                o.connect(g);
-                g.connect(wizardAudioCtx.destination);
-                o.type = 'sine';
-                o.frequency.value = freq;
-                g.gain.setValueAtTime(0, now);
-                g.gain.linearRampToValueAtTime(0.1, now + 0.1 + (i * 0.05));
-                g.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
-                o.start(now);
-                o.stop(now + 1.5);
-            });
-        }
-    } catch (e) { /* ignore audio errors */ }
 }
 
 // --- CONFETTI (Canvas) ---
@@ -4717,7 +4649,6 @@ if (wizardContainer) {
 
 ipcRenderer.on('show-changelog', (event, data) => {
     const { version, body, name } = data;
-    console.log('[Solari] Showing changelog for', name);
 
     // Don't create duplicate modals
     if (document.getElementById('changelogModal')) return;
@@ -4853,7 +4784,6 @@ function showSolariToast(message, type = 'info', duration = 4000) {
 // Listen for plugin update notifications from main process
 ipcRenderer.on('plugins-updated', (event, plugins) => {
     if (!plugins || plugins.length === 0) return;
-    console.log('[Solari] Plugins updated:', plugins);
 
     plugins.forEach((plugin, i) => {
         const cleanName = plugin.name.replace('.plugin.js', '');
@@ -4880,7 +4810,6 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
                 updateLabel.textContent = `v${result.latestVersion}`;
                 updateBtn.title = `${t('settings.updateAvailableTitle') || 'Update available!'} v${result.latestVersion}`;
                 updateBtn.style.display = 'inline-flex';
-                console.log(`[Solari] Update available: v${result.latestVersion}`);
             } else {
                 updateBtn.style.display = 'none';
             }

@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "Solari",
+    "connected": "Connesso",
+    "disconnected": "Disabilitato",
+    "starting": "Avvio...",
+    "autoDetect": "Auto-Rilevamento"
+  },
+  "tabs": {
+    "rpc": "Presenza Ricca",
+    "plugins": "Plugin",
+    "soundboard": "SoundBoard",
+    "settings": "Impostazioni"
+  },
+  "menu": {
+    "startWithWindows": "Avvia con Windows",
+    "startMinimized": "Avvia ridotto a icona",
+    "minimizeToTray": "Riduci nel vassoio alla chiusura",
+    "exit": "Esci",
+    "language": "Lingua",
+    "english": "Inglese",
+    "portuguese": "Portoghese",
+    "reload": "Ricarica",
+    "about": "Informazioni"
+  },
+  "tray": {
+    "openSolari": "Apri Solari",
+    "showConsole": "Mostra Console",
+    "hideConsole": "Nascondi Console",
+    "exit": "Esci"
+  },
+  "presence": {
+    "title": "Configurazione Presenza",
+    "activityType": "TIPO ATTIVITÀ",
+    "playing": "Sta giocando a",
+    "listening": "Sta ascoltando",
+    "watching": "Sta guardando",
+    "competing": "Partecipa a",
+    "updateStatus": "Aggiorna Stato",
+    "updated": "Aggiornato!"
+  },
+  "presets": {
+    "title": "Preset",
+    "save": "Salva",
+    "saved": "Salvato!",
+    "noPresets": "(Nessun preset)"
+  }
+}

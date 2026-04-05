@@ -1,0 +1,25 @@
+{
+  "app": {
+    "enabled": "有効",
+    "autoDetect": "自動検出",
+    "starting": "起動中..."
+  },
+  "tabs": {
+    "rpc": "リッチプレゼンス",
+    "soundboard": "サウンドボード",
+    "plugins": "プラグイン",
+    "settings": "設定"
+  },
+  "menu": {
+    "startWithWindows": "Windowsと同時に起動",
+    "startMinimized": "最小化した状態で起動",
+    "exit": "終了",
+    "language": "言語"
+  },
+  "tray": {
+    "openSolari": "Solariを開く",
+    "exit": "終了",
+    "showConsole": "コンソールを表示",
+    "hideConsole": "コンソールを隠す"
+  }
+}

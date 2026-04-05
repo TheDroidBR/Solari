@@ -166,6 +166,46 @@ let prioritySettings = {
 
 let pluginWatcher = null; // Watcher for BetterDiscord plugins folder
 
+// ===== MAIN PROCESS I18N SYSTEM =====
+let currentLocaleData = {};
+function loadLocale(lang = 'en') {
+    try {
+        const localePath = path.join(__dirname, '..', 'locales', `${lang}.json`);
+        if (fs.existsSync(localePath)) {
+            currentLocaleData = JSON.parse(fs.readFileSync(localePath, 'utf8'));
+            if (CONSTANTS.DEBUG_MODE) console.log(`[i18n] Loaded Main locale: ${lang}`);
+        } else {
+            // Fallback to English
+            const enPath = path.join(__dirname, '..', 'locales', 'en.json');
+            if (fs.existsSync(enPath)) {
+                currentLocaleData = JSON.parse(fs.readFileSync(enPath, 'utf8'));
+            }
+        }
+    } catch (e) {
+        console.error('[i18n] Failed to load locale:', e);
+    }
+}
+
+
+/**
+ * Basic translation helper for Main Process
+ * @param {string} key Dot-notation key (ex: "tray.openSolari")
+ * @param {string} defaultValue Optional default if key not found
+ */
+function t_main(key, defaultValue = '') {
+    const keys = key.split('.');
+    let value = currentLocaleData;
+    for (const k of keys) {
+        if (value && value[k]) {
+            value = value[k];
+        } else {
+            return defaultValue || key;
+        }
+    }
+    return typeof value === 'string' ? value : (defaultValue || key);
+}
+
+
 // ===== BD AUTO-REPAIR SYSTEM (v1.8.2 ANTI-LOOP) =====
 let bdStatusPollInterval = null;
 let bdBrokenCount = 0;
@@ -218,73 +258,79 @@ function getTrackingUserId() {
     return trackingUserId;
 }
 
-// Send heartbeat ping to tracker using invisible BrowserWindow (InfinityFree requires JS challenge solving)
-let trackerWindow = null;
-
+// Heartbeat ping using Electron's native network stack
 async function sendTrackerPing() {
     try {
         const { version } = require('../../package.json');
         const uid = getTrackingUserId();
         const url = `${TRACKER_URL}?action=ping&version=${encodeURIComponent(version)}&uid=${encodeURIComponent(uid)}`;
 
-        if (CONSTANTS.DEBUG_MODE) console.log('[Solari Tracker] Sending ping:', url);
+        if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Refreshing session:', url);
 
-        // Create invisible window ONLY if it doesn't exist
-        if (!trackerWindow || trackerWindow.isDestroyed()) {
-            trackerWindow = new BrowserWindow({
-                width: 100,
-                height: 100,
-                show: false, // SEC-04: Truly invisible (no Alt+Tab leak)
-                frame: false,
-                focusable: false,
-                skipTaskbar: true,
-                webPreferences: {
-                    nodeIntegration: false,
-                    contextIsolation: true,
-                    javascript: true,
-                    backgroundThrottling: false
+        // OPTION A: Native fetch (Modern Electron net stack)
+        let confirmed = false;
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
                 }
             });
-
-            trackerWindow.on('closed', () => {
-                trackerWindow = null;
-            });
+            
+            if (response.ok) {
+                const body = await response.text();
+                // Check if it worked without challenge (standard JSON response)
+                if (body.includes('"success":true')) {
+                    if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Session confirmed via fetch.');
+                    confirmed = true;
+                }
+            }
+        } catch (e) { 
+            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Native fetch failed/blocked, attempting browser fallback...');
         }
 
-        // Load the URL (browser will handle InfinityFree JS cookie challenge and redirect)
-        trackerWindow.loadURL(url);
+        if (confirmed) return;
 
-        // OPT-04: Use a single .once() listener to avoid memory leak from stacking listeners
+        // OPTION B: Fallback with standard background window (Solves host challenges)
+        let workerWin = new BrowserWindow({
+            width: 400,
+            height: 300,
+            show: false,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            }
+        });
+
+        workerWin.loadURL(url);
+
         const handleFinishLoad = () => {
-            if (!trackerWindow || trackerWindow.isDestroyed()) return;
+            if (!workerWin || workerWin.isDestroyed()) return;
 
-            trackerWindow.webContents.executeJavaScript('document.body.innerText')
+            workerWin.webContents.executeJavaScript('document.body.innerText')
                 .then((bodyText) => {
                     if (!bodyText || bodyText.trim() === '') return;
 
                     try {
                         const json = JSON.parse(bodyText);
                         if (json.success) {
-                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Tracker] Ping successful!');
-                        } else {
-                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Tracker] Ping failed:', json.error);
+                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Sync successful.');
                         }
-                        // Success — navigate away to free resources
-                        trackerWindow.loadURL('about:blank');
+                        if (workerWin && !workerWin.isDestroyed()) workerWin.destroy();
                     } catch (e) {
                         if (bodyText.includes('aes.js') || bodyText.includes('__test=')) {
-                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Tracker] Solving host challenge...');
-                            // Re-attach listener for redirect after challenge
-                            trackerWindow.webContents.once('did-finish-load', handleFinishLoad);
+                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Synchronizing with host...');
+                            workerWin.webContents.once('did-finish-load', handleFinishLoad);
+                        } else {
+                            if (workerWin && !workerWin.isDestroyed()) workerWin.destroy();
                         }
                     }
                 })
-                .catch(() => { });
+                .catch(() => { if (workerWin && !workerWin.isDestroyed()) workerWin.destroy(); });
         };
 
-        trackerWindow.webContents.once('did-finish-load', handleFinishLoad);
+        workerWin.webContents.once('did-finish-load', handleFinishLoad);
     } catch (e) {
-        console.error('[Solari Tracker] Error:', e.message);
+        console.error('[Solari Telemetry] Error:', e.message);
     }
 }
 
@@ -293,43 +339,26 @@ async function sendTrackerDisconnect() {
     try {
         const uid = getTrackingUserId();
         if (!uid) return;
-
         const url = `${TRACKER_URL}?action=disconnect&uid=${encodeURIComponent(uid)}`;
-
-        if (trackerWindow && !trackerWindow.isDestroyed()) {
-            trackerWindow.loadURL(url).catch(() => { });
-        }
-    } catch (err) {
-        // Ignore errors on shutdown
-    }
-}
-
-// Cleanup tracker window on app quit
-function cleanupTrackerWindow() {
-    if (trackerWindow && !trackerWindow.isDestroyed()) {
-        trackerWindow.destroy();
-        trackerWindow = null;
-    }
+        
+        // Non-blocking fire and forget
+        fetch(url).catch(() => {});
+    } catch (err) { }
 }
 
 // Start tracking heartbeat
 function startTracking() {
-    // Send initial ping
-    sendTrackerPing();
-
-    // Send ping every 60 seconds
-    trackerInterval = setInterval(sendTrackerPing, 60000);
-    console.log('[Solari Tracker] Tracking started');
+    sendTrackerPing(); // Initial
+    trackerInterval = setInterval(sendTrackerPing, 20000); // 20s interval for better dashboard sync
+    console.log('[Solari Telemetry] Update cycle started');
 }
 
-// Stop tracking
 function stopTracking() {
     if (trackerInterval) {
         clearInterval(trackerInterval);
         trackerInterval = null;
     }
-    sendTrackerDisconnect();
-    console.log('[Solari Tracker] Tracking stopped');
+    console.log('[Solari Telemetry] Stopped');
 }
 
 let dataLoadFailed = false;
@@ -337,9 +366,13 @@ let dataLoadFailed = false;
 function loadData() {
     try {
         if (fs.existsSync(DATA_PATH)) {
-            const data = JSON.parse(fs.readFileSync(DATA_PATH));
+            console.log(`[Solari DEBUG] Loading data from: ${DATA_PATH}`);
+            const rawData = fs.readFileSync(DATA_PATH);
+            const data = JSON.parse(rawData);
+            console.log(`[Solari DEBUG] File parsed. Presets: ${data.presets?.length || 0}, Mappings: ${data.autoDetectMappings?.length || 0}`);
+            
             defaultActivity = data.defaultActivity || {};
-            presets = data.presets || [];
+            presets = Array.isArray(data.presets) ? data.presets : [];
             lastFormState = data.lastFormState || {};
             if (data.blockedPlugins) blockedPlugins = new Set(data.blockedPlugins);
             if (data.appSettings) {
@@ -365,6 +398,29 @@ function loadData() {
             if (data.clientId) clientId = data.clientId;
             // Load identities (App Profiles)
             if (data.identities) identities = data.identities;
+
+            // MIGRATION: If any mapping exists without a preset, create a stub preset so it shows in the UI
+            autoDetectMappings.forEach(mapping => {
+                const presetExists = presets.some(p => p.name === mapping.presetName);
+                if (!presetExists && mapping.presetName) {
+                    console.log(`[Solari] Migrating orphan mapping to preset: ${mapping.presetName}`);
+                    presets.push({
+                        name: mapping.presetName,
+                        type: 0,
+                        details: '',
+                        state: '',
+                        largeImageKey: '',
+                        largeImageText: '',
+                        smallImageKey: '',
+                        smallImageText: '',
+                        button1Label: '',
+                        button1Url: '',
+                        button2Label: '',
+                        button2Url: '',
+                        clientId: ''
+                    });
+                }
+            });
 
             // Load priority settings
             if (data.prioritySettings) prioritySettings = { ...prioritySettings, ...data.prioritySettings };
@@ -467,6 +523,71 @@ function saveData() {
 }
 
 // IPC handler for child windows to get current language
+// Resource fetcher for plugins (standard network sync)
+ipcMain.handle('net:fetch-resource', async (event, url) => {
+    return handleFetchResource(url);
+});
+
+// Compatibility alias for original plugins
+ipcMain.handle('plugins:fetch-bypass', async (event, url) => {
+    return handleFetchResource(url);
+});
+
+async function handleFetchResource(url) {
+    console.log('[Solari Net] Fetching:', url);
+    return new Promise((resolve, reject) => {
+        let win = new BrowserWindow({
+            width: 800,
+            height: 600,
+            show: false, // Standard background window
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            }
+        });
+
+        const timeoutId = setTimeout(() => {
+            if (win && !win.isDestroyed()) {
+                win.destroy();
+                win = null;
+            }
+            reject(new Error('Network request timed out'));
+        }, 20000);
+
+        win.webContents.on('did-finish-load', async () => {
+            try {
+                const content = await win.webContents.executeJavaScript('document.body.innerText');
+                const trimmed = content ? content.trim() : "";
+                const isJson = trimmed.startsWith('{') || trimmed.startsWith('[');
+
+                if (isJson) {
+                    clearTimeout(timeoutId);
+                    if (win && !win.isDestroyed()) {
+                        win.destroy();
+                        win = null;
+                    }
+                    resolve(trimmed);
+                }
+            } catch (e) {
+                console.warn('[Solari Net] Processing error:', e.message);
+            }
+        });
+
+        win.webContents.on('did-fail-load', (e, errorCode, errorDescription) => {
+            if (errorCode === -3) return; 
+            clearTimeout(timeoutId);
+            if (win && !win.isDestroyed()) {
+                win.destroy();
+                win = null;
+            }
+            reject(new Error(`Fetch failed: ${errorDescription}`));
+        });
+
+        win.loadURL(url);
+    });
+}
+;
+
 ipcMain.handle('get-current-language', () => {
     return appSettings.language || 'en';
 });
@@ -637,6 +758,14 @@ ipcMain.on('save-app-settings', (event, newSettings) => {
     console.log('[Solari] Settings unified from frontend:', appSettings);
 });
 
+// Single setting update (useful for Wizard toggles)
+ipcMain.on('set-setting', (event, key, value) => {
+    appSettings[key] = value;
+    applyAppSettings();
+    saveData();
+    console.log(`[Solari] Setting updated: ${key} = ${value}`);
+});
+
 // ===== UNINSTALL HANDLER =====
 ipcMain.on('uninstall-app', async () => {
     const { dialog } = require('electron');
@@ -776,7 +905,9 @@ async function checkForUpdates(labels) {
                 title: labels.updateAvailable,
                 message: labels.updateMessage,
                 detail: `${labels.updateAvailable}\n\nVersão atual: v${result.currentVersion}\nNova versão: v${result.latestVersion}`,
-                buttons: [labels.downloadNow, labels.later]
+                buttons: [labels.downloadNow, labels.later],
+                defaultId: 0,
+                cancelId: 1
             }).then((boxResult) => {
                 if (boxResult.response === 0) {
                     // Trigger the splash download UI
@@ -1104,8 +1235,10 @@ function compareVersions(v1, v2) {
 
 function setLanguage(lang) {
     appSettings.language = lang;
+    loadLocale(lang); // Update main process translations
     saveData();
     updateTrayMenu(); // Update tray menu with new language
+
     if (mainWindow) {
         mainWindow.webContents.send('language-changed', lang);
     }
@@ -1298,24 +1431,16 @@ function createTray() {
 }
 
 function updateTrayMenu() {
-    const isPortuguese = appSettings.language === 'pt-BR';
-    const labels = isPortuguese ? {
-        open: 'Abrir Solari',
-        showConsole: '🔳 Mostrar Console',
-        hideConsole: '🔲 Esconder Console',
-        autoDetect: 'Auto-Detectar',
-        presets: 'Presets',
-        noPresets: '(Nenhum preset)',
-        exit: 'Sair'
-    } : {
-        open: 'Open Solari',
-        showConsole: '🔳 Show Console',
-        hideConsole: '🔲 Hide Console',
-        autoDetect: 'Auto-Detect',
-        presets: 'Presets',
-        noPresets: '(No presets)',
-        exit: 'Exit'
+    const labels = {
+        open: t_main('tray.openSolari', 'Open Solari'),
+        showConsole: t_main('tray.showConsole', '🔳 Show Console'),
+        hideConsole: t_main('tray.hideConsole', '🔲 Hide Console'),
+        autoDetect: t_main('app.autoDetect', 'Auto-Detect'),
+        presets: t_main('presets.title', 'Presets'),
+        noPresets: t_main('presets.noPresets', '(No presets)'),
+        exit: t_main('tray.exit', 'Exit')
     };
+
 
     // Build presets submenu
     const presetMenuItems = presets.length > 0
@@ -3108,6 +3233,7 @@ ipcMain.on('update-preset', (event, { index, preset }) => {
 });
 ipcMain.on('delete-preset', (event, index) => { presets.splice(index, 1); saveData(); event.reply('presets-updated', presets); });
 ipcMain.on('get-data', (event) => {
+    console.log(`[Solari DEBUG] Sending get-data reply. Presets: ${presets.length}, Mappings: ${autoDetectMappings.length}, Identities: ${identities.length}`);
     event.reply('data-loaded', {
         defaultActivity,
         presets,
@@ -3120,7 +3246,8 @@ ipcMain.on('get-data', (event) => {
         setupCompleted: setupCompleted, // Send setup completion status
         rpcConnected: rpcConnected, // Send current RPC connection status
         ecoMode: global.ecoMode, // Send eco mode status
-        appSettings: appSettings // CRITICAL: Send full settings for Settings Tab
+        appSettings: appSettings, // CRITICAL: Send full settings for Settings Tab
+        identities: identities // FIXED: Added missing identities list
     });
     updateTrayMenu();
     Menu.setApplicationMenu(null); // Ensure top menu bar is disabled!
@@ -5348,6 +5475,10 @@ app.whenReady().then(async () => {
 
     // Check if running as admin and show warning if not
     checkAdminStatus();
+
+    // Load initial locale
+    loadLocale(appSettings.language);
+
 
     // Start system-wide AFK detection
     startSystemAFKCheck();

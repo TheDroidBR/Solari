@@ -36,9 +36,6 @@ module.exports = {
     // Discord API
     DISCORD_API_TIMEOUT_MS: 5000,
 
-    // GitHub API (for manual update check dialog & changelog)
-    GITHUB_RELEASES_PATH: '/repos/TheDroidBR/Solari/releases/latest',
-
     // Auto-Updater URLs (electron-updater Generic Provider)
     // Primary: GitHub releases (change this URL when account is resolved)
     UPDATE_URL_PRIMARY: 'https://github.com/TheDroidBR/Solari/releases/latest/download',
