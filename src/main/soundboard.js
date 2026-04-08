@@ -351,8 +351,29 @@ class SoundBoard {
         if (data.playHistory) {
             this.playHistory = data.playHistory;
         }
-        if (data.sounds) {
-            // Reconstruct sounds with full paths, filtering out missing files
+        if (data.sounds && this.sounds.length > 0) {
+            // v1.10 fix: Merge saved metadata onto existing scanned sounds
+            // instead of replacing them, preserving new files added to disk
+            const savedMap = new Map();
+            data.sounds.forEach(s => savedMap.set(s.filename, s));
+
+            this.sounds.forEach(sound => {
+                const saved = savedMap.get(sound.filename);
+                if (saved) {
+                    // Apply saved metadata to scanned sound
+                    if (saved.id) sound.id = saved.id; // Preserve stable ID
+                    if (saved.shortcut !== undefined) sound.shortcut = saved.shortcut;
+                    if (saved.volume !== undefined) sound.volume = saved.volume;
+                    if (saved.favorite !== undefined) sound.favorite = saved.favorite;
+                    if (saved.color !== undefined) sound.color = saved.color;
+                    if (saved.loop !== undefined) sound.loop = saved.loop;
+                    if (saved.customCategory !== undefined) sound.customCategory = saved.customCategory;
+                    if (saved.name) sound.name = saved.name;
+                }
+            });
+            console.log(`[SoundBoard] Merged metadata for ${savedMap.size} saved sounds onto ${this.sounds.length} scanned sounds`);
+        } else if (data.sounds) {
+            // Fallback: No scanned sounds exist, reconstruct from saved data
             this.sounds = data.sounds.map(s => {
                 const dir = s.category === 'default' ? this.defaultSoundsDir : this.customSoundsDir;
                 const filePath = path.join(dir, s.filename);
@@ -366,7 +387,7 @@ class SoundBoard {
                 };
             }).filter(s => {
                 if (!s.exists) {
-                    console.warn(`[SoundBoard] Skipping sound "${s.name}" — file missing: ${s.path}`);
+                    console.warn(`[SoundBoard] Skipping sound "${s.name}" \u2014 file missing: ${s.path}`);
                     return false;
                 }
                 return true;

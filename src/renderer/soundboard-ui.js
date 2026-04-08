@@ -635,11 +635,11 @@
                             ${sound.favorite ? '⭐' : '☆'}
                         </button>
                     </div>
-                    <div class="sound-name" title="${sound.name}" ondblclick="window.sbRenameSound('${sound.id}')">${sound.name}</div>
+                    <div class="sound-name" title="${sound.name}" ondblclick="window.sbRenameSound('${sound.id}')"><span class="sb-name-inner">${sound.name}</span></div>
                     <div class="sound-shortcut" onclick="window.sbBindHotkey('${sound.id}')" title="Click to bind Global Hotkey" style="cursor: pointer;">${sound.shortcut || '⌨️ Bind Key'}</div>
                     <div class="sound-meta">${formatFileSize(sound.size)}</div>
                     <div class="sound-actions">
-                        <button class="sound-btn btn-primary-glow ${isPlaying ? 'playing' : ''}" onclick="window.sbPlaySound('${sound.id}')" title="${isPlaying ? 'Stop' : 'Play'}">
+                        <button class="sound-btn btn-play ${isPlaying ? 'playing' : ''}" onclick="window.sbPlaySound('${sound.id}')" title="${isPlaying ? 'Stop' : 'Play'}">
                             ${isPlaying ? '⏹️' : '▶️'}
                         </button>
                         <button class="sound-btn btn-glass" onclick="window.sbEditSound('${sound.id}')" title="Edit">
