@@ -41,12 +41,24 @@ const path = require('path');
 let DiscordRPC = null;
 let WebSocket = { OPEN: 1 };
 const fs = require('fs');
-const https = require('https');
 const { exec, spawn } = require('child_process');
 const UpdateManager = require('./updater_manager');
 const CONSTANTS = require('./constants');
 let SoundBoard = null;
 let SoundServer = null;
+
+// v1.10: --debug CLI flag support
+if (process.argv.includes('--debug')) {
+    CONSTANTS.DEBUG_MODE = true;
+    CONSTANTS.DEBUG_RPC = true;
+    CONSTANTS.DEBUG_WS = true;
+    CONSTANTS.DEBUG_AUTODETECT = true;
+    CONSTANTS.DEBUG_HW = true;
+    console.log('[Solari] DEBUG MODE enabled via --debug flag');
+}
+
+// v1.10: Version watermark
+console.log(`[Solari] v${CONSTANTS.APP_VERSION} | Electron ${process.versions.electron} | Node ${process.versions.node} | ${process.platform}`);
 
 
 let mainWindow;
@@ -57,7 +69,6 @@ let rpcConnected = false; // Track if RPC is actually connected
 let wss;
 let isEnabled = true;
 let isQuitting = false;
-let consoleVisible = true; // Track console window visibility
 
 // Debug log collection
 const debugLogs = [];
@@ -65,7 +76,8 @@ const debugLogs = [];
 function addLog(message) {
     const timestamp = new Date().toISOString();
     debugLogs.push(`[${timestamp}] ${message}`);
-    if (debugLogs.length > CONSTANTS.MAX_LOGS) {
+    // v1.10 fix: Trim logs immediately instead of only on reload
+    while (debugLogs.length > CONSTANTS.MAX_LOGS) {
         debugLogs.shift();
     }
     console.log(message);
@@ -85,7 +97,7 @@ let websiteMappings = [];
 let setupCompleted = false; // Track if wizard has run
 let lastSeenVersion = '0.0.0'; // Track last seen version for changelog
 let useExtensionForWeb = true; // true = use extension, false = use autoDetect websites
-let websiteCheckFailCount = 0; // Debounce counter for website detection failures
+let websiteCheckFailCount = 0; // Debounce counter for website detection failures (v1.10: reset on toggle)
 
 // Spotify API State
 let spotifyClientId = '';
@@ -94,7 +106,7 @@ let autoDetectInterval = null;
 let currentDetectedProcess = null;
 let currentDetectedWebsite = null;
 let currentDetectedPresetName = null; // Track preset name for AFK disable check
-let currentAutoDetectPreset = null; // Store the actual preset object to load when autoDetect has priority
+// v1.10: removed orphan variable `currentAutoDetectPreset` (was never properly used)
 let fallbackPresetIndex = -1;
 
 // Process check mutex and backoff to prevent quota violation
@@ -124,6 +136,8 @@ let blockedPlugins = new Set();
 // SoundBoard
 let soundBoard = null;
 let soundServer = null;
+
+let consoleVisible = true; // Required for dev menu tray toggle
 
 // ===== HARDWARE SYSTEM MONITOR =====
 let hwMonitorEnabled = false;
@@ -206,17 +220,13 @@ function t_main(key, defaultValue = '') {
 }
 
 
-// ===== BD AUTO-REPAIR SYSTEM (v1.8.2 ANTI-LOOP) =====
+// ===== BD AUTO-REPAIR SYSTEM (v1.8.2 ANTI-LOOP, v1.10: constants centralized) =====
 let bdStatusPollInterval = null;
 let bdBrokenCount = 0;
 let isRepairing = false;
 let lastKnownBDStatus = 'unknown';
-let bdRepairCooldownUntil = 0;          // Timestamp: no repairs before this
-let bdRepairHistory = [];                // Timestamps of recent repairs (circuit breaker)
-const BD_REPAIR_COOLDOWN_MS = 120000;   // 2min cooldown after each repair
-const BD_MAX_REPAIRS_WINDOW = 3;         // Max repairs allowed within the time window
-const BD_REPAIR_WINDOW_MS = 600000;      // 10min window for circuit breaker
-const BD_BROKEN_THRESHOLD = 5;           // 5 consecutive broken polls (15s) before repair
+let bdRepairCooldownUntil = 0;
+let bdRepairHistory = [];
 
 let currentPrioritySource = null; // Track what's currently controlling RPC
 let lastNotifiedPresetName = null; // Track last preset name that triggered a notification
@@ -261,7 +271,7 @@ function getTrackingUserId() {
 // Heartbeat ping using Electron's native network stack
 async function sendTrackerPing() {
     try {
-        const { version } = require('../../package.json');
+        const version = CONSTANTS.APP_VERSION;
         const uid = getTrackingUserId();
         const url = `${TRACKER_URL}?action=ping&version=${encodeURIComponent(version)}&uid=${encodeURIComponent(uid)}`;
 
@@ -466,7 +476,27 @@ function loadData() {
     }
 }
 
+// v1.10: Trailing debounce to prevent disk thrashing on rapid settings changes
+let _saveDataTimer = null;
+
 function saveData() {
+    if (_saveDataTimer) clearTimeout(_saveDataTimer);
+    _saveDataTimer = setTimeout(() => {
+        _saveDataImmediate();
+        _saveDataTimer = null;
+    }, CONSTANTS.SAVE_DEBOUNCE_MS);
+}
+
+// Force immediate save (for shutdown scenarios)
+function saveDataSync() {
+    if (_saveDataTimer) {
+        clearTimeout(_saveDataTimer);
+        _saveDataTimer = null;
+    }
+    _saveDataImmediate();
+}
+
+function _saveDataImmediate() {
     if (dataLoadFailed) {
         console.warn('[Solari] Data load failed previously. Saving to RESCUE file to protect original data.');
         try {
@@ -816,7 +846,7 @@ ipcMain.on('trigger-update-check', async () => {
     });
 });
 
-// ===== IN-APP UPDATE BUTTON (v1.9.1) =====
+// ===== IN-APP UPDATE BUTTON (v1.10.0) =====
 
 // Obsolete fetch function removed. Manual flow now uses UpdateManager.
 
@@ -870,7 +900,6 @@ ipcMain.on('trigger-update-via-splash', async () => {
 
 // Check for updates via UpdateManager (unified flow)
 async function checkForUpdates(labels) {
-    const { dialog, shell } = require('electron');
 
     // 1. Show "Checking..." state to user if app is already open
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -909,7 +938,7 @@ async function checkForUpdates(labels) {
             type: 'info',
             title: 'Solari',
             message: labels.noUpdates,
-            detail: `Versão atual: v${require('../../package.json').version}`
+            detail: `Versão atual: v${CONSTANTS.APP_VERSION}`
         });
     }
 }
@@ -1065,7 +1094,7 @@ function updatePluginsViaSplash() {
  */
 function showChangelog(force = false) {
     try {
-        const pkg = require('../../package.json');
+        const pkg = { version: CONSTANTS.APP_VERSION };
         const currentVersion = pkg.version;
 
         if (!force && currentVersion === lastSeenVersion) {
@@ -1152,7 +1181,6 @@ function showChangelog(force = false) {
 }
 
 ipcMain.on('request-changelog', () => {
-    const { shell } = require('electron');
     shell.openExternal('https://solarirpc.com/changelog.html');
 });
 
@@ -1192,7 +1220,7 @@ async function updatePluginsOnStartup() {
     }
 }
 
-// OPT-02: Download plugin with 2MB size limit to prevent memory abuse
+// Plugin download with 2MB size limit to prevent memory abuse
 const MAX_PLUGIN_SIZE = 2 * 1024 * 1024; // 2MB
 
 function downloadPluginToString(url) {
@@ -1202,7 +1230,7 @@ function downloadPluginToString(url) {
             method: 'GET',
             redirect: 'follow',
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Solari/1.9.1; Windows 10)',
+                'User-Agent': `Mozilla/5.0 (${CONSTANTS.APP_USER_AGENT}; Windows 10)`,
                 'Accept': '*/*'
             }
         });
@@ -1244,8 +1272,9 @@ function compareVersions(v1, v2) {
 }
 
 function setLanguage(lang) {
+    // v1.10 fix: Load locale BEFORE saveData to prevent stale locale in tray menu
+    loadLocale(lang);
     appSettings.language = lang;
-    loadLocale(lang); // Update main process translations
     saveData();
     updateTrayMenu(); // Update tray menu with new language
 
@@ -1259,7 +1288,9 @@ function setLanguage(lang) {
     if (wss) {
         wss.clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({ type: 'set_language', language: lang }));
+                try {
+                    client.send(JSON.stringify({ type: 'set_language', language: lang }));
+                } catch (e) { /* client disconnected */ }
             }
         });
     }
@@ -1285,7 +1316,6 @@ function getLabels() {
 }
 
 function openClientIdDialog() {
-    const { dialog } = require('electron');
     const labels = getLabels();
 
     // Create a simple input window
@@ -1634,8 +1664,8 @@ function startSystemAFKCheck() {
                 if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] *** STATE CHANGED *** System idle: ${isIdle ? 'IDLE' : 'ACTIVE'} (idle for ${idleMinutes.toFixed(2)} min)`);
             }
 
-            // Always send to renderer and plugins so they stay synced
-            if (mainWindow && !mainWindow.isDestroyed()) {
+            // v1.10 optimization: Only send to renderer on state change (not every poll)
+            if (stateChanged && mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('system-afk-update', {
                     isIdle,
                     idleSeconds,
@@ -1643,24 +1673,26 @@ function startSystemAFKCheck() {
                 });
             }
 
-            // Send to all connected WebSocket clients (plugins) for tier progression
-            if (wss) {
+            // v1.10 optimization: Only send to plugins on state change OR while idle (for tier progression)
+            if ((stateChanged || isIdle) && wss) {
                 wss.clients.forEach(client => {
                     if (client.readyState === WebSocket.OPEN) {
-                        client.send(JSON.stringify({
-                            type: 'system_idle_update',
-                            idleSeconds,
-                            idleMinutes: parseFloat(idleMinutes.toFixed(2)),
-                            isIdle,
-                            timeoutMinutes: systemAFKSettings.timeoutMinutes
-                        }));
+                        try {
+                            client.send(JSON.stringify({
+                                type: 'system_idle_update',
+                                idleSeconds,
+                                idleMinutes: parseFloat(idleMinutes.toFixed(2)),
+                                isIdle,
+                                timeoutMinutes: systemAFKSettings.timeoutMinutes
+                            }));
+                        } catch (e) { /* client disconnected mid-send */ }
                     }
                 });
             }
         } catch (e) {
             console.error('[Solari] Error checking system idle time:', e);
         }
-    }, 3000); // Check every 3 seconds
+    }, CONSTANTS.AFK_CHECK_INTERVAL_MS);
 }
 
 function stopSystemAFKCheck() {
@@ -1814,7 +1846,7 @@ function initializeDiscordRPC(targetClientId = null) {
                                 url: `https://discord.com/api/v10/applications/${clientId}/rpc`,
                                 method: 'GET',
                                 headers: {
-                                    'User-Agent': 'Solari/1.9.1',
+                                    'User-Agent': CONSTANTS.APP_USER_AGENT,
                                     'Accept': 'application/json'
                                 }
                             });
@@ -1852,7 +1884,7 @@ function initializeDiscordRPC(targetClientId = null) {
 
                 // ALWAYS restore activity on connection to prevent "away" status
                 if (isEnabled) {
-                    console.log('[Solari] RPC Ready - Waiting 2s before restoring activity...');
+                    console.log(`[Solari] RPC Ready - Waiting ${CONSTANTS.RPC_READY_RESTORE_DELAY_MS}ms before restoring activity...`);
 
                     // Force clear again just to be safe
                     currentActivity = {};
@@ -1865,11 +1897,10 @@ function initializeDiscordRPC(targetClientId = null) {
                         setActivity(activityToApply); // Apply the stored activity
                     } else {
                         // Use priority system to get the best activity source
-                        // Wait 2 seconds (2000ms) to ensure Discord is fully ready to receive commands
                         setTimeout(() => {
                             console.log('[Solari] Restoring activity now...');
                             updatePresence(); // Force update on reconnection
-                        }, 2000);
+                        }, CONSTANTS.RPC_READY_RESTORE_DELAY_MS);
                     }
                 }
             });
@@ -1889,8 +1920,7 @@ function initializeDiscordRPC(targetClientId = null) {
                 if (mainWindow) {
                     mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
                 }
-                // Use shorter delay for faster recovery
-                scheduleReconnect(3000); // 3 seconds
+                scheduleReconnect(CONSTANTS.RPC_RETRY_DELAY_MS);
             });
 
             // Handle transport errors (e.g., pipe broken when Discord restarts)
@@ -2324,8 +2354,11 @@ function setActivity(activity, presetClientId = null) {
     // Build party info if provided
     let party = null;
     if (finalActivity.partyCurrent && finalActivity.partyMax && finalActivity.partyMax > 0) {
+        // v1.10 fix: Use stable party ID based on content hash instead of Date.now()
+        // Prevents Discord from flickering the party display on every update
+        const partyHash = `solari_${finalActivity.partyCurrent}_${finalActivity.partyMax}`;
         party = {
-            id: `solari_party_${Date.now()}`,
+            id: partyHash,
             size: [finalActivity.partyCurrent, finalActivity.partyMax]
         };
         if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Using party:', JSON.stringify(party));
@@ -2376,23 +2409,19 @@ function setActivity(activity, presetClientId = null) {
             if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Activity set successfully');
         } catch (err) {
             console.error('[Solari] setActivity error:', err.message);
-            // If failed, try to reconnect and retry
+            // v1.10 fix: Don't attempt inline reconnect — it was crashing because
+            // rpcClient.destroy() nullifies the transport, then login() fails.
+            // Instead, mark as disconnected and let the health check handle reconnection.
             if (err.message && (err.message.includes('connection') || err.message.includes('closed'))) {
-                console.log('[Solari] Attempting to reconnect...');
-                try {
-                    await rpcClient.destroy();
-                    await rpcClient.login({ clientId: targetClientId });
-                    await rpcClient.request('SET_ACTIVITY', {
-                        pid: process.pid,
-                        activity: rpcActivity
-                    });
-                    console.log('[Solari] Retry successful after reconnect');
-                } catch (retryErr) {
-                    console.error('[Solari] Retry failed:', retryErr.message);
+                console.log('[Solari] Connection lost during setActivity — deferring to health check reconnect');
+                rpcConnected = false;
+                currentActivity = {};
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
                 }
             }
         }
-    }, 300);
+    }, CONSTANTS.ACTIVITY_UPDATE_DEBOUNCE_MS);
 }
 
 // ===== CENTRALIZED PRESENCE CONTROLLER =====
@@ -2432,11 +2461,27 @@ const presenceSources = {
     }
 };
 
-// Master function to decide and apply Rich Presence
+// v1.10: Leading-edge throttle to coalesce cascade updatePresence() calls
+let _updatePresenceThrottleTimer = null;
+let _updatePresencePending = false;
+
 async function updatePresence() {
     if (!isEnabled) return;
 
-    // OPT-01: Only log source states in debug mode
+    // If a throttle window is active, defer to the end of it
+    if (_updatePresenceThrottleTimer) {
+        _updatePresencePending = true;
+        return;
+    }
+
+    _updatePresenceThrottleTimer = setTimeout(() => {
+        _updatePresenceThrottleTimer = null;
+        if (_updatePresencePending) {
+            _updatePresencePending = false;
+            updatePresence(); // Execute the deferred call
+        }
+    }, CONSTANTS.PRESENCE_UPDATE_THROTTLE_MS);
+
     if (CONSTANTS.DEBUG_MODE) {
         console.log('[Solari-Core] updatePresence called. Source states:');
         console.log('  - manualPreset.active:', presenceSources.manualPreset.active, '| data:', !!presenceSources.manualPreset.data);
@@ -2997,7 +3042,7 @@ ipcMain.handle('export-logs', async () => {
         const logContent = [
             '=== Solari Debug Logs ===',
             `Generated: ${new Date().toLocaleString()}`,
-            `Version: ${require('../../package.json').version}`,
+            `Version: ${CONSTANTS.APP_VERSION}`,
             `Platform: ${process.platform}`,
             `Electron: ${process.versions.electron}`,
             '',
@@ -3078,7 +3123,7 @@ ipcMain.handle('import-presets', async () => {
 
 // Get App Version
 ipcMain.handle('get-app-version', () => {
-    return require('../../package.json').version;
+    return CONSTANTS.APP_VERSION;
 });
 
 // Resolve Imgur album/page URLs to direct image URLs
@@ -3573,7 +3618,7 @@ async function checkBDStatus() {
     }
 }
 
-// Background poller for Auto-Repair (v1.8.2 — anti-loop)
+// Background poller for Auto-Repair (v1.8.2 — anti-loop, v1.10: constants centralized)
 function startBDBackgroundPolling() {
     if (bdStatusPollInterval) clearInterval(bdStatusPollInterval);
 
@@ -3587,7 +3632,7 @@ function startBDBackgroundPolling() {
         if (!appSettings.bdAutoRepair || (status !== 'broken')) {
             bdBrokenCount = 0;
             if (status === 'pending_update') {
-                console.log('[BD Repair] Discord update pending — auto-repair paused');
+                console.log('[BD] Discord update pending — auto-repair paused');
             }
             return;
         }
@@ -3600,47 +3645,46 @@ function startBDBackgroundPolling() {
         }
 
         // Circuit breaker: prune old entries and check
-        bdRepairHistory = bdRepairHistory.filter(ts => (now - ts) < BD_REPAIR_WINDOW_MS);
-        if (bdRepairHistory.length >= BD_MAX_REPAIRS_WINDOW) {
-            console.warn(`[BD Repair] Circuit breaker: ${bdRepairHistory.length} repairs in the last ${BD_REPAIR_WINDOW_MS / 60000}min — halting auto-repair`);
+        bdRepairHistory = bdRepairHistory.filter(ts => (now - ts) < CONSTANTS.BD_REPAIR_WINDOW_MS);
+        if (bdRepairHistory.length >= CONSTANTS.BD_MAX_REPAIRS_WINDOW) {
+            console.warn(`[BD] Circuit breaker: ${bdRepairHistory.length} repairs in the last ${CONSTANTS.BD_REPAIR_WINDOW_MS / 60000}min — halting auto-repair`);
             bdBrokenCount = 0;
             return;
         }
 
         // Accumulate broken-count threshold
         bdBrokenCount++;
-        console.log(`[BD Repair] Broken detected (${bdBrokenCount}/${BD_BROKEN_THRESHOLD})`);
-        if (bdBrokenCount >= BD_BROKEN_THRESHOLD) {
+        console.log(`[BD] Broken detected (${bdBrokenCount}/${CONSTANTS.BD_BROKEN_THRESHOLD})`);
+        if (bdBrokenCount >= CONSTANTS.BD_BROKEN_THRESHOLD) {
             bdBrokenCount = 0;
             performBDRepair();
         }
-    }, 3000);
-    console.log('[Solari] Background BD Auto-Repair Poller started (3s interval, 15s threshold)');
+    }, CONSTANTS.BD_POLL_INTERVAL_MS);
+    console.log(`[Solari] BD Auto-Repair Poller started (${CONSTANTS.BD_POLL_INTERVAL_MS}ms interval)`);
 }
 
 async function performBDRepair() {
     if (isRepairing) return;
     isRepairing = true;
     broadcastBDStatus('repairing');
-    console.log('[BD Repair] Starting background repair...');
+    console.log('[BD] Starting background repair...');
 
     try {
         const result = await actualInstallBDLogic();
 
         if (result.success) {
-            console.log('[BD Repair] Background repair successful!');
+            console.log('[BD] Background repair successful!');
         } else {
-            console.error('[BD Repair] Background repair failed:', result.error);
+            console.error('[BD] Background repair failed:', result.error);
         }
     } catch (e) {
-        console.error('[BD Repair] Uncaught error:', e);
+        console.error('[BD] Uncaught error:', e);
     } finally {
         isRepairing = false;
-        // Record this repair for cooldown + circuit breaker
         const now = Date.now();
-        bdRepairCooldownUntil = now + BD_REPAIR_COOLDOWN_MS;
+        bdRepairCooldownUntil = now + CONSTANTS.BD_REPAIR_COOLDOWN_MS;
         bdRepairHistory.push(now);
-        console.log(`[BD Repair] Cooldown active until ${new Date(bdRepairCooldownUntil).toLocaleTimeString()} | Repairs in window: ${bdRepairHistory.length}/${BD_MAX_REPAIRS_WINDOW}`);
+        console.log(`[BD] Cooldown active until ${new Date(bdRepairCooldownUntil).toLocaleTimeString()} | Repairs in window: ${bdRepairHistory.length}/${CONSTANTS.BD_MAX_REPAIRS_WINDOW}`);
     }
 }
 
@@ -3664,7 +3708,7 @@ async function actualInstallBDLogic() {
                     url: url,
                     method: 'GET',
                     redirect: 'follow', // Use native redirect following
-                    headers: { 'User-Agent': 'Solari/1.9.1' }
+                    headers: { 'User-Agent': CONSTANTS.APP_USER_AGENT }
                 });
                 request.on('response', (res) => {
                     if (res.statusCode === 200) resolve(res);
@@ -3677,15 +3721,19 @@ async function actualInstallBDLogic() {
 
         const dlUrl = 'https://github.com/BetterDiscord/BetterDiscord/releases/latest/download/betterdiscord.asar';
         const response = await followRedirectsNative(dlUrl);
+        // v1.10 fix: Wrap in try/finally to prevent process.noAsar leak on error
         const prevNoAsar = process.noAsar;
         process.noAsar = true;
-        await new Promise((resolve, reject) => {
-            const file = fs.createWriteStream(bdAsarPath);
-            response.pipe(file);
-            file.on('finish', () => { file.close(); resolve(); });
-            file.on('error', reject);
-        });
-        process.noAsar = prevNoAsar;
+        try {
+            await new Promise((resolve, reject) => {
+                const file = fs.createWriteStream(bdAsarPath);
+                response.pipe(file);
+                file.on('finish', () => { file.close(); resolve(); });
+                file.on('error', reject);
+            });
+        } finally {
+            process.noAsar = prevNoAsar;
+        }
 
         const localAppData = process.env.LOCALAPPDATA;
         const discordBase = path.join(localAppData, 'Discord');
@@ -3758,7 +3806,7 @@ ipcMain.handle('plugin:download', async (event, { url, fileName }) => {
                 method: 'GET',
                 redirect: 'follow', // Handles redirects automatically
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Solari/1.9.1; Windows 10)',
+                    'User-Agent': `Mozilla/5.0 (${CONSTANTS.APP_USER_AGENT}; Windows 10)`,
                     'Accept': '*/*'
                 }
             });
@@ -3847,7 +3895,7 @@ ipcMain.handle('plugin:get-remote-version', async (event, url) => {
                 method: 'GET',
                 redirect: 'follow',
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Solari/1.9.1; Windows 10)',
+                    'User-Agent': `Mozilla/5.0 (${CONSTANTS.APP_USER_AGENT}; Windows 10)`,
                     'Accept': '*/*',
                     'Range': 'bytes=0-4096' // Fetch first 4KB for version metadata
                 }
@@ -4183,7 +4231,10 @@ ipcMain.handle('soundboard:check-driver-installed', async () => {
                     const deviceList = Array.isArray(devices) ? devices : [devices];
                     const vbCableFound = deviceList.some(d =>
                         d && d.Name && (
-                            d.Name.toLowerCase().includes('cable') ||
+                            // v1.10 fix: Require 'CABLE' specifically (not generic 'cable')
+                            // to avoid false positives from 'HDMI Audio Cable' etc.
+                            d.Name.includes('CABLE Input') ||
+                            d.Name.includes('CABLE Output') ||
                             d.Name.toLowerCase().includes('vb-audio') ||
                             d.Name.toLowerCase().includes('voicemeeter')
                         )
@@ -4698,7 +4749,7 @@ function initializeWebSocketServer() {
 
             // SAFETY NET: If the browser extension disconnected, clear its presence after timeout
             if (wsId === extensionWsId) {
-                console.log('[Solari WSS] Browser extension disconnected — will clear RPC in 3 seconds if no reconnection...');
+                console.log(`[Solari WSS] Browser extension disconnected — will clear RPC in ${CONSTANTS.EXTENSION_DISCONNECT_TIMEOUT_MS}ms if no reconnection...`);
                 extensionWsId = null;
 
                 extensionDisconnectTimeout = setTimeout(() => {
@@ -4719,7 +4770,7 @@ function initializeWebSocketServer() {
                             mainWindow.webContents.send('ws-status', { type: 'extensionDisconnected' });
                         }
                     }
-                }, 3000);
+                }, CONSTANTS.EXTENSION_DISCONNECT_TIMEOUT_MS);
             }
 
             broadcastPluginList();
@@ -4761,7 +4812,7 @@ function startAutoDetection() {
     if (autoDetectInterval) return;
 
     console.log('[Solari] Starting auto-detection...');
-    autoDetectInterval = setInterval(() => checkRunningProcesses(false), 2000);
+    autoDetectInterval = setInterval(() => checkRunningProcesses(false), CONSTANTS.PROCESS_CHECK_INTERVAL_MS);
     checkRunningProcesses(true); // Run immediately with isFirstCheck=true
 }
 
@@ -4770,6 +4821,9 @@ function stopAutoDetection() {
         clearInterval(autoDetectInterval);
         autoDetectInterval = null;
         currentDetectedProcess = null;
+        currentDetectedWebsite = null;
+        // v1.10 fix: Reset fail counter so it doesn't carry over on next toggle
+        websiteCheckFailCount = 0;
         console.log('[Solari] Auto-detection stopped');
     }
 }
@@ -4797,7 +4851,7 @@ function checkRunningProcesses(isFirstCheck = false) {
     if (autoDetectMappings.length > 0) {
         isProcessCheckRunning = true; // Lock
 
-        exec('tasklist /FO CSV /NH', { encoding: 'utf8', timeout: 5000 }, (error, stdout, stderr) => {
+        exec('tasklist /FO CSV /NH', { encoding: 'utf8', timeout: 5000, maxBuffer: CONSTANTS.EXEC_MAX_BUFFER }, (error, stdout, stderr) => {
             isProcessCheckRunning = false; // Unlock
 
             if (error) {
@@ -4953,7 +5007,7 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
     const psCommand = `powershell -Command "Get-Process | Where-Object {$_.MainWindowTitle -and ($_.ProcessName -match 'brave|chrome|firefox|edge|opera')} | Select-Object -ExpandProperty MainWindowTitle"`;
     isBrowserCheckRunning = true;
 
-    exec(psCommand, { encoding: 'utf8', timeout: 5000 }, (error, stdout, stderr) => {
+    exec(psCommand, { encoding: 'utf8', timeout: 5000, maxBuffer: CONSTANTS.EXEC_MAX_BUFFER }, (error, stdout, stderr) => {
         isBrowserCheckRunning = false;
         let shouldClear = false;
         let foundWebsite = false;
@@ -5040,8 +5094,8 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
         // 4. Handle Clear (Fail) with Debounce
         if (shouldClear) {
             websiteCheckFailCount++;
-            // Wait for 3 consecutive failures (approx 15s) before clearing
-            if (websiteCheckFailCount < 3) {
+            // Wait for consecutive failures before clearing (v1.10: uses constant)
+            if (websiteCheckFailCount < CONSTANTS.WEBSITE_FAIL_THRESHOLD) {
                 return;
             }
 
@@ -5087,6 +5141,11 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
 }
 
 function loadPresetActivity(preset, isManual = false) {
+    // v1.10 fix: Guard against undefined/null preset
+    if (!preset) {
+        console.warn('[Solari] loadPresetActivity called with null/undefined preset — ignoring');
+        return;
+    }
     if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] Loading preset "${preset.name}" with Client ID: ${preset.clientId}`);
     // Build buttons array
     const buttons = [];
@@ -5337,12 +5396,12 @@ function checkAdminStatus() {
 
 // App Ready
 app.whenReady().then(async () => {
+    const _startupBegin = Date.now(); // v1.10: Startup timing
+
     // Check if starting hidden (auto-start with --hidden flag)
-    // We check this upfront synchronously so we know whether to show the splash instantly
     const launchedWithHidden = process.argv.includes('--hidden');
 
     // Phase 1: Show Splash Screen IMMEDIATELY (Unless hidden)
-    // We don't wait for loadData() to finish. If we aren't hidden, show splash now!
     if (!launchedWithHidden) {
         createSplashWindow();
     } else {
@@ -5350,7 +5409,9 @@ app.whenReady().then(async () => {
     }
 
     // Phase 2: Load settings (blocking disk read, but splash is already visible now)
+    const _loadStart = Date.now();
     loadData();
+    console.log(`[Solari] Phase 2 (loadData): ${Date.now() - _loadStart}ms`);
 
     let updatedPlugins = [];
     const shouldStartHidden = appSettings.startMinimized && appSettings.startWithWindows && launchedWithHidden;
@@ -5506,7 +5567,7 @@ app.whenReady().then(async () => {
         setTimeout(() => {
             console.log('[Solari] Starting auto-detection on startup');
             startAutoDetection();
-        }, 3000); // Wait 3 seconds for RPC to connect
+        }, CONSTANTS.AUTO_DETECT_STARTUP_DELAY_MS);
     }
 
     // Start user tracking (analytics)
@@ -5516,14 +5577,30 @@ app.whenReady().then(async () => {
     startBDBackgroundPolling();
 
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+
+    // v1.10: Startup timing
+    console.log(`[Solari] Startup complete in ${Date.now() - _startupBegin}ms`);
 });
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
-        stopTracking(); // Send disconnect notification
+        stopTracking();
+        // v1.10: Flush any pending save immediately
+        saveDataSync();
         if (rpcClient) rpcClient.destroy();
-        if (wss) wss.close();
-        if (tray) tray.destroy(); // Fix zombie tray icon crash
+        // v1.10: Graceful WebSocket shutdown with proper close code
+        if (wss) {
+            wss.clients.forEach(client => {
+                try { client.close(1000, 'Solari shutting down'); } catch (e) { /* ignore */ }
+            });
+            wss.close();
+        }
+        if (tray) tray.destroy();
+        // v1.10: Clean up all intervals
+        if (bdStatusPollInterval) clearInterval(bdStatusPollInterval);
+        if (hwMonitorInterval) clearInterval(hwMonitorInterval);
+        if (systemAFKCheckInterval) clearInterval(systemAFKCheckInterval);
+        if (autoDetectInterval) clearInterval(autoDetectInterval);
         app.quit();
     }
 });
@@ -5531,4 +5608,5 @@ app.on('window-all-closed', () => {
 // Also stop tracking on before-quit (catches more exit scenarios)
 app.on('will-quit', () => {
     stopTracking();
+    saveDataSync(); // Ensure data is flushed
 });

@@ -468,11 +468,7 @@ if (ecoModeToggle) {
     });
 }
 
-// Load Custom CSS on startup
-const savedCss = localStorage.getItem('solari_custom_css');
-if (savedCss) {
-    customStyle.textContent = savedCss;
-}
+// v1.10: Removed duplicate CSS load (initCustomCss IIFE above already handles this)
 
 // Periodic check for VB-Cable driver (detects installation changes)
 setInterval(async () => {

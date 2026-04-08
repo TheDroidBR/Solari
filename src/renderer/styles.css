@@ -3193,42 +3193,57 @@ main {
 }
 
 /* Grid/List View Modes */
-.soundboard-grid.view-grid {
+.soundboard-grid-modern.view-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 16px;
 }
 
-.soundboard-grid.view-list {
+.soundboard-grid-modern.view-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.soundboard-grid.view-list .sound-card {
+.soundboard-grid-modern.view-list .sound-card {
   flex-direction: row;
   padding: 12px 16px;
   align-items: center;
   gap: 16px;
 }
 
-.soundboard-grid.view-list .sound-card-header {
+.soundboard-grid-modern.view-list .sound-card-header {
   order: 0;
   flex-shrink: 0;
 }
 
-.soundboard-grid.view-list .sound-name {
-  flex: 1;
-  font-size: 14px;
+.soundboard-grid-modern.view-list .sound-name {
+  flex: 1 1 auto;
+  font-size: 14.5px;
+  font-weight: 600;
+  min-width: 0;
+  padding-right: 16px;
+  /* Marquee container */
+  overflow: hidden;
+  white-space: nowrap;
+  display: block;
 }
 
-.soundboard-grid.view-list .sound-shortcut,
-.soundboard-grid.view-list .sound-meta {
+.soundboard-grid-modern.view-list .sound-shortcut,
+.soundboard-grid-modern.view-list .sound-meta {
   display: none;
 }
 
-.soundboard-grid.view-list .sound-actions {
+.soundboard-grid-modern.view-list .sound-actions {
   margin-top: 0;
+  flex: 0 0 auto;
+  width: auto !important;
+}
+
+.soundboard-grid-modern.view-list .sound-btn {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  width: auto !important;
 }
 
 /* Sound Card Enhancements */
@@ -3304,11 +3319,41 @@ main {
 .sound-name {
   font-weight: 600;
   font-size: 14px;
-  margin-bottom: 6px;
-  white-space: nowrap;
+  margin-bottom: 8px;
+  color: var(--text);
+  
+  /* Marquee Container */
+  display: block;
   overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: text;
+  white-space: nowrap;
+  position: relative;
+  cursor: pointer;
+  
+  /* Fade effect for truncated text */
+  mask-image: linear-gradient(to right, black calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 20px), transparent 100%);
+}
+
+.sb-name-inner {
+  display: inline-block;
+  white-space: nowrap;
+  min-width: 100%;
+  transition: transform 3s ease-in-out, margin-left 3s ease-in-out;
+  pointer-events: none;
+}
+
+.sound-card:hover .sb-name-inner {
+  /* The calculation: margin-left: 100% moves it to the right edge of container. 
+     translateX(-100%) moves it left by its own full width. 
+     Combined: It aligns its right edge with the container's right edge. */
+  margin-left: 100%;
+  transform: translateX(-100%);
+}
+
+.sound-name:hover {
+  mask-image: none;
+  -webkit-mask-image: none;
+  color: var(--primary);
 }
 
 .sound-shortcut {
@@ -3596,19 +3641,7 @@ main {
   transform: scale(1.2);
 }
 
-.sound-name {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.sound-name:hover {
-  color: var(--primary);
-}
+/* Redundant definition cleaned up by above rule */
 
 .sound-shortcut {
   font-size: 11px;
