@@ -19,7 +19,7 @@
   </p>
 
   <h3>
-    <a href="https://github.com/TheDroidBR/Solari/releases/latest/download/SolariApp.exe">📥 Download for Windows</a>
+    <a href="https://github.com/TheDroidBR/Solari/releases/latest/download/Solari-Setup.exe">📥 Download for Windows</a>
   </h3>
 </div>
 
@@ -45,7 +45,7 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 ## 📦 How to Install
 
 1. Download the latest version from **[Releases](https://github.com/TheDroidBR/Solari/releases)**.
-2. Run the `SolariApp.exe` file.
+2. Run the `Solari-Setup.exe` file.
 3. **(Optional)** Install the **Browser Extension** for website detection (included in release).
 4. Done! Solari is portable and requires no complex installation.
 
