@@ -3556,20 +3556,21 @@ var PluginsTabManager = {
         };
 
         for (const [key, plugin] of Object.entries(data)) {
-            // Get translations with strict fallback (i18next returns key string if missing)
+            // Get translations with robust fallback (handles undefined, empty, or key string)
             const tTitleKey = `plugins.${key}.title`;
             const tTitle = t(tTitleKey);
-            const displayName = tTitle !== tTitleKey ? tTitle : (this.pluginInfo[key]?.displayName || plugin.title || key);
+            const isMissingTitle = !tTitle || tTitle === tTitleKey;
+            const displayName = isMissingTitle ? (plugin.title || this.pluginInfo[key]?.displayName || key) : tTitle;
 
             const tDescKey = `plugins.${key}.description`;
             const tDesc = t(tDescKey);
-            const description = tDesc !== tDescKey ? tDesc : plugin.description;
+            const isMissingDesc = !tDesc || tDesc === tDescKey;
+            const description = isMissingDesc ? plugin.description : tDesc;
 
-            // For features, try to get from translation array, fallback to default info
             const tFeatKey = `plugins.${key}.features`;
             let features = t(tFeatKey);
-            if (features === tFeatKey || !Array.isArray(features)) {
-                features = this.pluginInfo[key]?.features || [];
+            if (!features || features === tFeatKey || !Array.isArray(features)) {
+                features = Array.isArray(plugin.features) ? plugin.features : (this.pluginInfo[key]?.features || []);
             }
 
             const info = this.pluginInfo[key] || { icon: '🔌', requires: 'BetterDiscord' };

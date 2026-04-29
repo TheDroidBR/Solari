@@ -36,6 +36,12 @@
     "title": "SolariPlayer",
     "author": "TheDroid",
     "description": "Premium Video Player for Discord. Features Theater Mode, Glassmorphism UI, Picture-in-Picture, Speed Control, and Screenshot Bypass.",
+    "features": [
+      "Theater Mode & Picture-in-Picture",
+      "Double Tap to Seek & Speed Controls",
+      "Screenshot Bypass (CORS)",
+      "Premium Glassmorphism UI"
+    ],
     "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariPlayer.plugin.js",
     "fileName": "SolariPlayer.plugin.js",
     "changelog": "### v1.0.0\n- 🚀 **Initial Release**: A brand new Premium Video Player for Discord.\n- 🎭 **Theater Mode**: Transforms any video into a cinematic, centered lightbox with a darkened background.\n- ⚡ **Speed Control**: Advanced speed selector (0.5x, 1x, 1.25x, 1.5x, 2x) straight from the player.\n- 📱 **Double Tap to Seek**: Instantly skip or rewind 10 seconds with a double tap on the sides of the video, complete with ripple animations.\n- 🖼️ **Picture-in-Picture**: Watch videos in a floating window while browsing other channels.\n- 📸 **Screenshot Bypass**: Easily capture video frames with our anti-CORS clone strategy.\n- 🎨 **Glassmorphism UI**: Beautiful, fully customized controls using Solari's premium aesthetic, completely replacing Discord's native UI."
