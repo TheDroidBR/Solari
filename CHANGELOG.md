@@ -1,3 +1,13 @@
+## [1.11.0] - 2026-04-29
+**UPDATE 1.11.0: THE PLUGIN STORE REVOLUTION**
+
+---
+
+### ✨ Plugin Ecosystem Enhancements
+- **Dynamic Meta Parser**: The Plugin Store now renders `title` and `features` fully dynamically directly from `plugins-meta.json`. It no longer requires local translation strings to render beautiful plugin cards, giving developers total freedom.
+- **Smart Config Button**: The settings icon (⚙️) on plugin cards now dynamically detects if the plugin actually has a configuration panel registered in the App. Standalone plugins (like the new Solari Player) will no longer display a non-functional settings button, resulting in a cleaner UI.
+- **Solari Player Rebirth**: Officially rebranded and repurposed the Solari Player plugin in the store. It is now a **Premium Video Player for Discord** featuring Theater Mode, Glassmorphism UI, Picture-in-Picture, Speed Control, and a clever Screenshot Bypass for CORS restrictions.
+
 ## [1.10.1] - 2026-04-22
 **UPDATE 1.10.1: THE MEDIA UPDATE**
 
