@@ -3616,6 +3616,13 @@ var PluginsTabManager = {
 
             const deleteSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
 
+            let panelId = `config${key.replace(/\s/g, '')}`;
+            if (key.toLowerCase() === 'smartafk') panelId = 'configSmartAFKDetector';
+            if (key.toLowerCase() === 'spotifysync') panelId = 'configSpotifySync';
+            if (key.toLowerCase() === 'solarinotes') panelId = 'configSolariNotes';
+            if (key.toLowerCase() === 'solarimessagetools') panelId = 'configSolariMessageTools';
+            const hasConfig = !!document.getElementById(panelId);
+
             card.innerHTML = `
                 <div class="plugin-card-header">
                     <div class="plugin-icon-box">${info.icon}</div>
@@ -3632,7 +3639,7 @@ var PluginsTabManager = {
                         ${buttonLabel}
                     </button>
                     ${isInstalled ? `
-                    <button class="btn-plugin-config" title="Configurar" data-plugin-key="${key}">⚙️</button>
+                    ${hasConfig ? `<button class="btn-plugin-config" title="Configurar" data-plugin-key="${key}">⚙️</button>` : ''}
                     <button class="btn-plugin-delete" title="Desinstalar" data-filename="${plugin.fileName}">${deleteSvg}</button>` : ''}
                     <button class="btn-plugin-changelog" title="Changelog" data-plugin-key="${key}">📋</button>
                 </div>
