@@ -1,3 +1,17 @@
+## [1.10.1] - 2026-04-22
+**UPDATE 1.10.1: THE MEDIA UPDATE**
+
+---
+
+### ✨ New Features & Plugins
+- **SolariPlayer Plugin**: A brand new, premium music player built entirely inside Discord!
+  - **Adaptive Color UI**: The entire player dynamically themes itself based on the dominant colors of the currently playing album art.
+  - **Synced Lyrics**: Native integration with LrcLib provides real-time, scrolling lyrics directly on your screen without any authentication required.
+  - **Beautiful Animations**: Features a modern, glassmorphic design with a clickable progress bar, smooth transitions, and a premium layout.
+  - **Local Controls**: Full playback control interface built right into the widget, operating completely locally without relying on external OAuth.
+- **InvisibleDetector Plugin**: Added an advanced tool for detecting if Discord users are genuinely offline or hiding in invisible mode.
+  - Features active call probing and passive monitoring strategies.
+
 ## [1.10.0] - 2026-04-08
 **UPDATE 1.10.0: THE MEGA OPTIMIZATION**
 

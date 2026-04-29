@@ -1,5 +1,10 @@
 # Plugins Changelog
 
+## SolariPlayer v1.0.0 (2026-04-22)
+- 🚀 **Initial Release**: A high-performance, adaptive music player built entirely inside Discord.
+- 🎨 **Adaptive UI**: The player's accent colors change dynamically based on the album art of the currently playing track.
+- 📝 **Live Synced Lyrics**: Automatic lyric fetching and syncing via LrcLib without any authentication required.
+- 🌊 **Waveform & Progress**: Clickable seek bar and beautiful animations for a premium music experience.
 ## SmartAFKDetector v1.1.3 (2026-04-05)
 - 🚀 **Critical Fix (Status Stuck):** Solved a Discord API Rate Limiting issue (HTTP 429) that caused the AFK Custom Status to appear cleared locally, but remain stuck globally.
 - 🛡️ **Improvement:** Removed 5-second aggressive spam and implemented a safe 4-minute network renewal to keep the AFK Status perfectly synced and stable.

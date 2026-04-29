@@ -3556,12 +3556,19 @@ var PluginsTabManager = {
         };
 
         for (const [key, plugin] of Object.entries(data)) {
-            // Get translations
-            const displayName = t(`plugins.${key}.title`) || this.pluginInfo[key]?.displayName || key;
-            const description = t(`plugins.${key}.description`) || plugin.description;
+            // Get translations with strict fallback (i18next returns key string if missing)
+            const tTitleKey = `plugins.${key}.title`;
+            const tTitle = t(tTitleKey);
+            const displayName = tTitle !== tTitleKey ? tTitle : (this.pluginInfo[key]?.displayName || plugin.title || key);
+
+            const tDescKey = `plugins.${key}.description`;
+            const tDesc = t(tDescKey);
+            const description = tDesc !== tDescKey ? tDesc : plugin.description;
+
             // For features, try to get from translation array, fallback to default info
-            let features = t(`plugins.${key}.features`);
-            if (!Array.isArray(features)) {
+            const tFeatKey = `plugins.${key}.features`;
+            let features = t(tFeatKey);
+            if (features === tFeatKey || !Array.isArray(features)) {
                 features = this.pluginInfo[key]?.features || [];
             }
 
