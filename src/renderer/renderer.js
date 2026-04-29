@@ -3230,6 +3230,25 @@ var PluginsTabManager = {
             });
         }
 
+        const updateBannerBtn = document.getElementById('bd-1click-update-btn');
+        if (updateBannerBtn) updateBannerBtn.addEventListener('click', () => {
+            updateBannerBtn.disabled = true;
+            const spanEl = updateBannerBtn.querySelector('[data-i18n]');
+            if (spanEl) spanEl.textContent = t('pluginStore.bdBtnUpdating') || 'Atualizando...';
+            ipcRenderer.invoke('plugin:install-bd').then(result => {
+                if (result?.success) {
+                    showToast('✅', t('pluginStore.bdBtnUpdate') || 'BetterDiscord atualizado!', 'success');
+                    this._bdActionCooldown = Date.now() + 30000;
+                    // Force a fresh status check after update
+                    setTimeout(() => ipcRenderer.invoke('bd:check-update').then(d => this._handleBDStatusUpdate(d)), 2000);
+                } else {
+                    showToast('❌', `Erro: ${result?.error}`, 'error');
+                }
+                if (spanEl) spanEl.textContent = t('pluginStore.bd1ClickUpdate') || 'Atualizar Automático';
+                updateBannerBtn.disabled = false;
+            });
+        });
+
         // Dropdown: Uninstall BD
         const uninstallBtn = document.getElementById('bd-action-uninstall');
         if (uninstallBtn) {
@@ -3292,10 +3311,69 @@ var PluginsTabManager = {
             this._handleBDStatusUpdate(data);
         });
 
+        // Listen for SolariManager runtime confirmation
+        ipcRenderer.on('bd-runtime-status', (event, data) => {
+            this._handleBDRuntimeStatus(data);
+        });
+
+        // Listen for BD plugin list updates
+        ipcRenderer.on('bd-plugins-update', (event, plugins) => {
+            this._renderBDPlugins(plugins);
+        });
+
         // Request initial status
         ipcRenderer.invoke('bd:get-status').then(data => {
             this._handleBDStatusUpdate(data);
         });
+
+        // Request cached plugin list immediately
+        ipcRenderer.invoke('bd:get-plugins').then(plugins => {
+            if (plugins && plugins.length > 0) this._renderBDPlugins(plugins);
+        });
+
+        // BD Manager buttons
+        const installBtn = document.getElementById('bd-manager-install-btn');
+        if (installBtn) {
+            installBtn.addEventListener('click', async () => {
+                try {
+                    installBtn.disabled = true;
+                    installBtn.innerHTML = '<span>⏳</span> <span data-i18n="pluginStore.installing">Baixando...</span>';
+                    
+                    const smMeta = this.metaData && this.metaData['solarimanager'];
+                    if (!smMeta || !smMeta.downloadUrl) {
+                        throw new Error("SolariManager metadata not found");
+                    }
+                    
+                    const result = await ipcRenderer.invoke('plugin:download', { url: smMeta.downloadUrl, fileName: smMeta.fileName });
+                    
+                    if (result.success) {
+                        installBtn.innerHTML = '<span>✅</span> <span data-i18n="pluginStore.installed">Instalado!</span>';
+                        showToast('✅', 'Ative o SolariManager nas configurações do BetterDiscord!', 'success');
+                        setTimeout(() => {
+                            installBtn.disabled = false;
+                            installBtn.innerHTML = '<span>⚡</span> <span data-i18n="pluginStore.bdManagerInstall">Instalar SolariManager</span>';
+                        }, 3000);
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (e) {
+                    installBtn.disabled = false;
+                    installBtn.innerHTML = '<span>⚡</span> <span data-i18n="pluginStore.bdManagerInstall">Instalar SolariManager</span>';
+                    console.error('[BD Manager] Install error:', e);
+                    showToast('❌', 'Erro ao instalar: ' + e.message, 'error');
+                }
+            });
+        }
+
+        const managerRefreshBtn = document.getElementById('bd-manager-refresh-btn');
+        if (managerRefreshBtn) {
+            managerRefreshBtn.addEventListener('click', async () => {
+                try {
+                    const plugins = await ipcRenderer.invoke('bd:get-plugins');
+                    if (plugins) this._renderBDPlugins(plugins);
+                } catch (e) { /* ignore */ }
+            });
+        }
 
         this.initialized = true;
         // Status is now pushed from main process
@@ -3347,9 +3425,11 @@ var PluginsTabManager = {
         try {
             const notInstalledBanner = document.getElementById('bd-warning-not-installed');
             const brokenBanner = document.getElementById('bd-warning-broken');
+            const outdatedBanner = document.getElementById('bd-warning-outdated');
 
             if (notInstalledBanner) notInstalledBanner.style.display = 'none';
             if (brokenBanner) brokenBanner.style.display = 'none';
+            if (outdatedBanner) outdatedBanner.style.display = 'none';
 
             if (indicator) {
                 indicator.className = 'bd-status-badge';
@@ -3413,6 +3493,49 @@ var PluginsTabManager = {
                     labelEl.textContent = t('pluginStore.bdBtnRepairing') || 'Reparando...';
                 }
                 showToast('🔧', 'Auto-Repair: BD está sendo reparado agora...', 'info');
+            } else if (result.status === 'outdated') {
+                // BD installed & injected, but an update is available
+                const outdatedBanner = document.getElementById('bd-warning-outdated');
+                if (outdatedBanner) outdatedBanner.style.display = 'flex';
+
+                // Fill in version info if available
+                if (result.bdVersion || result.latestVersion) {
+                    const versionInfo = document.getElementById('bd-version-info');
+                    const localVerEl = document.getElementById('bd-local-version');
+                    const latestVerEl = document.getElementById('bd-latest-version');
+                    if (localVerEl && result.bdVersion) localVerEl.textContent = `v${result.bdVersion}`;
+                    if (latestVerEl && result.latestVersion) latestVerEl.textContent = `v${result.latestVersion}`;
+                    if (versionInfo && (result.bdVersion || result.latestVersion)) versionInfo.style.display = 'inline';
+                }
+
+                if (indicator) {
+                    indicator.classList.add('bd-status-outdated');
+                    indicator.title = `BetterDiscord outdated (v${result.bdVersion || '?'} → v${result.latestVersion || '?'})`;
+                    if (text) {
+                        text.setAttribute('data-i18n', 'pluginStore.bdStatusOutdated');
+                        text.textContent = t('pluginStore.bdStatusOutdated') || 'Desatualizado';
+                    }
+                }
+                if (labelEl) {
+                    labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnUpdate');
+                    labelEl.textContent = t('pluginStore.bdBtnUpdate') || 'Atualizar BD';
+                }
+                if (headerBtn) headerBtn.disabled = false;
+            } else if (result.status === 'active') {
+                // SolariManager confirmed BD is running in runtime
+                if (indicator) {
+                    indicator.classList.add('bd-status-active');
+                    indicator.title = 'BetterDiscord active — confirmed by SolariManager';
+                    if (text) {
+                        text.setAttribute('data-i18n', 'pluginStore.bdStatusActive');
+                        text.textContent = t('pluginStore.bdStatusActive') || 'Ativo';
+                    }
+                }
+                if (labelEl) {
+                    labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnReinstall');
+                    labelEl.textContent = t('pluginStore.bdBtnReinstall') || 'Reinstalar BD';
+                }
+                if (headerBtn) headerBtn.disabled = false;
             } else {
                 if (indicator) {
                     indicator.classList.add('bd-status-ok');
@@ -3431,6 +3554,74 @@ var PluginsTabManager = {
         } catch (e) {
             console.error('[Plugins] Error handling BD status update:', e);
         }
+    },
+
+    _handleBDRuntimeStatus(data) {
+        const dot = document.getElementById('bd-runtime-dot');
+        const text = document.getElementById('bd-runtime-text');
+        const indicator = document.getElementById('bd-status-indicator');
+        const statusText = indicator ? indicator.querySelector('.bd-status-text') : null;
+        const headerBtn = document.getElementById('bd-1click-header-btn');
+        const labelEl = headerBtn ? headerBtn.querySelector('.bd-split-label') : null;
+
+        if (data.active) {
+            // SolariManager connected — BD is live
+            if (dot) { dot.classList.add('active'); }
+            if (text) {
+                text.classList.add('active');
+                text.setAttribute('data-i18n', 'pluginStore.bdManagerConnected');
+                text.textContent = t('pluginStore.bdManagerConnected') || 'Conectado';
+            }
+            // Upgrade badge to 'active'
+            if (indicator) {
+                indicator.className = 'bd-status-badge bd-status-active';
+                indicator.title = `BetterDiscord active — confirmed by SolariManager${data.bdVersion ? ` v${data.bdVersion}` : ''}`;
+            }
+            if (statusText) {
+                statusText.setAttribute('data-i18n', 'pluginStore.bdStatusActive');
+                statusText.textContent = t('pluginStore.bdStatusActive') || 'Ativo';
+            }
+            if (labelEl) {
+                labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnReinstall');
+                labelEl.textContent = t('pluginStore.bdBtnReinstall') || 'Reinstalar BD';
+            }
+        } else {
+            // SolariManager disconnected — revert to 'ok'
+            if (dot) { dot.classList.remove('active'); }
+            if (text) {
+                text.classList.remove('active');
+                text.setAttribute('data-i18n', 'pluginStore.bdManagerNotConnected');
+                text.textContent = t('pluginStore.bdManagerNotConnected') || 'Não conectado';
+            }
+            // Fallback: trigger a fresh BD status check to restore correct state
+            ipcRenderer.invoke('bd:get-status').then(d => this._handleBDStatusUpdate(d)).catch(() => {});
+        }
+    },
+
+    _renderBDPlugins(plugins) {
+        // Called when SolariManager reports live enabled/disabled state.
+        // Enriches the existing grid cards with real toggle state.
+        const gridEl = document.getElementById('plugins-grid');
+        if (!gridEl || !plugins || plugins.length === 0) return;
+
+        // Build a map of pluginName -> enabled for quick lookup
+        const enabledMap = {};
+        plugins.forEach(p => { enabledMap[p.name] = p.enabled; });
+
+        // Update existing toggles in the plugin cards
+        gridEl.querySelectorAll('.bd-plugin-toggle input').forEach(toggle => {
+            const name = toggle.dataset.plugin;
+            if (name === undefined) return;
+
+            if (enabledMap[name] !== undefined) {
+                const isEnabled = enabledMap[name];
+                toggle.checked = isEnabled;
+                toggle.disabled = false; // SolariManager connected — enable toggles
+                toggle.closest('.bd-plugin-toggle').style.opacity = '1';
+                toggle.closest('.bd-plugin-toggle').style.pointerEvents = 'auto';
+                toggle.closest('.bd-plugin-toggle').title = `${isEnabled ? 'Desativar' : 'Ativar'} ${name}`;
+            }
+        });
     },
 
     async loadPlugins(forceRefresh = false, isBackground = false) {
@@ -3639,11 +3830,33 @@ var PluginsTabManager = {
                         ${buttonLabel}
                     </button>
                     ${isInstalled ? `
+                    <label class="bd-plugin-toggle" title="SolariManager desconectado" style="opacity:0.35;pointer-events:none; display:flex; align-items:center; margin-left:auto;">
+                        <input type="checkbox" disabled data-plugin="${plugin.fileName.replace('.plugin.js', '')}" />
+                        <span class="bd-plugin-toggle-track"></span>
+                    </label>
                     ${hasConfig ? `<button class="btn-plugin-config" title="Configurar" data-plugin-key="${key}">⚙️</button>` : ''}
                     <button class="btn-plugin-delete" title="Desinstalar" data-filename="${plugin.fileName}">${deleteSvg}</button>` : ''}
                     <button class="btn-plugin-changelog" title="Changelog" data-plugin-key="${key}">📋</button>
                 </div>
             `;
+
+            const toggleInput = card.querySelector('.bd-plugin-toggle input');
+            if (toggleInput) {
+                toggleInput.addEventListener('change', async (e) => {
+                    if (e.target.disabled) return;
+                    const pluginName = e.target.dataset.plugin;
+                    const enabled = e.target.checked;
+                    try {
+                        const result = await ipcRenderer.invoke('bd:toggle-plugin', { pluginName, enabled });
+                        if (!result || !result.success) {
+                            e.target.checked = !enabled;
+                            showToast('⚠️', `Falha ao ${enabled ? 'ativar' : 'desativar'} ${pluginName}. SolariManager conectado?`, 'warning');
+                        }
+                    } catch (err) {
+                        e.target.checked = !enabled;
+                    }
+                });
+            }
 
             card.querySelector('.btn-plugin-install').addEventListener('click', function () {
                 PluginsTabManager.handleInstall(plugin.downloadUrl, plugin.fileName, this);

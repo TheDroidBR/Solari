@@ -464,6 +464,73 @@
             </div>
           </div>
 
+          <!-- BetterDiscord Outdated Banner -->
+          <div id="bd-warning-outdated" class="bd-warning-banner bd-warning-yellow" style="display: none;">
+            <div class="bd-warning-icon">🔄</div>
+            <div class="bd-warning-text">
+              <strong data-i18n="pluginStore.bdOutdatedTitle">BetterDiscord desatualizado</strong>
+              <p>
+                <span data-i18n="pluginStore.bdOutdatedDesc">Uma nova versão do BD está disponível.</span>
+                <span id="bd-version-info" style="display:none;">
+                  &nbsp;(<span id="bd-local-version" style="opacity:0.7;"></span> → <strong id="bd-latest-version" style="color:#eab308;"></strong>)
+                </span>
+              </p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button id="bd-1click-update-btn" class="bd-warning-action-btn bd-warning-action-yellow">
+                <span>⚡</span> <span data-i18n="pluginStore.bd1ClickUpdate">Atualizar Automático</span>
+              </button>
+            </div>
+          </div>
+
+
+          <!-- ===== BD PLUGIN MANAGER ===== -->
+          <div class="bd-manager-section">
+            <!-- Section divider -->
+            <div class="bd-manager-divider">
+              <span class="bd-manager-divider-line"></span>
+              <span class="bd-manager-divider-label">
+                <span>🧩</span>
+                <span data-i18n="pluginStore.bdManagerTitle">BD Plugin Manager</span>
+              </span>
+              <span class="bd-manager-divider-line"></span>
+            </div>
+
+            <!-- SolariManager core card (special highlight) -->
+            <div class="bd-manager-core-card">
+              <div class="bd-manager-core-glow"></div>
+              <div class="bd-manager-core-header">
+                <div class="bd-manager-core-icon">🧩</div>
+                <div class="bd-manager-core-info">
+                  <div class="bd-manager-core-title">
+                    <span>SolariManager</span>
+                    <span class="bd-manager-core-badge" data-i18n="pluginStore.bdManagerCoreBadge">Plugin Essencial</span>
+                  </div>
+                  <div class="bd-manager-core-desc" data-i18n="pluginStore.bdManagerCoreDesc">
+                    Permite ao Solari App confirmar que o BD está rodando e gerenciar plugins remotamente.
+                  </div>
+                </div>
+                <div class="bd-manager-runtime-status" id="bd-runtime-indicator">
+                  <div class="bd-manager-runtime-dot" id="bd-runtime-dot"></div>
+                  <span class="bd-manager-runtime-text" id="bd-runtime-text" data-i18n="pluginStore.bdManagerNotConnected">Não conectado</span>
+                </div>
+              </div>
+              <div class="bd-manager-core-actions">
+                <button id="bd-manager-install-btn" class="bd-manager-install-btn">
+                  <span>⚡</span>
+                  <span data-i18n="pluginStore.bdManagerInstall">Instalar SolariManager</span>
+                </button>
+                <button id="bd-manager-refresh-btn" class="bd-manager-refresh-btn" title="Atualizar lista">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Section Header -->
           <div class="plugins-store-header">
             <div class="plugins-store-title-wrapper">
@@ -582,8 +649,8 @@
             <!-- Plugin cards will be rendered dynamically -->
           </div>
 
-        </div>
-      </div>
+        </div><!-- /.plugins-tab-wrapper -->
+      </div><!-- /#plugins-tab .tab-content -->
 
       <!-- SoundBoard Tab -->
       <div id="soundboard-tab" class="tab-content">

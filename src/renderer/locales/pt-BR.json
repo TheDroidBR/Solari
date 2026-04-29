@@ -133,7 +133,21 @@
         "updateAllError": "{count} plugin(s) falharam",
         "allUpToDate": "Todos os plugins já estão atualizados!",
         "verifying": "Verificando...",
-        "updatingPlugin": "Atualizando {name}..."
+        "updatingPlugin": "Atualizando {name}...",
+        "bdOutdatedTitle": "BetterDiscord desatualizado",
+        "bdOutdatedDesc": "Uma nova versão do BD está disponível. Atualizar pode resolver incompatibilidades com o Discord atual.",
+        "bdBtnUpdate": "Atualizar BD",
+        "bdBtnUpdating": "Atualizando...",
+        "bdStatusOutdated": "Desatualizado",
+        "bd1ClickUpdate": "Atualizar Automático",
+        "bdStatusActive": "Ativo",
+        "bdManagerTitle": "BD Plugin Manager",
+        "bdManagerCoreBadge": "Plugin Essencial",
+        "bdManagerCoreDesc": "Permite ao Solari App confirmar que o BD está rodando e gerenciar plugins remotamente.",
+        "bdManagerConnected": "Conectado",
+        "bdManagerNotConnected": "Não conectado",
+        "bdManagerInstall": "Instalar SolariManager",
+        "bdManagerNoPlugin": "Instale e ative o SolariManager no BetterDiscord para ver seus plugins aqui."
     },
     "plugins": {
         "title": "🔌 Plugins",

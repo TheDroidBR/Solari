@@ -66,7 +66,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'app-name-loaded',
             'run-setup-wizard',
             'theme-loaded',
-            'spotify-track-updated'
+            'spotify-track-updated',
+            'bd-runtime-status',
+            'bd-plugins-update'
         ];
         if (validChannels.includes(channel)) {
             // Use a specific wrapper to allow removal if needed
@@ -109,7 +111,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
             // Export/Import
             'export-logs',
             'export-presets',
-            'import-presets'
+            'import-presets',
+            // BD / Plugin Management
+            'bd:get-status',
+            'bd:check-update',
+            'bd:toggle-plugin',
+            'bd:get-plugins',
+            'plugin:check-bd',
+            'plugin:install-bd',
+            'plugin:uninstall-bd'
         ];
         if (validChannels.includes(channel)) {
             return ipcRenderer.invoke(channel, data);

@@ -5838,6 +5838,405 @@ body.eco-mode .neon-btn {
   background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
+/* ---- BD Warning Yellow (Outdated) ---- */
+.bd-warning-yellow {
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.bd-warning-yellow .bd-warning-text strong {
+  color: #facc15;
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+}
+
+.bd-warning-action-yellow {
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  color: #0f0c29;
+  font-weight: 700;
+}
+
+.bd-warning-action-yellow:hover {
+  background: linear-gradient(135deg, #facc15, #d97706);
+}
+
+/* ---- BD Status Outdated Badge ---- */
+.bd-status-badge.bd-status-outdated {
+  color: #facc15;
+  border-color: rgba(250, 204, 21, 0.25);
+  background: rgba(250, 204, 21, 0.08);
+}
+
+.bd-status-badge.bd-status-outdated .bd-status-dot {
+  background: #facc15;
+  box-shadow: 0 0 6px rgba(250, 204, 21, 0.5);
+  animation: pulse-dot-yellow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot-yellow {
+  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px rgba(250, 204, 21, 0.4); }
+  50%       { opacity: 1;   box-shadow: 0 0 10px rgba(250, 204, 21, 0.8); }
+}
+
+/* ---- BD Status Active Badge ---- */
+.bd-status-badge.bd-status-active {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(74, 222, 128, 0.1);
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.15);
+}
+
+.bd-status-badge.bd-status-active .bd-status-dot {
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
+  animation: pulse-dot-active 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot-active {
+  0%, 100% { transform: scale(1);   box-shadow: 0 0 4px rgba(74, 222, 128, 0.6); }
+  50%       { transform: scale(1.3); box-shadow: 0 0 12px rgba(74, 222, 128, 1); }
+}
+
+/* =========================================
+   BD PLUGIN MANAGER SECTION
+   ========================================= */
+
+.bd-manager-section {
+  margin-bottom: 24px;
+}
+
+/* ---- Section Divider ---- */
+.bd-manager-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.bd-manager-divider-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.3), transparent);
+}
+
+.bd-manager-divider-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(165, 180, 252, 0.7);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ---- Core Card (SolariManager) ---- */
+.bd-manager-core-card {
+  position: relative;
+  border-radius: 16px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: linear-gradient(135deg, rgba(15, 12, 41, 0.95) 0%, rgba(25, 25, 55, 0.9) 100%);
+  padding: 20px 22px 16px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.bd-manager-core-glow {
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+  animation: coreGlowPulse 4s ease-in-out infinite;
+}
+
+@keyframes coreGlowPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.15); }
+}
+
+.bd-manager-core-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.bd-manager-core-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(56, 189, 248, 0.15));
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.bd-manager-core-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bd-manager-core-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #e0e7ff;
+  margin-bottom: 5px;
+}
+
+.bd-manager-core-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(56, 189, 248, 0.2));
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: #a5b4fc;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bd-manager-core-desc {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.4;
+}
+
+/* ---- Runtime Status Indicator ---- */
+.bd-manager-runtime-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.bd-manager-runtime-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6b7280;
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+.bd-manager-runtime-dot.active {
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.7);
+  animation: pulse-dot-active 2s ease-in-out infinite;
+}
+
+.bd-manager-runtime-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.4s ease;
+}
+
+.bd-manager-runtime-text.active {
+  color: #4ade80;
+}
+
+/* ---- Core Card Actions ---- */
+.bd-manager-core-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.bd-manager-install-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.bd-manager-install-btn:hover {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.45);
+}
+
+.bd-manager-install-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.bd-manager-refresh-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.bd-manager-refresh-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  transform: rotate(90deg);
+}
+
+/* ---- BD Plugin List ---- */
+.bd-plugin-list-wrapper {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.bd-plugin-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.bd-plugin-list-empty-icon {
+  font-size: 28px;
+  opacity: 0.35;
+}
+
+.bd-plugin-list-empty p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.3);
+  line-height: 1.5;
+  max-width: 340px;
+}
+
+.bd-plugin-list {
+  padding: 8px;
+}
+
+.bd-plugin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.bd-plugin-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bd-plugin-row + .bd-plugin-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.bd-plugin-row-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #6b7280;
+  transition: background 0.3s ease;
+}
+
+.bd-plugin-row-dot.enabled {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.5);
+}
+
+.bd-plugin-row-name {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bd-plugin-row-version {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.25);
+  font-family: 'JetBrains Mono', monospace;
+  flex-shrink: 0;
+}
+
+/* Toggle switch */
+.bd-plugin-toggle {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.bd-plugin-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.bd-plugin-toggle-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.bd-plugin-toggle input:checked + .bd-plugin-toggle-track {
+  background: rgba(99, 102, 241, 0.7);
+  border-color: rgba(99, 102, 241, 0.8);
+}
+
+.bd-plugin-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+
+.bd-plugin-toggle input:checked + .bd-plugin-toggle-track::after {
+  transform: translateX(16px);
+  background: #fff;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

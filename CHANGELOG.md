@@ -1,26 +1,36 @@
 ## [1.11.0] - 2026-04-29
-**UPDATE 1.11.0: THE PLUGIN STORE REVOLUTION**
+**UPDATE 1.11.0: THE PLUGIN STORE REVOLUTION & MEDIA UPDATE**
 
 ---
 
-### ✨ Plugin Ecosystem Enhancements
-- **Dynamic Meta Parser**: The Plugin Store now renders `title` and `features` fully dynamically directly from `plugins-meta.json`. It no longer requires local translation strings to render beautiful plugin cards, giving developers total freedom.
-- **Smart Config Button**: The settings icon (⚙️) on plugin cards now dynamically detects if the plugin actually has a configuration panel registered in the App. Standalone plugins (like the new Solari Player) will no longer display a non-functional settings button, resulting in a cleaner UI.
-- **Solari Player Rebirth**: Officially rebranded and repurposed the Solari Player plugin in the store. It is now a **Premium Video Player for Discord** featuring Theater Mode, Glassmorphism UI, Picture-in-Picture, Speed Control, and a clever Screenshot Bypass for CORS restrictions.
-
-## [1.10.1] - 2026-04-22
-**UPDATE 1.10.1: THE MEDIA UPDATE**
-
----
-
-### ✨ New Features & Plugins
-- **SolariPlayer Plugin**: A brand new, premium music player built entirely inside Discord!
-  - **Adaptive Color UI**: The entire player dynamically themes itself based on the dominant colors of the currently playing album art.
-  - **Synced Lyrics**: Native integration with LrcLib provides real-time, scrolling lyrics directly on your screen without any authentication required.
-  - **Beautiful Animations**: Features a modern, glassmorphic design with a clickable progress bar, smooth transitions, and a premium layout.
-  - **Local Controls**: Full playback control interface built right into the widget, operating completely locally without relying on external OAuth.
+### ✨ New Plugins & Features
+- **Solari Player Plugin**: A brand new, premium Video Player built entirely inside Discord!
+  - **Theater Mode & Picture-in-Picture**: Watch videos in a cinematic, centered lightbox or a floating window while browsing.
+  - **Double Tap to Seek & Speed Controls**: Instantly skip or rewind 10 seconds, and adjust playback speed dynamically.
+  - **Screenshot Bypass**: Easily capture video frames with an anti-CORS clone strategy.
+  - **Glassmorphism UI**: Beautiful, fully customized controls replacing Discord's native UI.
 - **InvisibleDetector Plugin**: Added an advanced tool for detecting if Discord users are genuinely offline or hiding in invisible mode.
   - Features active call probing and passive monitoring strategies.
+
+### 🛠️ Plugin Ecosystem Enhancements
+- **Dynamic Meta Parser**: The Plugin Store now renders `title` and `features` fully dynamically directly from `plugins-meta.json`. It no longer requires local translation strings to render beautiful plugin cards, giving developers total freedom.
+- **Smart Config Button**: The settings icon (⚙️) on plugin cards now dynamically detects if the plugin actually has a configuration panel registered in the App. Standalone plugins (like the new Solari Player) will no longer display a non-functional settings button, resulting in a cleaner UI.
+
+### 🔍 BetterDiscord Health Monitoring
+- **BD Outdated Detection (5th Status State)**: Solari now detects when BetterDiscord is installed and correctly injected, but the local `betterdiscord.asar` version is behind the latest GitHub release.
+  - **GitHub API Integration**: Fetches the latest BD release tag from `api.github.com/repos/BetterDiscord/BetterDiscord/releases/latest` with a 30-minute cache to avoid rate limiting.
+  - **Semver Comparison**: New `semverGt()` helper accurately compares local vs. remote version strings.
+  - **Local Version Reader**: `getLocalBDVersion()` reads the `package.json` inside the `.asar` archive using `process.noAsar = true` to extract the installed BD version.
+  - **`outdated` Status**: When the remote version is newer, `checkBDStatus()` returns `{ status: 'outdated', bdVersion, latestVersion }` instead of `ok`.
+  - **Fail-safe**: If the network is unreachable, the check gracefully falls back to `ok` without any errors.
+  - **Yellow/Amber Banner**: New `bd-warning-outdated` banner with animated version display (`v1.x.x → v1.y.y`) appears in the Plugins tab.
+  - **Pulsing Yellow Badge**: New `bd-status-outdated` badge with a pulsing dot animation distinct from all other states.
+  - **⚡ Auto Update Button**: One-click update button in the banner reuses the existing `plugin:install-bd` flow which already downloads the latest `.asar` from GitHub.
+  - **`bd:check-update` IPC Handler**: New handler that invalidates the version cache and forces a fresh check from the renderer on demand.
+  - **Broadcast Payload Enriched**: `broadcastBDStatus()` now accepts an `extraPayload` parameter, forwarding `bdVersion` and `latestVersion` to the renderer alongside the `status`.
+  - **Full i18n**: 6 new translation keys added to `pt-BR.json` and `en.json` (`bdOutdatedTitle`, `bdOutdatedDesc`, `bdBtnUpdate`, `bdBtnUpdating`, `bdStatusOutdated`, `bd1ClickUpdate`).
+
+---
 
 ## [1.10.0] - 2026-04-08
 **UPDATE 1.10.0: THE MEGA OPTIMIZATION**

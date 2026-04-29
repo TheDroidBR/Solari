@@ -1,4 +1,20 @@
 {
+  "solarimanager": {
+    "version": "1.0.0",
+    "title": "Solari Manager",
+    "author": "TheDroid",
+    "isCore": true,
+    "description": "Core manager plugin for the Solari ecosystem. Confirms BetterDiscord is running in real-time and enables the Solari App to remotely enable/disable plugins.",
+    "features": [
+      "Runtime Heartbeat (BD Alive Confirmation)",
+      "Remote Plugin Toggle (Enable/Disable)",
+      "Plugin List Reporting",
+      "Language Sync with Solari App"
+    ],
+    "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariManager.plugin.js",
+    "fileName": "SolariManager.plugin.js",
+    "changelog": "### v1.0.0 (2026-04-29)\n- 🚀 **Initial Release**: Core manager plugin for the Solari ecosystem.\n- 💓 **Runtime Heartbeat**: Sends a heartbeat every 30s confirming BD is alive, unlocking the new 'active' status badge in the Solari App.\n- 🔌 **Remote Plugin Control**: Allows the Solari App to enable/disable any BetterDiscord plugin with a single toggle, relayed via WebSocket.\n- 📋 **Plugin List Sync**: Reports the full list of installed BD plugins (name, version, enabled state) to the Solari App on connect and on demand.\n- 🌍 **Language Sync**: Automatically syncs the language setting with the Solari App.\n- 🛡️ **Self-Protection**: SolariManager cannot disable itself via remote commands."
+  },
   "smartafk": {
     "version": "1.1.3",
     "author": "TheDroid",

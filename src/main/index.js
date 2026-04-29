@@ -133,6 +133,12 @@ let connectedPlugins = new Map();
 let pluginIdCounter = 1;
 let blockedPlugins = new Set();
 
+// SolariManager — BD runtime confirmation
+let solariManagerWsId = null;    // wsId of the active SolariManager client
+let lastBDHeartbeat = 0;         // timestamp of last heartbeat from SolariManager
+let cachedBDPlugins = [];        // last known plugin list from SolariManager
+const BD_HEARTBEAT_TIMEOUT_MS = 90000; // 90s without heartbeat → fallback to 'ok'
+
 // SoundBoard
 let soundBoard = null;
 let soundServer = null;
@@ -227,6 +233,10 @@ let isRepairing = false;
 let lastKnownBDStatus = 'unknown';
 let bdRepairCooldownUntil = 0;
 let bdRepairHistory = [];
+// BD remote version cache (avoid GitHub API rate-limit)
+let cachedBDRemoteVersion = null;
+let bdRemoteVersionFetchedAt = 0;
+const BD_VERSION_CACHE_MS = 30 * 60 * 1000; // 30 minutes
 
 let currentPrioritySource = null; // Track what's currently controlling RPC
 let lastNotifiedPresetName = null; // Track last preset name that triggered a notification
@@ -3467,8 +3477,7 @@ function setupPluginWatcher() {
 
 // P2-BUG-02: Unified — delegates to checkBDStatus() to avoid 60 lines of duplicated logic
 ipcMain.handle('plugin:check-bd', async () => {
-    const status = await checkBDStatus();
-    return { status };
+    return await checkBDStatus();
 });
 
 // Uninstall BetterDiscord (remove hook + asar, keep plugins/themes)
@@ -3542,30 +3551,115 @@ ipcMain.handle('plugin:uninstall-bd', async () => {
 });
 
 // Helper to broadcast BD status to all renderer windows
-function broadcastBDStatus(status, force = false) {
+// Payload now includes optional bdVersion (local) and latestVersion (remote)
+function broadcastBDStatus(status, extraPayload = {}, force = false) {
     if (!force && lastKnownBDStatus === status && status !== 'repairing') return;
     lastKnownBDStatus = status;
     if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('bd-status-update', { status });
+        mainWindow.webContents.send('bd-status-update', { status, ...extraPayload });
     }
 }
 
 ipcMain.handle('bd:get-status', async () => {
     // If we don't have a status yet, do a quick check
-    if (!lastKnownBDStatus) {
-        lastKnownBDStatus = await checkBDStatus();
+    if (!lastKnownBDStatus || lastKnownBDStatus === 'unknown') {
+        const result = await checkBDStatus();
+        lastKnownBDStatus = result.status;
+        return result;
     }
     return { status: lastKnownBDStatus };
 });
+
+// Force-refresh BD status + version check (invalidates remote version cache)
+ipcMain.handle('bd:check-update', async () => {
+    cachedBDRemoteVersion = null; // invalidate cache for fresh check
+    bdRemoteVersionFetchedAt = 0;
+    const result = await checkBDStatus();
+    const { status, ...extra } = result;
+    broadcastBDStatus(status, extra, true);
+    return result;
+});
+
+// Fetch the latest BetterDiscord release tag from GitHub API (cached 30 min)
+async function fetchBDLatestVersion() {
+    const now = Date.now();
+    if (cachedBDRemoteVersion && (now - bdRemoteVersionFetchedAt) < BD_VERSION_CACHE_MS) {
+        return cachedBDRemoteVersion;
+    }
+    try {
+        const result = await new Promise((resolve, reject) => {
+            const req = net.request({
+                url: 'https://api.github.com/repos/BetterDiscord/BetterDiscord/releases/latest',
+                method: 'GET',
+                headers: {
+                    'User-Agent': CONSTANTS.APP_USER_AGENT || 'Solari-App',
+                    'Accept': 'application/vnd.github+json'
+                }
+            });
+            req.on('response', (res) => {
+                const chunks = [];
+                res.on('data', c => chunks.push(c));
+                res.on('end', () => {
+                    try {
+                        const json = JSON.parse(Buffer.concat(chunks).toString());
+                        resolve(json.tag_name ? json.tag_name.replace(/^v/, '') : null);
+                    } catch { resolve(null); }
+                });
+            });
+            req.on('error', () => resolve(null));
+            req.end();
+        });
+        if (result) {
+            cachedBDRemoteVersion = result;
+            bdRemoteVersionFetchedAt = now;
+            console.log(`[BD] Latest remote version: v${result}`);
+        }
+        return result;
+    } catch {
+        return null;
+    }
+}
+
+// Read the version from the local betterdiscord.asar package.json
+function getLocalBDVersion(bdAsarPath) {
+    try {
+        const prevNoAsar = process.noAsar;
+        process.noAsar = true;
+        // The asar exposes its package.json at the root
+        const pkgPath = bdAsarPath + '/package.json';
+        const exists = fs.existsSync(pkgPath);
+        process.noAsar = prevNoAsar;
+        if (!exists) return null;
+        process.noAsar = true;
+        const content = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        process.noAsar = prevNoAsar;
+        return content.version || null;
+    } catch {
+        return null;
+    }
+}
+
+// Semver comparison helper — returns true if v1 > v2
+function semverGt(v1, v2) {
+    if (!v1 || !v2) return false;
+    const a = String(v1).replace(/^v/, '').split('.').map(Number);
+    const b = String(v2).replace(/^v/, '').split('.').map(Number);
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+        if ((a[i] || 0) > (b[i] || 0)) return true;
+        if ((a[i] || 0) < (b[i] || 0)) return false;
+    }
+    return false;
+}
 
 // Reusable logic for BetterDiscord Check (v1.8.2 — with pending-update detection)
 async function checkBDStatus() {
     try {
         const bdPath = path.join(app.getPath('appData'), 'BetterDiscord');
         const bdDataPath = path.join(bdPath, 'data');
+        const bdAsarPath = path.join(bdDataPath, 'betterdiscord.asar');
         const prevNoAsar = process.noAsar;
         process.noAsar = true;
-        const asarExists = fs.existsSync(path.join(bdDataPath, 'betterdiscord.asar'));
+        const asarExists = fs.existsSync(bdAsarPath);
         process.noAsar = prevNoAsar;
 
         let injectionFoundInLatest = false;
@@ -3601,20 +3695,27 @@ async function checkBDStatus() {
             }
         }
 
-        const injectionFound = injectionFoundInLatest || injectionFoundInOlder;
-
-        if (asarExists && injectionFoundInLatest) return 'ok';
+        if (asarExists && injectionFoundInLatest) {
+            // BD is properly installed — now check if it's outdated
+            const localVersion = getLocalBDVersion(bdAsarPath);
+            const remoteVersion = await fetchBDLatestVersion();
+            if (remoteVersion && semverGt(remoteVersion, localVersion)) {
+                console.log(`[BD] Outdated: local=v${localVersion} remote=v${remoteVersion}`);
+                return { status: 'outdated', bdVersion: localVersion, latestVersion: remoteVersion };
+            }
+            return { status: 'ok', bdVersion: localVersion, latestVersion: remoteVersion };
+        }
 
         // Heuristic: asar exists, BD is injected in an older app-* dir but NOT in the newest one,
         // AND there are multiple app-* dirs → Discord downloaded an update but hasn't applied it yet.
         if (asarExists && !injectionFoundInLatest && injectionFoundInOlder && hasMultipleAppDirs) {
-            return 'pending_update';
+            return { status: 'pending_update' };
         }
 
-        if (asarExists || injectionFound) return 'broken';
-        return 'not_installed';
+        if (asarExists || (injectionFoundInLatest || injectionFoundInOlder)) return { status: 'broken' };
+        return { status: 'not_installed' };
     } catch (e) {
-        return 'not_installed';
+        return { status: 'not_installed' };
     }
 }
 
@@ -3625,8 +3726,9 @@ function startBDBackgroundPolling() {
     bdStatusPollInterval = setInterval(async () => {
         if (isRepairing) return;
 
-        const status = await checkBDStatus();
-        broadcastBDStatus(status);
+        const result = await checkBDStatus();
+        const { status, ...extra } = result;
+        broadcastBDStatus(status, extra);
 
         // Skip repair for non-broken statuses or when auto-repair is off
         if (!appSettings.bdAutoRepair || (status !== 'broken')) {
@@ -4584,7 +4686,36 @@ function initializeWebSocketServer() {
                             }
                         }
 
+                        // Track SolariManager for BD runtime confirmation
+                        if (pluginName === 'SolariManager') {
+                            solariManagerWsId = wsId;
+                            lastBDHeartbeat = Date.now();
+                            ws.isSolariManager = true;
+                            console.log('[Solari WSS] SolariManager connected — BD runtime confirmed');
+                            // Emit active status to renderer
+                            if (mainWindow && !mainWindow.isDestroyed()) {
+                                mainWindow.webContents.send('bd-runtime-status', { active: true, bdVersion: data.bdVersion });
+                            }
+                        }
+
                         broadcastPluginList();
+                        break;
+
+                    case 'heartbeat':
+                        if (data.source === 'SolariManager') {
+                            lastBDHeartbeat = Date.now();
+                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari WSS] SolariManager heartbeat received');
+                        }
+                        break;
+
+                    case 'plugins_list':
+                        if (data.source === 'SolariManager' || ws.isSolariManager) {
+                            cachedBDPlugins = data.plugins || [];
+                            if (mainWindow && !mainWindow.isDestroyed()) {
+                                mainWindow.webContents.send('bd-plugins-update', cachedBDPlugins);
+                            }
+                            console.log(`[Solari WSS] SolariManager reported ${cachedBDPlugins.length} BD plugins`);
+                        }
                         break;
 
                     case 'spotify_config':
@@ -4773,12 +4904,56 @@ function initializeWebSocketServer() {
                 }, CONSTANTS.EXTENSION_DISCONNECT_TIMEOUT_MS);
             }
 
+            // SAFETY NET: If SolariManager disconnected, revert to 'ok' after timeout
+            if (wsId === solariManagerWsId) {
+                console.log('[Solari WSS] SolariManager disconnected — reverting BD status to ok after timeout');
+                solariManagerWsId = null;
+                setTimeout(() => {
+                    // Only revert if still not reconnected
+                    if (solariManagerWsId === null && Date.now() - lastBDHeartbeat > BD_HEARTBEAT_TIMEOUT_MS) {
+                        if (mainWindow && !mainWindow.isDestroyed()) {
+                            mainWindow.webContents.send('bd-runtime-status', { active: false });
+                        }
+                    }
+                }, BD_HEARTBEAT_TIMEOUT_MS);
+            }
+
             broadcastPluginList();
         });
     });
 }
 
-// ===== AUTO-DETECTION FUNCTIONS =====
+// ===== SOLARIMANAGER IPC HANDLERS =====
+
+ipcMain.handle('bd:toggle-plugin', async (event, { pluginName, enabled }) => {
+    // Find the SolariManager client and forward the toggle command
+    for (const [id, plugin] of connectedPlugins.entries()) {
+        if (plugin.name === 'SolariManager' && plugin.ws && plugin.ws.readyState === 1 /* OPEN */) {
+            try {
+                plugin.ws.send(JSON.stringify({ type: 'plugin:toggle', pluginName, enabled }));
+                console.log(`[BD Toggle] Sent toggle ${pluginName} = ${enabled}`);
+                return { success: true };
+            } catch (e) {
+                console.error('[BD Toggle] Send error:', e);
+                return { success: false, error: e.message };
+            }
+        }
+    }
+    return { success: false, error: 'SolariManager not connected' };
+});
+
+ipcMain.handle('bd:get-plugins', async () => {
+    // Request fresh list from SolariManager if connected, else return cache
+    for (const [id, plugin] of connectedPlugins.entries()) {
+        if (plugin.name === 'SolariManager' && plugin.ws && plugin.ws.readyState === 1) {
+            try {
+                plugin.ws.send(JSON.stringify({ type: 'plugin:get_list' }));
+            } catch (e) { /* ignore */ }
+        }
+    }
+    return cachedBDPlugins;
+});
+
 
 function openAutoDetectSettings() {
     if (autoDetectWindow) {
