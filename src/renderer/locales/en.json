@@ -146,8 +146,22 @@
         "bdManagerCoreDesc": "Allows the Solari App to confirm BD is running and remotely manage plugins.",
         "bdManagerConnected": "Connected",
         "bdManagerNotConnected": "Not connected",
+        "bdManagerInstalledInactive": "Installed (Disabled in BD)",
         "bdManagerInstall": "Install SolariManager",
-        "bdManagerNoPlugin": "Install and enable SolariManager in BetterDiscord to see your plugins here."
+        "bdManagerUninstall": "Uninstall SolariManager",
+        "bdManagerUninstalling": "Uninstalling...",
+        "bdManagerUninstalled": "Uninstalled!",
+        "bdManagerNoPlugin": "Install and enable SolariManager in BetterDiscord to see your plugins here.",
+        "bdManagerActivationTitle": "How to Enable SolariManager:",
+        "bdManagerStep1": "Open <b>User Settings</b> in Discord (gear icon).",
+        "bdIncompatibleTitle": "BetterDiscord Incompatible",
+        "bdIncompatibleDesc": "A Discord update broke compatibility. <b>Wait for an official fix</b> to restore your plugins.",
+        "bdBtnWaiting": "Waiting for Update...",
+        "bdBtnRestore": "Update and Restore BD",
+        "bdStatusIncompatible": "Incompatible",
+        "bdManagerStep2": "In the sidebar, scroll down to <b>BetterDiscord</b> and click <b>Plugins</b>.",
+        "bdManagerStep3": "Look for <b>SolariManager</b> in the list.",
+        "bdManagerStep4": "Click the <b>toggle switch</b> to enable the plugin."
     },
     "plugins": {
         "title": "🔌 Plugins",

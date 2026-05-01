@@ -3612,7 +3612,6 @@ async function fetchBDLatestVersion() {
         if (result) {
             cachedBDRemoteVersion = result;
             bdRemoteVersionFetchedAt = now;
-            console.log(`[BD] Latest remote version: v${result}`);
         }
         return result;
     } catch {
@@ -3622,19 +3621,39 @@ async function fetchBDLatestVersion() {
 
 // Read the version from the local betterdiscord.asar package.json
 function getLocalBDVersion(bdAsarPath) {
+    const prevNoAsar = process.noAsar;
     try {
-        const prevNoAsar = process.noAsar;
         process.noAsar = true;
-        // The asar exposes its package.json at the root
-        const pkgPath = bdAsarPath + '/package.json';
-        const exists = fs.existsSync(pkgPath);
+        if (!fs.existsSync(bdAsarPath)) {
+            process.noAsar = prevNoAsar;
+            return null;
+        }
+
+        // Try Virtual Read (Loop through files found in readdir)
+        process.noAsar = false;
+        try {
+            const files = fs.readdirSync(bdAsarPath);
+            for (const file of files) {
+                if (file.endsWith('.js') || file === 'package.json') {
+                    try {
+                        const filePath = path.join(bdAsarPath, file);
+                        const raw = fs.readFileSync(filePath, 'utf8');
+                        const chunk = raw.substring(0, 256000); // Scan first 256KB
+                        
+                        const match = chunk.match(/version["']?\s*[:=]\s*["'](\d+\.\d+\.\d+)["']/i);
+                        if (match && match[1]) {
+                            process.noAsar = prevNoAsar;
+                            return match[1];
+                        }
+                    } catch (err) { /* silent */ }
+                }
+            }
+        } catch (e) { /* silent */ }
+
         process.noAsar = prevNoAsar;
-        if (!exists) return null;
-        process.noAsar = true;
-        const content = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        return null;
+    } catch (e) {
         process.noAsar = prevNoAsar;
-        return content.version || null;
-    } catch {
         return null;
     }
 }
@@ -3651,12 +3670,56 @@ function semverGt(v1, v2) {
     return false;
 }
 
+// Check if Discord is currently running
+async function isDiscordRunning() {
+    return new Promise((resolve) => {
+        if (process.platform === 'win32') {
+            const cmd = 'tasklist /FI "IMAGENAME eq Discord.exe" /NH && tasklist /FI "IMAGENAME eq DiscordCanary.exe" /NH && tasklist /FI "IMAGENAME eq DiscordPTB.exe" /NH';
+            exec(cmd, (err, stdout) => {
+                if (err) return resolve(false);
+                const out = stdout.toLowerCase();
+                resolve(out.includes('discord.exe') || out.includes('discordcanary.exe') || out.includes('discordptb.exe'));
+            });
+        } else {
+            exec('pgrep Discord', (err, stdout) => {
+                if (err) return resolve(false);
+                resolve(stdout.trim().length > 0);
+            });
+        }
+    });
+}
+
+// Read BD plugins configuration to check if SolariManager is supposed to be active
+function isSolariManagerEnabledInBD() {
+    try {
+        const bdPath = path.join(app.getPath('appData'), 'BetterDiscord', 'data');
+        const flavors = ['stable', 'canary', 'ptb'];
+        for (const flavor of flavors) {
+            const pluginsJsonPath = path.join(bdPath, flavor, 'plugins.json');
+            if (fs.existsSync(pluginsJsonPath)) {
+                const config = JSON.parse(fs.readFileSync(pluginsJsonPath, 'utf8'));
+                if (config['SolariManager'] === true) return true;
+            }
+        }
+        return false;
+    } catch { return false; }
+}
+
 // Reusable logic for BetterDiscord Check (v1.8.2 — with pending-update detection)
+let bdIncompatibleCounter = 0; // Persistent counter for incompatibility debounce
+
 async function checkBDStatus() {
     try {
         const bdPath = path.join(app.getPath('appData'), 'BetterDiscord');
         const bdDataPath = path.join(bdPath, 'data');
-        const bdAsarPath = path.join(bdDataPath, 'betterdiscord.asar');
+        let bdAsarPath = path.join(bdDataPath, 'betterdiscord.asar');
+
+        // Robust check: try common variations if first one fails
+        if (!fs.existsSync(bdAsarPath)) {
+            const altPath = path.join(process.env.APPDATA || '', 'BetterDiscord', 'data', 'betterdiscord.asar');
+            if (fs.existsSync(altPath)) bdAsarPath = altPath;
+        }
+
         const prevNoAsar = process.noAsar;
         process.noAsar = true;
         const asarExists = fs.existsSync(bdAsarPath);
@@ -3668,38 +3731,90 @@ async function checkBDStatus() {
         const localAppData = process.env.LOCALAPPDATA;
 
         if (localAppData) {
-            const discordBase = path.join(localAppData, 'Discord');
-            if (fs.existsSync(discordBase)) {
-                try {
-                    // Sort descending: appDirs[0] = newest version
-                    const appDirs = fs.readdirSync(discordBase).filter(d => d.startsWith('app-')).sort().reverse();
-                    hasMultipleAppDirs = appDirs.length > 1;
+            const flavors = ['Discord', 'DiscordCanary', 'DiscordPTB'];
+            for (const flavor of flavors) {
+                const discordBase = path.join(localAppData, flavor);
+                if (fs.existsSync(discordBase)) {
+                    try {
+                        const appDirs = fs.readdirSync(discordBase).filter(d => d.startsWith('app-')).sort().reverse();
+                        if (appDirs.length > 0) hasMultipleAppDirs = hasMultipleAppDirs || appDirs.length > 1;
 
-                    // Check BD injection in EACH app-* directory
-                    for (let i = 0; i < appDirs.length; i++) {
-                        const modulesDir = path.join(discordBase, appDirs[i], 'modules');
-                        if (!fs.existsSync(modulesDir)) continue;
-                        const coreDirs = fs.readdirSync(modulesDir).filter(d => d.startsWith('discord_desktop_core'));
-                        for (const cd of coreDirs) {
-                            const indexJs = path.join(modulesDir, cd, 'discord_desktop_core', 'index.js');
-                            if (fs.existsSync(indexJs)) {
-                                const content = fs.readFileSync(indexJs, 'utf8');
-                                if (content.toLowerCase().includes('betterdiscord')) {
-                                    if (i === 0) injectionFoundInLatest = true;
-                                    else injectionFoundInOlder = true;
+                        for (let i = 0; i < appDirs.length; i++) {
+                            const modulesDir = path.join(discordBase, appDirs[i], 'modules');
+                            if (!fs.existsSync(modulesDir)) continue;
+                            const coreDirs = fs.readdirSync(modulesDir).filter(d => d.startsWith('discord_desktop_core'));
+                            for (let cd of coreDirs) {
+                                const indexJs = path.join(modulesDir, cd, 'discord_desktop_core', 'index.js');
+                                if (fs.existsSync(indexJs)) {
+                                    try {
+                                        const content = fs.readFileSync(indexJs, 'utf8');
+                                        if (content.toLowerCase().includes('betterdiscord')) {
+                                            if (i === 0) injectionFoundInLatest = true;
+                                            else injectionFoundInOlder = true;
+                                        }
+                                    } catch (readErr) {
+                                        // If we can't read it but it exists, assume it might be injected if it's currently working
+                                        if (smConnected) injectionFoundInLatest = true;
+                                    }
                                 }
                             }
                         }
-                    }
-                } catch (e) { /* filesystem race — ignore */ }
+                    } catch (e) { /* filesystem race */ }
+                }
             }
         }
 
-        if (asarExists && injectionFoundInLatest) {
-            // BD is properly installed — now check if it's outdated
+        const discordRunning = await isDiscordRunning();
+        const smConnected = Array.from(wss.clients).some(c => c.isSolariManager && c.readyState === 1);
+
+        // If we have a live connection, BD is definitely working, regardless of file detection
+        if (smConnected) {
             const localVersion = getLocalBDVersion(bdAsarPath);
             const remoteVersion = await fetchBDLatestVersion();
-            if (remoteVersion && semverGt(remoteVersion, localVersion)) {
+            return { status: 'ok', bdVersion: localVersion, latestVersion: remoteVersion };
+        }
+
+        if (asarExists && injectionFoundInLatest) {
+            // Check for Incompatibility (Injected but not working while Discord is running)
+            const smPluginPath = path.join(bdPath, 'plugins', 'SolariManager.plugin.js');
+            const smFileExists = fs.existsSync(smPluginPath);
+            const smIntendedActive = isSolariManagerEnabledInBD();
+
+            if (discordRunning && smFileExists && smIntendedActive && !smConnected) {
+                // Potential incompatibility found (Plugin exists and should be on, but no signal)
+                bdIncompatibleCounter++;
+
+                // Only trigger if it persists for at least 2 cycles (~6 seconds with default polling)
+                if (bdIncompatibleCounter >= 2) {
+                    const localVersion = getLocalBDVersion(bdAsarPath);
+                    let latestVersion = null;
+                    try {
+                        latestVersion = await fetchBDLatestVersion();
+                    } catch (e) { /* ignore network error here */ }
+                    
+                    if (latestVersion && localVersion && semverGt(latestVersion, localVersion)) {
+                        return { status: 'incompatible_update', bdVersion: localVersion, latestVersion };
+                    }
+                    return { status: 'incompatible', bdVersion: localVersion };
+                }
+                
+                // Still in grace period, return 'ok' (presumptive)
+                return { status: 'ok', bdVersion: getLocalBDVersion(bdAsarPath) };
+            }
+
+            // Reset counter if condition is not met
+            bdIncompatibleCounter = 0;
+
+            // Original logic for OK and Outdated
+            const localVersion = getLocalBDVersion(bdAsarPath);
+            let remoteVersion = null;
+            try {
+                remoteVersion = await fetchBDLatestVersion();
+            } catch (err) {
+                console.warn('[BD] Could not fetch remote version:', err.message);
+            }
+
+            if (remoteVersion && localVersion && semverGt(remoteVersion, localVersion)) {
                 console.log(`[BD] Outdated: local=v${localVersion} remote=v${remoteVersion}`);
                 return { status: 'outdated', bdVersion: localVersion, latestVersion: remoteVersion };
             }
@@ -3712,9 +3827,11 @@ async function checkBDStatus() {
             return { status: 'pending_update' };
         }
 
-        if (asarExists || (injectionFoundInLatest || injectionFoundInOlder)) return { status: 'broken' };
+        if (asarExists || injectionFoundInLatest || injectionFoundInOlder) return { status: 'broken' };
         return { status: 'not_installed' };
     } catch (e) {
+        console.error('[BD] Error during status check:', e);
+        // Fallback to what we know
         return { status: 'not_installed' };
     }
 }
@@ -3729,6 +3846,15 @@ function startBDBackgroundPolling() {
         const result = await checkBDStatus();
         const { status, ...extra } = result;
         broadcastBDStatus(status, extra);
+
+        // Update runtime status (including discordRunning) periodically
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            const discordRunning = await isDiscordRunning();
+            mainWindow.webContents.send('bd-runtime-status', { 
+                active: !!solariManagerWsId,
+                discordRunning: discordRunning
+            });
+        }
 
         // Skip repair for non-broken statuses or when auto-repair is off
         if (!appSettings.bdAutoRepair || (status !== 'broken')) {
@@ -4654,7 +4780,7 @@ function initializeWebSocketServer() {
 
     wss.on('connection', (ws) => {
         const wsId = `ws_${Date.now()}`;
-        ws.on('message', (message) => {
+        ws.on('message', async (message) => {
             try {
                 const data = JSON.parse(message);
 
@@ -4694,7 +4820,12 @@ function initializeWebSocketServer() {
                             console.log('[Solari WSS] SolariManager connected — BD runtime confirmed');
                             // Emit active status to renderer
                             if (mainWindow && !mainWindow.isDestroyed()) {
-                                mainWindow.webContents.send('bd-runtime-status', { active: true, bdVersion: data.bdVersion });
+                                const discordRunning = await isDiscordRunning();
+                                mainWindow.webContents.send('bd-runtime-status', { 
+                                    active: true, 
+                                    bdVersion: data.bdVersion,
+                                    discordRunning: discordRunning
+                                });
                             }
                         }
 
@@ -4904,18 +5035,22 @@ function initializeWebSocketServer() {
                 }, CONSTANTS.EXTENSION_DISCONNECT_TIMEOUT_MS);
             }
 
-            // SAFETY NET: If SolariManager disconnected, revert to 'ok' after timeout
+            // SAFETY NET: If SolariManager disconnected, revert to 'inactive' after short grace period
             if (wsId === solariManagerWsId) {
-                console.log('[Solari WSS] SolariManager disconnected — reverting BD status to ok after timeout');
+                console.log('[Solari WSS] SolariManager disconnected — reverting status shortly');
                 solariManagerWsId = null;
-                setTimeout(() => {
+                setTimeout(async () => {
                     // Only revert if still not reconnected
-                    if (solariManagerWsId === null && Date.now() - lastBDHeartbeat > BD_HEARTBEAT_TIMEOUT_MS) {
+                    if (solariManagerWsId === null) {
                         if (mainWindow && !mainWindow.isDestroyed()) {
-                            mainWindow.webContents.send('bd-runtime-status', { active: false });
+                            const discordRunning = await isDiscordRunning();
+                            mainWindow.webContents.send('bd-runtime-status', { 
+                                active: false,
+                                discordRunning: discordRunning
+                            });
                         }
                     }
-                }, BD_HEARTBEAT_TIMEOUT_MS);
+                }, 3000); // 3 seconds grace period (same as browser extension)
             }
 
             broadcastPluginList();
@@ -4924,6 +5059,15 @@ function initializeWebSocketServer() {
 }
 
 // ===== SOLARIMANAGER IPC HANDLERS =====
+
+ipcMain.handle('bd:get-runtime-status', async () => {
+    const isConnected = !!solariManagerWsId;
+    const discordRunning = await isDiscordRunning();
+    return { 
+        active: isConnected,
+        discordRunning: discordRunning
+    };
+});
 
 ipcMain.handle('bd:toggle-plugin', async (event, { pluginName, enabled }) => {
     // Find the SolariManager client and forward the toggle command

@@ -819,21 +819,21 @@ ipcRenderer.on('data-loaded', async (event, data) => {
         if (data.lastFormState.button1Url) button1UrlInput.value = data.lastFormState.button1Url;
         if (data.lastFormState.button2Label) button2LabelInput.value = data.lastFormState.button2Label;
         if (data.lastFormState.button2Url) button2UrlInput.value = data.lastFormState.button2Url;
-        
+
         if (data.lastFormState.partyCurrent && partyCurrentInput) partyCurrentInput.value = data.lastFormState.partyCurrent;
         if (data.lastFormState.partyMax && partyMaxInput) partyMaxInput.value = data.lastFormState.partyMax;
-        
+
         if (data.lastFormState.timestampMode && timestampRadios) {
             timestampRadios.forEach(radio => radio.checked = (radio.value === data.lastFormState.timestampMode));
             if (customTimestampGroup) customTimestampGroup.style.display = data.lastFormState.timestampMode === 'custom' ? 'block' : 'none';
         }
-        
+
         if (data.lastFormState.customTimestamp && customTimestampInput) {
             const date = new Date(data.lastFormState.customTimestamp);
             const pad = (n) => n.toString().padStart(2, '0');
             customTimestampInput.value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
         }
-        
+
         if (data.lastFormState.useEndTimestamp !== undefined && useEndTimestamp) {
             useEndTimestamp.checked = data.lastFormState.useEndTimestamp;
         }
@@ -1170,9 +1170,9 @@ function showConfirmModal(title, message) {
 function renderPresets(presets) {
     const presetList = document.getElementById('presetList');
     if (!presetList) return;
-    
+
     presetList.innerHTML = '';
-    
+
     // Defensive check
     if (!presets || !Array.isArray(presets)) {
         return;
@@ -1340,18 +1340,18 @@ function loadPreset(preset) {
     button2LabelInput.value = preset.button2Label || '';
     button2LabelInput.value = preset.button2Label || '';
     button2UrlInput.value = preset.button2Url || '';
-    
+
     // Restore party fields
     if (partyCurrentInput) partyCurrentInput.value = preset.partyCurrent || '';
     if (partyMaxInput) partyMaxInput.value = preset.partyMax || '';
-    
+
     // Restore timestamp settings
     if (timestampRadios) {
         const mode = preset.timestampMode || 'normal';
         timestampRadios.forEach(radio => radio.checked = (radio.value === mode));
         if (customTimestampGroup) customTimestampGroup.style.display = mode === 'custom' ? 'block' : 'none';
     }
-    
+
     if (customTimestampInput && preset.customTimestamp) {
         // Convert timestamp number back to datetime-local format (YYYY-MM-DDTHH:mm)
         const date = new Date(preset.customTimestamp);
@@ -1360,7 +1360,7 @@ function loadPreset(preset) {
     } else if (customTimestampInput) {
         customTimestampInput.value = '';
     }
-    
+
     if (useEndTimestamp) useEndTimestamp.checked = preset.useEndTimestamp || false;
 
     // Restore Client ID selection for this preset
@@ -1486,7 +1486,7 @@ let appNameReceived = false;
 ipcRenderer.on('app-name-loaded', (event, appName) => {
     globalDefaultAppName = appName; // Store as global default
     appNameReceived = true;
-    
+
     if (typeof updatePreviewAppNameFromDropdown === 'function') {
         updatePreviewAppNameFromDropdown();
     } else {
@@ -2395,11 +2395,11 @@ function updateUILanguage() {
 // Centralized Language Manager for Renderer
 async function handleGlobalLanguageChange(lang) {
     if (!lang) return;
-    
+
     // Activate Lock
     isSyncingLanguage = true;
     if (languageSyncTimeout) clearTimeout(languageSyncTimeout);
-    
+
     // 1. Sync local settings object immediately
     if (typeof appSettings !== 'undefined') {
         appSettings.language = lang;
@@ -3239,13 +3239,30 @@ var PluginsTabManager = {
                 if (result?.success) {
                     showToast('✅', t('pluginStore.bdBtnUpdate') || 'BetterDiscord atualizado!', 'success');
                     this._bdActionCooldown = Date.now() + 30000;
-                    // Force a fresh status check after update
                     setTimeout(() => ipcRenderer.invoke('bd:check-update').then(d => this._handleBDStatusUpdate(d)), 2000);
                 } else {
                     showToast('❌', `Erro: ${result?.error}`, 'error');
                 }
                 if (spanEl) spanEl.textContent = t('pluginStore.bd1ClickUpdate') || 'Atualizar Automático';
                 updateBannerBtn.disabled = false;
+            });
+        });
+
+        const restoreBannerBtn = document.getElementById('bd-1click-restore-btn');
+        if (restoreBannerBtn) restoreBannerBtn.addEventListener('click', () => {
+            restoreBannerBtn.disabled = true;
+            const spanEl = restoreBannerBtn.querySelector('[data-i18n]');
+            if (spanEl) spanEl.textContent = t('pluginStore.bdBtnUpdating') || 'Restaurando...';
+            ipcRenderer.invoke('plugin:install-bd').then(result => {
+                if (result?.success) {
+                    showToast('✅', 'BetterDiscord restaurado!', 'success');
+                    this._bdActionCooldown = Date.now() + 30000;
+                    setTimeout(() => ipcRenderer.invoke('bd:check-update').then(d => this._handleBDStatusUpdate(d)), 2000);
+                } else {
+                    showToast('❌', `Erro: ${result?.error}`, 'error');
+                }
+                if (spanEl) spanEl.textContent = t('pluginStore.bdBtnRestore') || 'Atualizar e Restaurar BD';
+                restoreBannerBtn.disabled = false;
             });
         });
 
@@ -3297,7 +3314,7 @@ var PluginsTabManager = {
                 appSettings.bdAutoRepair = newState;
                 ipcRenderer.send('save-app-settings', { bdAutoRepair: newState });
                 this._updateAutoRepairUI(autoRepairToggle, newState);
-                
+
                 if (newState) {
                     showToast('🔧', 'Auto-Repair ativado! BD será reparado automaticamente.', 'success');
                 } else {
@@ -3335,32 +3352,58 @@ var PluginsTabManager = {
         const installBtn = document.getElementById('bd-manager-install-btn');
         if (installBtn) {
             installBtn.addEventListener('click', async () => {
+                const mode = installBtn.getAttribute('data-mode');
+                const isUninstall = mode === 'uninstall';
+                const isUpdate = mode === 'update';
+
                 try {
                     installBtn.disabled = true;
-                    installBtn.innerHTML = '<span>⏳</span> <span data-i18n="pluginStore.installing">Baixando...</span>';
-                    
-                    const smMeta = this.metaData && this.metaData['solarimanager'];
-                    if (!smMeta || !smMeta.downloadUrl) {
-                        throw new Error("SolariManager metadata not found");
-                    }
-                    
-                    const result = await ipcRenderer.invoke('plugin:download', { url: smMeta.downloadUrl, fileName: smMeta.fileName });
-                    
-                    if (result.success) {
-                        installBtn.innerHTML = '<span>✅</span> <span data-i18n="pluginStore.installed">Instalado!</span>';
-                        showToast('✅', 'Ative o SolariManager nas configurações do BetterDiscord!', 'success');
-                        setTimeout(() => {
-                            installBtn.disabled = false;
-                            installBtn.innerHTML = '<span>⚡</span> <span data-i18n="pluginStore.bdManagerInstall">Instalar SolariManager</span>';
-                        }, 3000);
+                    if (isUninstall) {
+                        installBtn.innerHTML = '<span>⏳</span> <span data-i18n="pluginStore.bdManagerUninstalling">Desinstalando...</span>';
+                        const result = await ipcRenderer.invoke('plugin:delete', 'SolariManager.plugin.js');
+                        if (result.success) {
+                            installBtn.innerHTML = '<span>✅</span> <span data-i18n="pluginStore.bdManagerUninstalled">Desinstalado!</span>';
+                            showToast('🗑️', 'SolariManager removido com sucesso.', 'success');
+                            setTimeout(() => {
+                                this._updateSolariManagerButton(false);
+                            }, 2000);
+                        } else {
+                            throw new Error(result.error);
+                        }
+                    } else if (isUpdate) {
+                        installBtn.innerHTML = '<span>⏳</span> <span data-i18n="pluginStore.bdManagerUpdating">Atualizando...</span>';
+                        const smMeta = this.metaData && this.metaData['solarimanager'];
+                        if (!smMeta || !smMeta.downloadUrl) throw new Error("SolariManager metadata not found");
+                        const result = await ipcRenderer.invoke('plugin:download', { url: smMeta.downloadUrl, fileName: smMeta.fileName });
+                        if (result.success) {
+                            installBtn.innerHTML = '<span>✅</span> <span data-i18n="pluginStore.bdManagerUpdated">Atualizado!</span>';
+                            showToast('🚀', 'SolariManager atualizado com sucesso.', 'success');
+                            setTimeout(() => {
+                                this._updateSolariManagerButton(true, false);
+                            }, 2000);
+                        } else {
+                            throw new Error(result.error);
+                        }
                     } else {
-                        throw new Error(result.error);
+                        installBtn.innerHTML = '<span>⏳</span> <span data-i18n="pluginStore.installing">Baixando...</span>';
+                        const smMeta = this.metaData && this.metaData['solarimanager'];
+                        if (!smMeta || !smMeta.downloadUrl) throw new Error("SolariManager metadata not found");
+                        const result = await ipcRenderer.invoke('plugin:download', { url: smMeta.downloadUrl, fileName: smMeta.fileName });
+                        if (result.success) {
+                            installBtn.innerHTML = '<span>✅</span> <span data-i18n="pluginStore.installed">Instalado!</span>';
+                            showToast('✅', 'Ative o SolariManager no BetterDiscord!', 'success');
+                            setTimeout(() => {
+                                this._updateSolariManagerButton(true, false);
+                            }, 2000);
+                        } else {
+                            throw new Error(result.error);
+                        }
                     }
                 } catch (e) {
                     installBtn.disabled = false;
-                    installBtn.innerHTML = '<span>⚡</span> <span data-i18n="pluginStore.bdManagerInstall">Instalar SolariManager</span>';
-                    console.error('[BD Manager] Install error:', e);
-                    showToast('❌', 'Erro ao instalar: ' + e.message, 'error');
+                    this._updateSolariManagerButton(mode === 'uninstall', mode === 'update');
+                    console.error('[BD Manager] Action error:', e);
+                    showToast('❌', 'Erro: ' + e.message, 'error');
                 }
             });
         }
@@ -3417,6 +3460,7 @@ var PluginsTabManager = {
     },
 
     async _handleBDStatusUpdate(result) {
+        this.lastBDStatus = result.status; // Save for other UI parts
         const indicator = document.getElementById('bd-status-indicator');
         const text = indicator ? indicator.querySelector('.bd-status-text') : null;
         const headerBtn = document.getElementById('bd-1click-header-btn');
@@ -3426,10 +3470,14 @@ var PluginsTabManager = {
             const notInstalledBanner = document.getElementById('bd-warning-not-installed');
             const brokenBanner = document.getElementById('bd-warning-broken');
             const outdatedBanner = document.getElementById('bd-warning-outdated');
+            const incompatibleBanner = document.getElementById('bd-warning-incompatible');
+            const repairingBanner = document.getElementById('bd-warning-repairing');
 
             if (notInstalledBanner) notInstalledBanner.style.display = 'none';
             if (brokenBanner) brokenBanner.style.display = 'none';
             if (outdatedBanner) outdatedBanner.style.display = 'none';
+            if (incompatibleBanner) incompatibleBanner.style.display = 'none';
+            if (repairingBanner) repairingBanner.style.display = 'none';
 
             if (indicator) {
                 indicator.className = 'bd-status-badge';
@@ -3521,6 +3569,41 @@ var PluginsTabManager = {
                     labelEl.textContent = t('pluginStore.bdBtnUpdate') || 'Atualizar BD';
                 }
                 if (headerBtn) headerBtn.disabled = false;
+            } else if (result.status === 'incompatible' || result.status === 'incompatible_update') {
+                const incompatibleBanner = document.getElementById('bd-warning-incompatible');
+                if (incompatibleBanner) {
+                    incompatibleBanner.style.display = 'flex';
+                    const restoreBtn = incompatibleBanner.querySelector('#bd-1click-restore-btn');
+                    const restoreLabel = restoreBtn?.querySelector('[data-i18n]');
+
+                    if (result.status === 'incompatible_update') {
+                        if (restoreBtn) restoreBtn.disabled = false;
+                        if (restoreLabel) {
+                            restoreLabel.setAttribute('data-i18n', 'pluginStore.bdBtnRestore');
+                            restoreLabel.textContent = t('pluginStore.bdBtnRestore') || 'Atualizar e Restaurar BD';
+                        }
+                    } else {
+                        if (restoreBtn) restoreBtn.disabled = true;
+                        if (restoreLabel) {
+                            restoreLabel.setAttribute('data-i18n', 'pluginStore.bdBtnWaiting');
+                            restoreLabel.textContent = t('pluginStore.bdBtnWaiting') || 'Aguardando Atualização...';
+                        }
+                    }
+                }
+
+                if (indicator) {
+                    indicator.classList.add('bd-status-incompatible');
+                    indicator.title = 'BetterDiscord incompatible with this Discord version';
+                    if (text) {
+                        text.setAttribute('data-i18n', 'pluginStore.bdStatusIncompatible');
+                        text.textContent = t('pluginStore.bdStatusIncompatible') || 'Incompatível';
+                    }
+                }
+                if (labelEl) {
+                    labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnWaiting');
+                    labelEl.textContent = t('pluginStore.bdBtnWaiting') || 'Aguardando Update';
+                }
+                if (headerBtn) headerBtn.disabled = true;
             } else if (result.status === 'active') {
                 // SolariManager confirmed BD is running in runtime
                 if (indicator) {
@@ -3551,27 +3634,166 @@ var PluginsTabManager = {
                 }
                 if (headerBtn) headerBtn.disabled = false;
             }
+            
+            // Sync SolariManager card with the new BD status
+            this._updateSolariManagerCardStatus(result.sm_connected, result.discord_running);
+
         } catch (e) {
             console.error('[Plugins] Error handling BD status update:', e);
         }
     },
 
-    _handleBDRuntimeStatus(data) {
+    async _updateSolariManagerCardStatus(isActive, discordRunning = true) {
         const dot = document.getElementById('bd-runtime-dot');
         const text = document.getElementById('bd-runtime-text');
+        const stepsContainer = document.getElementById('bd-manager-activation-steps');
+
+        if (isActive) {
+            if (dot) dot.classList.add('active');
+            if (text) {
+                text.classList.add('active');
+                text.setAttribute('data-i18n', 'pluginStore.bdManagerConnected');
+                text.innerHTML = t('pluginStore.bdManagerConnected') || 'Conectado';
+                text.style.color = ''; // reset
+            }
+            if (stepsContainer) stepsContainer.style.display = 'none';
+
+            // Version check for update button
+            let isOutdated = false;
+            try {
+                const installedVersion = await ipcRenderer.invoke('plugin:get-version', 'SolariManager.plugin.js');
+                const remoteVersion = this.metaData?.['solarimanager']?.version;
+                if (installedVersion && remoteVersion) {
+                    const v1 = installedVersion.split('.').map(Number);
+                    const v2 = remoteVersion.split('.').map(Number);
+                    for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+                        if ((v2[i] || 0) > (v1[i] || 0)) { isOutdated = true; break; }
+                        if ((v2[i] || 0) < (v1[i] || 0)) break;
+                    }
+                }
+            } catch (e) { /* ignore */ }
+
+            this._updateSolariManagerButton(true, isOutdated);
+            this._setBDPluginTogglesEnabled(true);
+        } else {
+            if (dot) dot.classList.remove('active');
+            try {
+                const installedVersion = await ipcRenderer.invoke('plugin:get-version', 'SolariManager.plugin.js');
+                if (installedVersion) {
+                    if (text) {
+                        text.classList.remove('active');
+                        if (!discordRunning) {
+                            text.setAttribute('data-i18n', 'pluginStore.bdManagerDiscordClosed');
+                            text.innerHTML = t('pluginStore.bdManagerDiscordClosed') || 'Discord fechado';
+                            text.style.color = ''; // reset
+                        } else {
+                            // Check if BD is the one broken/incompatible
+                            if (this.lastBDStatus === 'incompatible' || this.lastBDStatus === 'incompatible_update') {
+                                text.setAttribute('data-i18n', 'pluginStore.bdStatusIncompatible');
+                                text.innerHTML = t('pluginStore.bdStatusIncompatible') || 'Incompatível';
+                                text.style.color = '#ef4444'; // error red
+                            } else if (this.lastBDStatus === 'broken' || this.lastBDStatus === 'not_installed') {
+                                text.setAttribute('data-i18n', 'pluginStore.bdStatusBroken');
+                                text.innerHTML = t('pluginStore.bdStatusBroken') || 'Broken / Não Instalado';
+                                text.style.color = '#ef4444'; // error red
+                            } else {
+                                text.setAttribute('data-i18n', 'pluginStore.bdManagerInstalledInactive');
+                                text.innerHTML = t('pluginStore.bdManagerInstalledInactive') || 'Instalado (Desativado no BD)';
+                                text.style.color = '#f59e0b'; // warning orange
+                            }
+                        }
+                    }
+                    if (stepsContainer) stepsContainer.style.display = discordRunning ? 'block' : 'none';
+
+                    // Version check for update button
+                    let isOutdated = false;
+                    const remoteVersion = this.metaData?.['solarimanager']?.version;
+                    if (installedVersion && remoteVersion) {
+                        const v1 = installedVersion.split('.').map(Number);
+                        const v2 = remoteVersion.split('.').map(Number);
+                        for (let i = 0; i < Math.max(v1.length, v2.length); i++) {
+                            if ((v2[i] || 0) > (v1[i] || 0)) { isOutdated = true; break; }
+                            if ((v2[i] || 0) < (v1[i] || 0)) break;
+                        }
+                    }
+                    this._updateSolariManagerButton(true, isOutdated);
+                } else {
+                    if (text) {
+                        text.classList.remove('active');
+                        text.setAttribute('data-i18n', 'pluginStore.bdManagerNotConnected');
+                        text.innerHTML = t('pluginStore.bdManagerNotConnected') || 'Não conectado';
+                        text.style.color = ''; // reset
+                    }
+                    if (stepsContainer) stepsContainer.style.display = 'none';
+                    this._updateSolariManagerButton(false);
+                }
+            } catch (e) {
+                if (text) {
+                    text.classList.remove('active');
+                    text.setAttribute('data-i18n', 'pluginStore.bdManagerNotConnected');
+                    text.innerHTML = t('pluginStore.bdManagerNotConnected') || 'Não conectado';
+                    text.style.color = ''; // reset
+                }
+                if (stepsContainer) stepsContainer.style.display = 'none';
+                this._updateSolariManagerButton(false);
+            }
+            this._setBDPluginTogglesEnabled(false);
+        }
+    },
+
+    _setBDPluginTogglesEnabled(enabled) {
+        const gridEl = document.getElementById('plugins-grid');
+        if (!gridEl) return;
+        gridEl.querySelectorAll('.bd-plugin-toggle').forEach(label => {
+            const toggle = label.querySelector('input');
+            if (toggle) {
+                toggle.disabled = !enabled;
+                label.style.opacity = enabled ? '1' : '0.35';
+                label.style.pointerEvents = enabled ? 'auto' : 'none';
+                label.title = enabled ? '' : (t('pluginStore.bdManagerNotConnected') || 'SolariManager desconectado');
+            }
+        });
+    },
+
+    _updateSolariManagerButton(isInstalled, isOutdated = false) {
+        const btn = document.getElementById('bd-manager-install-btn');
+        if (!btn) return;
+
+        btn.disabled = false;
+        if (isOutdated) {
+            btn.setAttribute('data-mode', 'update');
+            btn.classList.remove('danger');
+            btn.classList.add('success');
+            btn.innerHTML = '<span>🚀</span> <span data-i18n="pluginStore.bdManagerUpdate">Atualizar SolariManager</span>';
+        } else if (isInstalled) {
+            btn.setAttribute('data-mode', 'uninstall');
+            btn.classList.add('danger');
+            btn.classList.remove('success');
+            btn.innerHTML = '<span>🗑️</span> <span data-i18n="pluginStore.bdManagerUninstall">Desinstalar SolariManager</span>';
+        } else {
+            btn.setAttribute('data-mode', 'install');
+            btn.classList.remove('danger', 'success');
+            btn.innerHTML = '<span>⚡</span> <span data-i18n="pluginStore.bdManagerInstall">Instalar SolariManager</span>';
+        }
+        // Re-apply translations to the button text
+        if (typeof applyTranslations === 'function') applyTranslations();
+    },
+
+    _handleBDRuntimeStatus(data) {
+        this._updateSolariManagerCardStatus(data.active, data.discordRunning);
+
         const indicator = document.getElementById('bd-status-indicator');
         const statusText = indicator ? indicator.querySelector('.bd-status-text') : null;
         const headerBtn = document.getElementById('bd-1click-header-btn');
         const labelEl = headerBtn ? headerBtn.querySelector('.bd-split-label') : null;
 
         if (data.active) {
-            // SolariManager connected — BD is live
-            if (dot) { dot.classList.add('active'); }
-            if (text) {
-                text.classList.add('active');
-                text.setAttribute('data-i18n', 'pluginStore.bdManagerConnected');
-                text.textContent = t('pluginStore.bdManagerConnected') || 'Conectado';
-            }
+            // Clear all warning banners if SolariManager is connected (BD is definitely working)
+            ['not-installed', 'broken', 'outdated', 'incompatible', 'repairing'].forEach(id => {
+                const el = document.getElementById(`bd-warning-${id}`);
+                if (el) el.style.display = 'none';
+            });
+
             // Upgrade badge to 'active'
             if (indicator) {
                 indicator.className = 'bd-status-badge bd-status-active';
@@ -3579,22 +3801,15 @@ var PluginsTabManager = {
             }
             if (statusText) {
                 statusText.setAttribute('data-i18n', 'pluginStore.bdStatusActive');
-                statusText.textContent = t('pluginStore.bdStatusActive') || 'Ativo';
+                statusText.innerHTML = t('pluginStore.bdStatusActive') || 'Ativo';
             }
             if (labelEl) {
                 labelEl.setAttribute('data-i18n', 'pluginStore.bdBtnReinstall');
-                labelEl.textContent = t('pluginStore.bdBtnReinstall') || 'Reinstalar BD';
+                labelEl.innerHTML = t('pluginStore.bdBtnReinstall') || 'Reinstalar BD';
             }
         } else {
-            // SolariManager disconnected — revert to 'ok'
-            if (dot) { dot.classList.remove('active'); }
-            if (text) {
-                text.classList.remove('active');
-                text.setAttribute('data-i18n', 'pluginStore.bdManagerNotConnected');
-                text.textContent = t('pluginStore.bdManagerNotConnected') || 'Não conectado';
-            }
             // Fallback: trigger a fresh BD status check to restore correct state
-            ipcRenderer.invoke('bd:get-status').then(d => this._handleBDStatusUpdate(d)).catch(() => {});
+            ipcRenderer.invoke('bd:get-status').then(d => this._handleBDStatusUpdate(d)).catch(() => { });
         }
     },
 
@@ -3652,7 +3867,7 @@ var PluginsTabManager = {
                 console.log('[Plugins] Metadata loaded successfully from GitHub.');
             } catch (primaryErr) {
                 console.warn(`[Plugins] GitHub mirror failed. Trying GitLab fallback...`);
-                
+
                 // 2. GitLab Fallback (Level 2)
                 try {
                     const glResponse = await fetch(gitlabUrl);
@@ -3714,6 +3929,24 @@ var PluginsTabManager = {
             if (updateAllBtn && Object.keys(data).length > 0) {
                 updateAllBtn.style.display = 'flex';
             }
+
+            // Initial check for SolariManager connection status
+            try {
+                const rtStatus = await ipcRenderer.invoke('bd:get-runtime-status');
+                if (rtStatus && rtStatus.active) {
+                    this._handleBDRuntimeStatus(rtStatus);
+                    // Request fresh plugin list and use cache immediately if available
+                    ipcRenderer.invoke('bd:get-plugins').then(cached => {
+                        if (cached && cached.length > 0) {
+                            this._renderBDPlugins(cached);
+                        }
+                    }).catch(() => { });
+                } else {
+                    this._updateSolariManagerCardStatus(false);
+                }
+            } catch (e) {
+                this._updateSolariManagerCardStatus(false);
+            }
         } catch (err) {
             if (errorEl && !isBackground) errorEl.style.display = 'flex';
         } finally {
@@ -3747,6 +3980,9 @@ var PluginsTabManager = {
         };
 
         for (const [key, plugin] of Object.entries(data)) {
+            // SolariManager is the core plugin, rendered specifically in the bd-manager-section at the top
+            if (key.toLowerCase() === 'solarimanager') continue;
+
             // Get translations with robust fallback (handles undefined, empty, or key string)
             const tTitleKey = `plugins.${key}.title`;
             const tTitle = t(tTitleKey);
@@ -3928,7 +4164,18 @@ var PluginsTabManager = {
                 const msg = t('pluginStore.activateNotice') !== 'pluginStore.activateNotice' ? t('pluginStore.activateNotice') : 'Ative o plugin nas configurações do BetterDiscord!';
                 showToast('✅', msg, 'success');
                 // Refresh cards to instantly show the blue toggle
-                this.loadPlugins(true);
+                await this.loadPlugins(true);
+
+                // Auto-enable if SolariManager is connected (with 1s delay for BD to detect file)
+                try {
+                    const rtStatus = await ipcRenderer.invoke('bd:get-runtime-status');
+                    if (rtStatus && rtStatus.active) {
+                        setTimeout(async () => {
+                            const pluginName = fileName.replace('.plugin.js', '');
+                            await ipcRenderer.invoke('bd:toggle-plugin', { pluginName, enabled: true });
+                        }, 500);
+                    }
+                } catch (rtErr) { /* ignore */ }
             } else {
                 throw new Error(result.error);
             }
@@ -4409,13 +4656,13 @@ function showSetupWizard() {
     if (typeof appSettings !== 'undefined') {
         const tw = document.getElementById('wizardToggleStartWindows');
         if (tw) tw.checked = appSettings.startWithWindows || false;
-        
+
         const tm = document.getElementById('wizardToggleStartMinimized');
         if (tm) tm.checked = appSettings.startMinimized || false;
-        
+
         const tc = document.getElementById('wizardToggleMinimizeToTray');
         if (tc) tc.checked = appSettings.closeToTray || false;
-        
+
         const ta = document.getElementById('wizardToggleAutoUpdates');
         if (ta) ta.checked = appSettings.autoCheckAppUpdates || false;
     }
@@ -4437,7 +4684,7 @@ function showSetupWizard() {
         'pl': 'pl', 'nl': 'nl', 'sv': 'sv-SE', 'vi': 'vi', 'th': 'th',
         'id': 'id', 'he': 'he', 'hi': 'hi', 'bn': 'bn'
     };
-    
+
     if (map[userLang]) {
         setWizardLanguage(map[userLang]);
     } else {
@@ -4557,7 +4804,7 @@ function finishWizard() {
 
     // Save completion state
     ipcRenderer.send('complete-setup');
-    
+
     // Force UI refresh locally to reflect wizard choices in Settings Tab
     setTimeout(() => {
         ipcRenderer.send('get-data');
@@ -4602,7 +4849,7 @@ function setWizardLanguage(code) {
     initI18n(code).then(() => {
         updateUILanguage();
         updateWizardUI();
-        
+
         // Trigger centralized update
         handleGlobalLanguageChange(code);
 
@@ -5102,10 +5349,10 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
         if (stats.gpu && toggleGPU.checked) {
             gpuGauge.classList.remove('hw-gauge-gpu-unavailable');
             const showTemp = toggleGPUTemp.checked && stats.gpu.temp !== null;
-            
+
             const gpuPercent = stats.gpu.usage !== null ? stats.gpu.usage : (showTemp ? Math.min(stats.gpu.temp, 100) : 0);
             setRingProgress(gpuRing, gpuPercent);
-            
+
             if (stats.gpu.usage !== null && showTemp) {
                 gpuValue.innerHTML = `${stats.gpu.usage}%<br><span style="font-size: 0.55em; opacity: 0.7; font-weight: 500">${stats.gpu.temp}°C</span>`;
             } else if (showTemp) {
@@ -5129,7 +5376,7 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
         if (stats.ram && toggleRAM.checked) parts.push(`${t('hwMonitor.ram')}: ${stats.ram.usedGB}/${stats.ram.totalGB}GB`);
         if (stats.gpu && toggleGPU.checked) {
             const showTemp = toggleGPUTemp.checked && stats.gpu.temp !== null;
-            
+
             if (stats.gpu.usage !== null || showTemp) {
                 let gpuStr = `${t('hwMonitor.gpu')}:`;
                 if (stats.gpu.usage !== null) gpuStr += ` ${stats.gpu.usage}%`;
@@ -5178,7 +5425,7 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
         }
 
         ipcRenderer.invoke('hw-monitor:save-settings', { showCPU, showRAM, showGPU, showGPUTemp });
-        
+
         // Force an immediate UI re-render with current stats
         ipcRenderer.invoke('hw-monitor:get-stats').then(stats => updateGauges(stats));
     }
@@ -5241,7 +5488,7 @@ function getMessageToolsConfigPath() {
     return path.join(appData, 'BetterDiscord', 'plugins', 'SolariMessageTools.config.json');
 }
 
-window.loadSolariMessageToolsConfig = function() {
+window.loadSolariMessageToolsConfig = function () {
     try {
         const configPath = getMessageToolsConfigPath();
         if (fs.existsSync(configPath)) {
@@ -5253,7 +5500,7 @@ window.loadSolariMessageToolsConfig = function() {
         } else {
             // Em vez de lutar, apenas pedimos pro usuário abri o BD para spawnar o arquivo!
             const container = document.getElementById('solari-messagetools-settings-container');
-            if(container) {
+            if (container) {
                 container.innerHTML = '<div style="color: #ef4444; padding: 20px;">Schema não encontrado.<br><br><b>Reinicie ou habilite o Plugin "SolariMessageTools" dentro do BetterDiscord pelo menos 1 vez</b> para gerar o arquivo de link do Solari.</div>';
             }
         }

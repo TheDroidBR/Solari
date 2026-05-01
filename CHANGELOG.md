@@ -4,6 +4,10 @@
 ---
 
 ### ✨ New Plugins & Features
+- **SolariManager Plugin (Core/Essential)**: A new backbone plugin for the Solari ecosystem.
+  - **Runtime Confirmation**: Provides 100% accurate confirmation that BetterDiscord is running and active.
+  - **Remote Management**: Allows the Solari App to enable/disable other Solari plugins directly from the store UI.
+  - **WebSocket Handshake**: Establishes a real-time bridge between Discord and the App for instant status synchronization.
 - **Solari Player Plugin**: A brand new, premium Video Player built entirely inside Discord!
   - **Theater Mode & Picture-in-Picture**: Watch videos in a cinematic, centered lightbox or a floating window while browsing.
   - **Double Tap to Seek & Speed Controls**: Instantly skip or rewind 10 seconds, and adjust playback speed dynamically.
@@ -15,20 +19,32 @@
 ### 🛠️ Plugin Ecosystem Enhancements
 - **Dynamic Meta Parser**: The Plugin Store now renders `title` and `features` fully dynamically directly from `plugins-meta.json`. It no longer requires local translation strings to render beautiful plugin cards, giving developers total freedom.
 - **Smart Config Button**: The settings icon (⚙️) on plugin cards now dynamically detects if the plugin actually has a configuration panel registered in the App. Standalone plugins (like the new Solari Player) will no longer display a non-functional settings button, resulting in a cleaner UI.
+- **Core Card Logic**: SolariManager is now pinned at the top of the store with a unique highlighted design, separated from the standard plugin grid to avoid duplicate cards.
+- **HTML Translation Support**: The i18n engine now supports `innerHTML`, allowing for rich text (bold, italics, etc.) directly in translation strings for better guidance.
 
-### 🔍 BetterDiscord Health Monitoring
+### 🔍 BetterDiscord & Runtime Integration
+- **Active Status Probing**: The app now actively queries the main process for the SolariManager state on tab load, ensuring the "Connected" status is reflected immediately without waiting for a heartbeat.
+- **Smart Activation Guide**: Added a step-by-step visual instruction panel inside the SolariManager card that appears automatically if the plugin is installed but not enabled in the BD settings.
 - **BD Outdated Detection (5th Status State)**: Solari now detects when BetterDiscord is installed and correctly injected, but the local `betterdiscord.asar` version is behind the latest GitHub release.
-  - **GitHub API Integration**: Fetches the latest BD release tag from `api.github.com/repos/BetterDiscord/BetterDiscord/releases/latest` with a 30-minute cache to avoid rate limiting.
-  - **Semver Comparison**: New `semverGt()` helper accurately compares local vs. remote version strings.
-  - **Local Version Reader**: `getLocalBDVersion()` reads the `package.json` inside the `.asar` archive using `process.noAsar = true` to extract the installed BD version.
-  - **`outdated` Status**: When the remote version is newer, `checkBDStatus()` returns `{ status: 'outdated', bdVersion, latestVersion }` instead of `ok`.
-  - **Fail-safe**: If the network is unreachable, the check gracefully falls back to `ok` without any errors.
+  - **GitHub API Integration**: Fetches the latest BD release tag from `api.github.com/repos/BetterDiscord/BetterDiscord/releases/latest` with a 30-minute cache.
   - **Yellow/Amber Banner**: New `bd-warning-outdated` banner with animated version display (`v1.x.x → v1.y.y`) appears in the Plugins tab.
-  - **Pulsing Yellow Badge**: New `bd-status-outdated` badge with a pulsing dot animation distinct from all other states.
-  - **⚡ Auto Update Button**: One-click update button in the banner reuses the existing `plugin:install-bd` flow which already downloads the latest `.asar` from GitHub.
-  - **`bd:check-update` IPC Handler**: New handler that invalidates the version cache and forces a fresh check from the renderer on demand.
-  - **Broadcast Payload Enriched**: `broadcastBDStatus()` now accepts an `extraPayload` parameter, forwarding `bdVersion` and `latestVersion` to the renderer alongside the `status`.
-  - **Full i18n**: 6 new translation keys added to `pt-BR.json` and `en.json` (`bdOutdatedTitle`, `bdOutdatedDesc`, `bdBtnUpdate`, `bdBtnUpdating`, `bdStatusOutdated`, `bd1ClickUpdate`).
+  - **⚡ Auto Update Button**: One-click update button in the banner reuses the existing installation flow without restarting the client.
+  - **`bd:get-runtime-status` IPC**: New handler to fetch the live WebSocket connection state of the manager.
+  - **Full i18n**: Added 12 new translation keys to `pt-BR.json` and `en.json` covering outdated states and the new activation steps.
+
+### 🧪 BetterDiscord Version Detection & Stability
+- **Resilient Detection Engine**: Rewrote the detection logic to support BetterDiscord v1.13.10+, which now injects the version via build-time into minified JS files instead of standard JSON fields.
+- **Deep Binary Scan**: Implemented a binary-safe scan that analyzes the first 256KB of ASAR internal files, locating version strings even within obfuscated and minified code.
+- **Virtual Path Correction**: Removed the `fs.existsSync` dependency for ASAR paths on Windows, eliminating false-negative detections and resolving the "BD not installed" error on updated systems.
+- **Regex Optimization**: New optimized search pattern designed to handle version assignments in code compiled by `esbuild`.
+
+### 🎨 UI & UX Refinement
+- **Smart SolariManager Badge**: The plugin card now features a status hierarchy. It prioritizes error states ("Incompatible" or "Broken") over the connection state, eliminating the confusing "Disabled" message when BD is failing.
+- **Real-Time Synchronization**: Integrated immediate UI updates whenever the BetterDiscord status changes, ensuring instant feedback for the user.
+- **Responsive Layout Fix**: Corrected the text wrapping in the BD update banner via CSS (`white-space: nowrap`), keeping the version comparison readable at any window scale.
+- **Visual Error Feedback**: Implemented semantic colors (error red for critical compatibility issues) in the SolariManager indicators.
+
+---
 
 ---
 

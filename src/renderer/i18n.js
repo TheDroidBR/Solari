@@ -109,7 +109,7 @@ function applyTranslations() {
                 const attr = el.getAttribute('data-i18n-attr');
                 el.setAttribute(attr, translation);
             } else {
-                el.textContent = translation;
+                el.innerHTML = translation;
             }
         }
     });

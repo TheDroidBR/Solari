@@ -13,7 +13,7 @@
     <header>
       <div class="brand">
         <h1>Solari</h1>
-        <span class="version">v1.10.0</span>
+        <span class="version">v1.11.0</span>
         <button id="updateAvailableBtn" class="update-available-btn" style="display: none;" title="Update available!">
           <span class="update-icon">⬇️</span> <span id="updateVersionLabel"></span>
         </button>
@@ -464,6 +464,21 @@
             </div>
           </div>
 
+          <!-- BetterDiscord Incompatible Banner -->
+          <div id="bd-warning-incompatible" class="bd-warning-banner bd-warning-red" style="display: none;">
+            <div class="bd-warning-icon">⚠️</div>
+            <div class="bd-warning-text">
+              <strong data-i18n="pluginStore.bdIncompatibleTitle">BetterDiscord Incompatível</strong>
+              <p data-i18n="pluginStore.bdIncompatibleDesc">Uma atualização do Discord quebrou a compatibilidade.
+                <b>Aguarde um fix oficial</b> para restaurar os plugins.</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button id="bd-1click-restore-btn" class="bd-warning-action-btn bd-warning-action-red">
+                <span>🔄</span> <span data-i18n="pluginStore.bdBtnRestore">Atualizar e Restaurar BD</span>
+              </button>
+            </div>
+          </div>
+
           <!-- BetterDiscord Outdated Banner -->
           <div id="bd-warning-outdated" class="bd-warning-banner bd-warning-yellow" style="display: none;">
             <div class="bd-warning-icon">🔄</div>
@@ -471,8 +486,9 @@
               <strong data-i18n="pluginStore.bdOutdatedTitle">BetterDiscord desatualizado</strong>
               <p>
                 <span data-i18n="pluginStore.bdOutdatedDesc">Uma nova versão do BD está disponível.</span>
-                <span id="bd-version-info" style="display:none;">
-                  &nbsp;(<span id="bd-local-version" style="opacity:0.7;"></span> → <strong id="bd-latest-version" style="color:#eab308;"></strong>)
+                <span id="bd-version-info" style="display:none; white-space: nowrap;">
+                  &nbsp;(<span id="bd-local-version" style="opacity:0.7;"></span> → <span id="bd-latest-version"
+                    style="color:#eab308; font-weight: bold;"></span>)
                 </span>
               </p>
             </div>
@@ -504,7 +520,8 @@
                 <div class="bd-manager-core-info">
                   <div class="bd-manager-core-title">
                     <span>SolariManager</span>
-                    <span class="bd-manager-core-badge" data-i18n="pluginStore.bdManagerCoreBadge">Plugin Essencial</span>
+                    <span class="bd-manager-core-badge" data-i18n="pluginStore.bdManagerCoreBadge">Plugin
+                      Essencial</span>
                   </div>
                   <div class="bd-manager-core-desc" data-i18n="pluginStore.bdManagerCoreDesc">
                     Permite ao Solari App confirmar que o BD está rodando e gerenciar plugins remotamente.
@@ -512,7 +529,8 @@
                 </div>
                 <div class="bd-manager-runtime-status" id="bd-runtime-indicator">
                   <div class="bd-manager-runtime-dot" id="bd-runtime-dot"></div>
-                  <span class="bd-manager-runtime-text" id="bd-runtime-text" data-i18n="pluginStore.bdManagerNotConnected">Não conectado</span>
+                  <span class="bd-manager-runtime-text" id="bd-runtime-text"
+                    data-i18n="pluginStore.bdManagerNotConnected">Não conectado</span>
                 </div>
               </div>
               <div class="bd-manager-core-actions">
@@ -527,6 +545,26 @@
                     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                   </svg>
                 </button>
+              </div>
+
+              <!-- Activation Steps (shown when installed but inactive) -->
+              <div id="bd-manager-activation-steps" class="bd-manager-activation-steps" style="display: none;">
+                <div class="activation-steps-divider"></div>
+                <div class="activation-steps-content">
+                  <div class="activation-steps-title">
+                    <span class="activation-steps-warning">⚠️</span>
+                    <span data-i18n="pluginStore.bdManagerActivationTitle">Como Ativar o SolariManager:</span>
+                  </div>
+                  <ol class="activation-steps-list">
+                    <li data-i18n="pluginStore.bdManagerStep1">Abra as <b>Configurações do Usuário</b> no Discord (ícone
+                      de engrenagem).</li>
+                    <li data-i18n="pluginStore.bdManagerStep2">No menu lateral, role até <b>BetterDiscord</b> e clique
+                      em <b>Plugins</b>.</li>
+                    <li data-i18n="pluginStore.bdManagerStep3">Procure por <b>SolariManager</b> na lista.</li>
+                    <li data-i18n="pluginStore.bdManagerStep4">Clique na <b>chave seletora (toggle)</b> para ativar o
+                      plugin.</li>
+                  </ol>
+                </div>
               </div>
             </div>
           </div>
@@ -1297,7 +1335,7 @@
   <div id="aboutModal" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px; text-align: center;">
       <h2 style="font-size: 2em; margin-bottom: 5px; color: var(--primary);">Solari RPC</h2>
-      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.10.0</p>
+      <p id="aboutVersion" style="opacity: 0.7; margin-bottom: 20px;">v1.11.0</p>
       <div style="text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px;">
         <p style="margin-bottom: 15px;">
           <span data-i18n="about.description">Premium Discord Rich Presence Manager</span><br>

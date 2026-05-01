@@ -5655,6 +5655,8 @@ body.eco-mode .neon-btn {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   transition: all 0.3s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .bd-status-dot {
@@ -5838,13 +5840,17 @@ body.eco-mode .neon-btn {
   background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
+.bd-warning-action-red {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
 /* ---- BD Warning Yellow (Outdated) ---- */
 .bd-warning-yellow {
   background: rgba(234, 179, 8, 0.1);
   border: 1px solid rgba(234, 179, 8, 0.3);
 }
 
-.bd-warning-yellow .bd-warning-text strong {
+.bd-warning-yellow .bd-warning-text > strong {
   color: #facc15;
   display: block;
   margin-bottom: 4px;
@@ -5877,6 +5883,18 @@ body.eco-mode .neon-btn {
 @keyframes pulse-dot-yellow {
   0%, 100% { opacity: 0.6; box-shadow: 0 0 4px rgba(250, 204, 21, 0.4); }
   50%       { opacity: 1;   box-shadow: 0 0 10px rgba(250, 204, 21, 0.8); }
+}
+
+/* ---- BD Status Incompatible Badge ---- */
+.bd-status-badge.bd-status-incompatible {
+  color: #94a3b8;
+  border-color: rgba(148, 163, 184, 0.25);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.bd-status-badge.bd-status-incompatible .bd-status-dot {
+  background: #94a3b8;
+  box-shadow: none;
 }
 
 /* ---- BD Status Active Badge ---- */
@@ -6088,6 +6106,15 @@ body.eco-mode .neon-btn {
   box-shadow: none;
 }
 
+.bd-manager-install-btn.danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.bd-manager-install-btn.danger:hover {
+  background: linear-gradient(135deg, #f87171, #ef4444);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45);
+}
+
 .bd-manager-refresh-btn {
   width: 34px;
   height: 34px;
@@ -6106,6 +6133,65 @@ body.eco-mode .neon-btn {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   transform: rotate(90deg);
+}
+
+/* ---- Activation Steps ---- */
+.bd-manager-activation-steps {
+  margin-top: 16px;
+  animation: slideDown 0.3s ease forwards;
+}
+
+.activation-steps-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  margin-bottom: 16px;
+}
+
+.activation-steps-content {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.activation-steps-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #f59e0b;
+  margin-bottom: 12px;
+}
+
+.activation-steps-warning {
+  font-size: 1.2rem;
+}
+
+.activation-steps-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.activation-steps-list li {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.5;
+}
+
+.activation-steps-list li b, 
+.activation-steps-list li strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+.activation-steps-list li em {
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  font-size: 0.8rem;
 }
 
 /* ---- BD Plugin List ---- */
