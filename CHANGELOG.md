@@ -13,8 +13,6 @@
   - **Double Tap to Seek & Speed Controls**: Instantly skip or rewind 10 seconds, and adjust playback speed dynamically.
   - **Screenshot Bypass**: Easily capture video frames with an anti-CORS clone strategy.
   - **Glassmorphism UI**: Beautiful, fully customized controls replacing Discord's native UI.
-- **InvisibleDetector Plugin**: Added an advanced tool for detecting if Discord users are genuinely offline or hiding in invisible mode.
-  - Features active call probing and passive monitoring strategies.
 
 ### 🛠️ Plugin Ecosystem Enhancements
 - **Dynamic Meta Parser**: The Plugin Store now renders `title` and `features` fully dynamically directly from `plugins-meta.json`. It no longer requires local translation strings to render beautiful plugin cards, giving developers total freedom.
