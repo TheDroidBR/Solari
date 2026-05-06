@@ -11,7 +11,7 @@
 
   <p>
     <a href="https://github.com/TheDroidBR/Solari/releases/latest">
-      <img src="https://img.shields.io/github/v/release/TheDroidBR/Solari?style=for-the-badge&color=orange" alt="Release">
+      <img src="https://img.shields.io/github/v/tag/TheDroidBR/Solari?style=for-the-badge&color=orange" alt="Release">
     </a>
     <a href="https://www.solarirpc.com">
       <img src="https://img.shields.io/website?url=https%3A%2F%2Fsolarirpc.com&style=for-the-badge&label=Website" alt="Website">
