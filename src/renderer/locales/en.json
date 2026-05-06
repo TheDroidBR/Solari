@@ -89,7 +89,14 @@
         "startMinimizedDesc": "Starts directly in the System Tray without showing the window.",
         "minimizeToTrayDesc": "Closing the window keeps Solari open in the tray.",
         "showEcoMode": "Show Eco Mode",
-        "showEcoModeDesc": "Displays the Eco Mode bar at the top of Solari."
+        "showEcoModeDesc": "Displays the Eco Mode bar at the top of Solari.",
+        "privacyTitle": "Privacy",
+        "privacyDesc": "Manage how Solari collects data for improvement.",
+        "labelBasicTelemetry": "Basic (Mandatory)",
+        "basicTelemetryDesc": "Collects only the application version.",
+        "labelAdvancedTelemetry": "Advanced (Developer)",
+        "advancedTelemetryTitle": "Help the Developer",
+        "advancedTelemetryDesc": "Collects additional telemetry related to the Solari App."
     },
     "pluginStore": {
         "title": "Official Plugins",

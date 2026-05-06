@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: ws:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Solari</title>
   <link rel="stylesheet" href="styles.css">
@@ -13,7 +14,7 @@
     <header>
       <div class="brand">
         <h1>Solari</h1>
-        <span class="version">v1.11.0</span>
+        <span class="version">v1.11.1</span>
         <button id="updateAvailableBtn" class="update-available-btn" style="display: none;" title="Update available!">
           <span class="update-icon">⬇️</span> <span id="updateVersionLabel"></span>
         </button>
@@ -359,61 +360,44 @@
               </div>
             </div>
 
-            <!-- Server Status Section (Redesigned v1.7.0) -->
-            <div class="settings-card server-status-card">
+
+
+            <!-- PRIVACY & TELEMETRY SETTINGS CARD -->
+            <div class="settings-card">
               <div class="settings-header">
-                <div class="settings-icon-box" style="background: rgba(0,212,255, 0.15); color: #00d4ff;">📡</div>
+                <div class="settings-icon-box" style="background: rgba(14,165,233, 0.15); color: #0ea5e9;">🛡️</div>
                 <div class="settings-info">
-                  <h3 data-i18n="server.title"
+                  <h3 data-i18n="settings.privacyTitle"
                     style="background: var(--text-gradient, linear-gradient(135deg, #fff, #a1a1aa)); -webkit-background-clip: text; background-clip: text; color: transparent;">
-                    Status do Servidor</h3>
-                  <p data-i18n="server.subtitle">Monitoramento em tempo real dos serviços do Solari</p>
+                    Privacidade</h3>
+                  <p data-i18n="settings.privacyDesc">Gerencie como o Solari coleta dados para melhoria.</p>
                 </div>
               </div>
               <div class="settings-content">
-                <!-- Services Grid -->
-                <div class="server-status-grid">
-                  <div class="server-status-item">
-                    <div class="server-status-dot" id="wsStatusDot" style="background: #4ade80;"></div>
-                    <div class="server-status-info">
-                      <span class="server-status-label" data-i18n="server.ws">WebSocket</span>
-                      <span class="server-status-value" id="wsStatus" data-i18n="server.running">Rodando</span>
-                    </div>
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span data-i18n="settings.labelBasicTelemetry">Básica (Obrigatória)</span>
+                    <span class="settings-row-desc" data-i18n="settings.basicTelemetryDesc"></span>
                   </div>
-                  <div class="server-status-item">
-                    <div class="server-status-dot" id="rpcStatusDot" style="background: #ef4444;"></div>
-                    <div class="server-status-info">
-                      <span class="server-status-label" data-i18n="server.rpc">Discord RPC</span>
-                      <span class="server-status-value" id="rpcStatus" data-i18n="server.connected">Conectado</span>
-                    </div>
-                  </div>
-                  <div class="server-status-item">
-                    <div class="server-status-dot" id="spotifyStatusDot" style="background: #ef4444;"></div>
-                    <div class="server-status-info">
-                      <span class="server-status-label" data-i18n="server.spotify">SpotifySync</span>
-                      <span class="server-status-value" id="spotifyPluginStatus"
-                        data-i18n="server.disconnected">Desconectado</span>
-                    </div>
-                  </div>
-                  <div class="server-status-item">
-                    <div class="server-status-dot" id="smartAfkStatusDot" style="background: #ef4444;"></div>
-                    <div class="server-status-info">
-                      <span class="server-status-label" data-i18n="server.afk">SmartAFK</span>
-                      <span class="server-status-value" id="smartAfkPluginStatus"
-                        data-i18n="server.disconnected">Desconectado</span>
-                    </div>
-                  </div>
+                  <label class="switch is-disabled" title="Esta opção é necessária para o funcionamento do ecossistema Solari.">
+                    <input type="checkbox" checked disabled>
+                    <span class="slider round"></span>
+                  </label>
                 </div>
-                <!-- Actions -->
-                <div class="server-status-actions">
-                  <button id="testConnectionBtn" class="btn btn-secondary btn-small">
-                    🔌 <span data-i18n="server.testConnection">Testar Conexão</span>
-                  </button>
-                  <button id="exportLogsBtn" class="btn btn-secondary btn-small">
-                    📋 <span data-i18n="server.exportLogs">Exportar Logs</span>
-                  </button>
+
+                <div class="settings-row">
+                  <div class="settings-row-label">
+                    <span data-i18n="settings.labelAdvancedTelemetry">Avançada (Desenvolvedor)</span>
+                    <div>
+                      <span data-i18n="settings.advancedTelemetryTitle">Ajudar o Desenvolvedor</span>
+                      <span class="settings-row-desc" data-i18n="settings.advancedTelemetryDesc"></span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="settings-advancedTelemetry" checked>
+                    <span class="slider round"></span>
+                  </label>
                 </div>
-                <p id="testResult" style="margin-top: 8px; font-size: 0.8em; color: #aaa;"></p>
               </div>
             </div>
 

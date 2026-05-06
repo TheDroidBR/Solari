@@ -485,7 +485,7 @@ setInterval(async () => {
     } catch (e) {
         // Silently ignore errors during periodic check
     }
-}, 5000);
+}, 30000); // v1.11.1 Opt: 5s -> 30s to save CPU
 
 // Global appSettings object to store state locally
 let appSettings = {};
@@ -3323,25 +3323,8 @@ var PluginsTabManager = {
             });
         }
 
-        // Listen for background status updates
-        ipcRenderer.on('bd-status-update', (event, data) => {
-            this._handleBDStatusUpdate(data);
-        });
-
-        // Listen for SolariManager runtime confirmation
-        ipcRenderer.on('bd-runtime-status', (event, data) => {
-            this._handleBDRuntimeStatus(data);
-        });
-
-        // Listen for BD plugin list updates
-        ipcRenderer.on('bd-plugins-update', (event, plugins) => {
-            this._renderBDPlugins(plugins);
-        });
-
-        // Request initial status
-        ipcRenderer.invoke('bd:get-status').then(data => {
-            this._handleBDStatusUpdate(data);
-        });
+        // v1.11.1: Status fetch handled by tabs-fix.js to avoid racing bdIncompatibleCounter
+        // Only fetch cached plugins here.
 
         // Request cached plugin list immediately
         ipcRenderer.invoke('bd:get-plugins').then(plugins => {
@@ -3425,8 +3408,9 @@ var PluginsTabManager = {
     },
 
     startAutoRefresh() {
-        // Poll remote every 5 minutes
-        setInterval(() => this.loadPlugins(false, true), 300000);
+        // v1.11.1 Opt: Store reference so interval can be cleared
+        if (this._autoRefreshTimer) return;
+        this._autoRefreshTimer = setInterval(() => this.loadPlugins(false, true), 300000);
 
         // Listen for local file changes (Installer/Deleter)
         ipcRenderer.on('plugins:local-change', () => {
@@ -3822,6 +3806,7 @@ var PluginsTabManager = {
         // Build a map of pluginName -> enabled for quick lookup
         const enabledMap = {};
         plugins.forEach(p => { enabledMap[p.name] = p.enabled; });
+        this._pluginStateCache = enabledMap; // v1.11.1 Opt: Cache for pre-rendering
 
         // Update existing toggles in the plugin cards
         gridEl.querySelectorAll('.bd-plugin-toggle input').forEach(toggle => {
@@ -3839,6 +3824,9 @@ var PluginsTabManager = {
         });
     },
 
+    _lastFetch: 0, // v1.11.1 Opt: Cache timestamp
+    _CACHE_TTL: 10 * 60 * 1000, // 10 minutes
+
     async loadPlugins(forceRefresh = false, isBackground = false) {
         const loadingEl = document.getElementById('plugins-loading');
         const gridEl = document.getElementById('plugins-grid');
@@ -3852,11 +3840,22 @@ var PluginsTabManager = {
             if (errorEl) errorEl.style.display = 'none';
         }
 
+        // v1.11.1 Opt: Use cached metadata if fresh and not a forced refresh
+        if (!forceRefresh && this.metaData && (Date.now() - this._lastFetch) < this._CACHE_TTL) {
+            if (!isBackground) {
+                loadingEl.style.display = 'none';
+                gridEl.style.display = 'grid';
+            }
+            await this.renderPlugins(this.metaData);
+            this.isLoading = false;
+            return;
+        }
+
         try {
             let data = null;
-            const primaryUrl = `https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json?v=${Date.now()}`;
-            const gitlabUrl = `https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/plugins-meta.json?v=${Date.now()}`;
-            const fallbackUrl = `https://solarirpc.com/plugins-meta.json?v=${Date.now()}`;
+            const primaryUrl = `https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json`;
+            const gitlabUrl = `https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/plugins-meta.json`;
+            const fallbackUrl = `https://solarirpc.com/plugins-meta.json`;
 
             // 1. Primary Attempt (GitHub)
             try {
@@ -3897,6 +3896,7 @@ var PluginsTabManager = {
             }
 
             this.metaData = data;
+            this._lastFetch = Date.now(); // v1.11.1 Opt: Mark cache timestamp
 
             // Truly Dynamic: Verify actual remote versions from the download links themselves
             try {
@@ -4050,6 +4050,18 @@ var PluginsTabManager = {
             if (key.toLowerCase() === 'solarimessagetools') panelId = 'configSolariMessageTools';
             const hasConfig = !!document.getElementById(panelId);
 
+                        // v1.11.1 Opt: Pre-apply cached toggle state if available
+            const cleanFileName = plugin.fileName.replace('.plugin.js', '');
+            const stateCache = this._pluginStateCache || {};
+            const isCached = stateCache.hasOwnProperty(cleanFileName);
+            const isEnabled = isCached ? stateCache[cleanFileName] : false;
+            
+            const toggleDisabled = isCached ? '' : 'disabled';
+            const toggleOpacity = isCached ? '1' : '0.35';
+            const togglePointer = isCached ? 'auto' : 'none';
+            const toggleChecked = isEnabled ? 'checked' : '';
+            const toggleTitle = isCached ? `${isEnabled ? 'Desativar' : 'Ativar'} ${cleanFileName}` : 'SolariManager desconectado';
+
             card.innerHTML = `
                 <div class="plugin-card-header">
                     <div class="plugin-icon-box">${info.icon}</div>
@@ -4066,8 +4078,8 @@ var PluginsTabManager = {
                         ${buttonLabel}
                     </button>
                     ${isInstalled ? `
-                    <label class="bd-plugin-toggle" title="SolariManager desconectado" style="opacity:0.35;pointer-events:none; display:flex; align-items:center; margin-left:auto;">
-                        <input type="checkbox" disabled data-plugin="${plugin.fileName.replace('.plugin.js', '')}" />
+                    <label class="bd-plugin-toggle" title="${toggleTitle}" style="opacity:${toggleOpacity};pointer-events:${togglePointer}; display:flex; align-items:center; margin-left:auto;">
+                        <input type="checkbox" ${toggleDisabled} ${toggleChecked} data-plugin="${cleanFileName}" />
                         <span class="bd-plugin-toggle-track"></span>
                     </label>
                     ${hasConfig ? `<button class="btn-plugin-config" title="Configurar" data-plugin-key="${key}">⚙️</button>` : ''}
@@ -5242,6 +5254,18 @@ function showSolariToast(message, type = 'info', duration = 4000) {
         setTimeout(() => toast.remove(), 400);
     }, duration);
 }
+
+// ===== PLUGINSTABMANAGER BOOTSTRAP LISTENERS (v1.11.1 Opt) =====
+// Registered at module-level (once) to prevent listener duplication from init() calls
+ipcRenderer.on('bd-status-update', (event, data) => {
+    PluginsTabManager._handleBDStatusUpdate(data);
+});
+ipcRenderer.on('bd-runtime-status', (event, data) => {
+    PluginsTabManager._handleBDRuntimeStatus(data);
+});
+ipcRenderer.on('bd-plugins-update', (event, plugins) => {
+    PluginsTabManager._renderBDPlugins(plugins);
+});
 
 // Listen for plugin update notifications from main process
 ipcRenderer.on('plugins-updated', (event, plugins) => {

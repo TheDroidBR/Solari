@@ -38,6 +38,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (targetId === 'plugins-tab') {
             if (typeof PluginsTabManager !== 'undefined') {
                 PluginsTabManager.init();
+                
+                // v1.11.1: Unified anti-flicker UI refresh when tab is opened
+                if (window.ipcRenderer) {
+                    Promise.all([
+                        window.ipcRenderer.invoke('bd:get-status'),
+                        window.ipcRenderer.invoke('bd:get-runtime-status')
+                    ]).then(([statusData, rtStatus]) => {
+                        // Prevent UI flicker by syncing the connection state before rendering
+                        if (rtStatus) {
+                            statusData.sm_connected = rtStatus.active;
+                            if (rtStatus.active) {
+                                statusData.status = 'active'; // Force BD badge to active to prevent 'incompatible' flashes
+                            }
+                        }
+                        
+                        if (typeof PluginsTabManager._handleBDStatusUpdate === 'function') {
+                            PluginsTabManager._handleBDStatusUpdate(statusData);
+                        }
+
+                        if (rtStatus && rtStatus.active) {
+                            if (typeof PluginsTabManager._handleBDRuntimeStatus === 'function') {
+                                PluginsTabManager._handleBDRuntimeStatus(rtStatus);
+                            }
+                            window.ipcRenderer.invoke('bd:get-plugins').then(cached => {
+                                if (cached && cached.length > 0 && typeof PluginsTabManager._renderBDPlugins === 'function') {
+                                    PluginsTabManager._renderBDPlugins(cached);
+                                }
+                            }).catch(() => { });
+                        } else {
+                            if (typeof PluginsTabManager._updateSolariManagerCardStatus === 'function') {
+                                PluginsTabManager._updateSolariManagerCardStatus(false);
+                            }
+                        }
+                    }).catch(() => {});
+                }
             }
         } else {
             // No cleanup needed for background refresh

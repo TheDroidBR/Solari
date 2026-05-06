@@ -1,3 +1,54 @@
+## [1.11.1] - 2026-05-06
+**UPDATE 1.11.1: Performance & Stability**
+
+---
+
+### 🛡️ Security
+- **SoundServer Handshake**: Implemented a mandatory security token for the local SoundServer. 
+  - **Unauthorized Access Block**: Prevents unauthorized local applications from accessing your soundboard files or status.
+  - **WebSocket Security**: All sound URLs now include a cryptographically random session token (`?token=...`).
+- **Content Security Policy (CSP)**: Added a security policy to the renderer window to mitigate XSS risks.
+- **Native Navigation Guard**: Added a strict security layer that restricts the application to safe protocols (`https`, `discord`, etc.), blocking unauthorized attempts to execute local files via malicious links.
+
+### ⚡ Performance & Efficiency
+- **Auto-Detect Engine Optimization**: Switched from heavy PowerShell commands to native `tasklist /V`. This provides a massive reduction in CPU spikes during process and browser window title scanning.
+- **CPU Resource Reduction**: Greatly reduced system load by spacing out non-critical polling intervals:
+  - Auto-Detect polling increased from 2s → 3s.
+  - AFK check interval increased from 3s → 10s (now event-driven via WebSocket).
+  - BetterDiscord status poll increased from 5s → 10s.
+  - RPC Health Check interval increased from 5s → 15s.
+- **Memory (RAM) Optimizations**: 
+  - Moved `ipcRenderer` listeners in the Plugins tab to a module-level bootstrap to prevent memory leaks.
+  - Properly stored interval references to allow for effective garbage collection.
+  - Plugin metadata is now cached in-memory for 10 minutes, avoiding redundant network requests.
+- **Electron Background Throttling**: Enabled background throttling and disabled the native spell-checker, drastically reducing CPU overhead when the app is minimized.
+
+### 🔌 Plugins & UI Experience
+- **Instant Plugins Tab**: The Plugins tab and the SolariManager connection status now pre-load in the background. Opening the tab is now completely instantaneous!
+- **Anti-Flicker Architecture**: 
+  - Eliminated the visual UI flicker (false "Incompatível" state) that occurred when the Plugins tab fetched async states at startup.
+  - Fixed a visual glitch where plugin toggles would briefly appear deactivated when opening the plugins tab, by pre-caching WebSocket states before DOM rendering.
+- **Store Stability**: Resolved infinite loading and duplicated plugin cards in the store via strict concurrency locking and pre-fetch rendering.
+- **Settings Streamlining**: Removed the legacy "Server Status" section from the Settings tab. Infrastructure monitoring is now beautifully handled externally via the SolariSite dashboard.
+
+### 🛠️ Core Hardening & Stability
+- **Immediate Process Cleanup**: Enhanced the shutdown of background tasks. When features like Hardware Monitor or Auto-Detect are disabled, active child processes (`nvidia-smi`, `tasklist`) are terminated instantly.
+- **State De-synchronization Fix**: Audited and fixed potential race conditions in IPC state updates between the Main and Renderer processes.
+- **Discord RPC Sync Fixes**: 
+  - Resolved a bug where hardware statistics would remain frozen (ghosting) in the Discord status after disabling the monitor.
+  - Hardware updates via Discord RPC are now perfectly synchronized to a 3s cycle.
+- **AFK Settings Persistence**: Fixed a bug where AFK tiers and timeouts were not saved to disk properly. Settings now persist reliably across restarts.
+- **IPC Event Cleanup**: Implemented defensive listener removal for SoundBoard events to prevent memory leaks during long sessions.
+- **Modular Architecture Refactoring**: Started transition to a modern "Manager" pattern, safely extracting `TelemetryManager` and `AutoDetectManager` into isolated modules.
+
+### 🔒 Privacy & Telemetry
+- **Hybrid Telemetry Model**: Introduced a privacy-conscious data collection tier.
+  - **Basic (Mandatory)**: Reports only the application version.
+  - **Advanced (Optional)**: Reports additional telemetry related to the Solari App.
+- **Real-Time Privacy Controls**: Added a new **"Privacidade"** section in Settings where users can opt-out of advanced diagnostics at any time, with instantaneous synchronization.
+
+---
+
 ## [1.11.0] - 2026-04-29
 **UPDATE 1.11.0: THE PLUGIN STORE REVOLUTION & MEDIA UPDATE**
 
