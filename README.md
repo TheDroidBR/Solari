@@ -86,11 +86,13 @@ The code is fully transparent and available on GitHub under the GPL v2.0 license
 
 ## 🔒 Privacy
 
-Solari collects **minimal, anonymous telemetry** to help us understand how many users are active:
+Solari features a **Hybrid Telemetry Model** designed with your privacy in mind:
 
-- ✅ App version (e.g., "1.4.1")
-- ✅ Random ID (not tied to your identity)
-- ❌ No IP address, Discord info, or personal data
+- **Basic Telemetry (Mandatory):** Collects minimal data to help us count active users.
+  - ✅ App version (e.g., "1.11.1")
+  - ✅ Random ID (not tied to your identity)
+- **Advanced Telemetry (Optional):** Collects additional non-identifiable usage statistics to help us improve the app. You can opt-out at any time via the "Privacidade" tab in settings.
+- ❌ **What we NEVER collect:** No IP addresses, Discord tokens, personal data, or file contents.
 
 This data is used solely for usage statistics and is automatically deleted after 90 seconds of inactivity. For more details, see our [Privacy Policy](https://solarirpc.com/privacy.html).
 

@@ -89,7 +89,14 @@
         "startMinimizedDesc": "Inicia diretamente na Bandeja do Sistema.",
         "minimizeToTrayDesc": "Oculta o app ao invés de fechar.",
         "showEcoMode": "Mostrar Modo Eco",
-        "showEcoModeDesc": "Exibe a barra do Modo Eco no topo do Solari."
+        "showEcoModeDesc": "Exibe a barra do Modo Eco no topo do Solari.",
+        "privacyTitle": "Privacidade",
+        "privacyDesc": "Gerencie como o Solari coleta dados para melhoria.",
+        "labelBasicTelemetry": "Básica (Obrigatória)",
+        "basicTelemetryDesc": "Coleta apenas a versão do app.",
+        "labelAdvancedTelemetry": "Avançada (Desenvolvedor)",
+        "advancedTelemetryTitle": "Ajudar o Desenvolvedor",
+        "advancedTelemetryDesc": "Coleta telemetria adicional do Solari App."
     },
     "pluginStore": {
         "title": "Plugins Oficiais",

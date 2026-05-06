@@ -6,10 +6,11 @@ const fs = require('fs');
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 class SoundServer {
-    constructor(soundBoard, port = null) {
+    constructor(soundBoard, port = null, token = null) {
         const CONSTANTS = require('./constants');
         this.soundBoard = soundBoard;
         this.port = port || CONSTANTS.SOUNDBOARD_DEFAULT_PORT;
+        this.token = token; // v1.11.1: Security token
         this.app = express();
         this.server = null;
         this.maxPortRetries = 10;
@@ -18,10 +19,21 @@ class SoundServer {
     }
 
     setupRoutes() {
+        // v1.11.1: Security Middleware - Check for token
+        this.app.use((req, res, next) => {
+            if (this.token) {
+                const clientToken = req.headers['authorization'] || req.query.token;
+                if (clientToken !== this.token) {
+                    return res.status(403).json({ error: 'Unauthorized - Invalid Security Token' });
+                }
+            }
+            next();
+        });
+
         // CORS for local access
         this.app.use((req, res, next) => {
             res.header('Access-Control-Allow-Origin', '*');
-            res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+            res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
             next();
         });
 

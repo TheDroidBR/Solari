@@ -43,9 +43,16 @@ let WebSocket = { OPEN: 1 };
 const fs = require('fs');
 const { exec, spawn } = require('child_process');
 const UpdateManager = require('./updater_manager');
+const TelemetryManager = require('./telemetryManager'); // v1.11.1
 const CONSTANTS = require('./constants');
+const crypto = require('crypto');
 let SoundBoard = null;
 let SoundServer = null;
+let soundServer = null;
+let telemetry = null; // v1.11.1
+const soundboardToken = crypto.randomBytes(32).toString('hex'); // v1.11.1: Security token
+let activeTasklistProcess = null; // v1.11.1: Track child processes
+let activeNvidiaSmiProcess = null; // v1.11.1: Track child processes
 
 // v1.10: --debug CLI flag support
 if (process.argv.includes('--debug')) {
@@ -69,6 +76,7 @@ let rpcConnected = false; // Track if RPC is actually connected
 let wss;
 let isEnabled = true;
 let isQuitting = false;
+let telemetryWindow = null; // v1.11.1: Shared window for telemetry fallback
 
 // Debug log collection
 const debugLogs = [];
@@ -126,7 +134,8 @@ let appSettings = {
     autoCheckAppUpdates: true,
     autoCheckPluginUpdates: true,
     showEcoMode: true,
-    bdAutoRepair: true // Background Auto-Repair for BetterDiscord
+    bdAutoRepair: true, // Background Auto-Repair for BetterDiscord
+    advancedTelemetry: true // v1.11.1: Detailed telemetry toggle
 };
 
 let connectedPlugins = new Map();
@@ -141,7 +150,7 @@ const BD_HEARTBEAT_TIMEOUT_MS = 90000; // 90s without heartbeat → fallback to 
 
 // SoundBoard
 let soundBoard = null;
-let soundServer = null;
+// soundServer is already declared above
 
 let consoleVisible = true; // Required for dev menu tray toggle
 
@@ -163,7 +172,8 @@ let systemAFKCheckInterval = null;
 let systemAFKSettings = {
     enabled: true,
     timeoutMinutes: 5,
-    afkDisabledPresets: [] // Presets that disable AFK when active
+    afkDisabledPresets: [], // Presets that disable AFK when active
+    afkTiers: [] // v1.11.1: Persisted tiers
 };
 let lastSystemIdleState = false; // Track state to only send on change
 let cachedPluginAfkConfig = null; // Store last config from plugin to sync with Renderer on load
@@ -237,6 +247,10 @@ let bdRepairHistory = [];
 let cachedBDRemoteVersion = null;
 let bdRemoteVersionFetchedAt = 0;
 const BD_VERSION_CACHE_MS = 30 * 60 * 1000; // 30 minutes
+// v1.11.1: Startup grace period — skip incompatible detection for first N ms
+const BD_STARTUP_GRACE_MS = 8000; // 8 seconds for SolariManager WS to connect
+const BD_STARTUP_TIME = Date.now();
+let bdIncompatibleCounter = 0; // Moved from inline to declared for clarity
 
 let currentPrioritySource = null; // Track what's currently controlling RPC
 let lastNotifiedPresetName = null; // Track last preset name that triggered a notification
@@ -278,107 +292,28 @@ function getTrackingUserId() {
     return trackingUserId;
 }
 
-// Heartbeat ping using Electron's native network stack
-async function sendTrackerPing() {
-    try {
-        const version = CONSTANTS.APP_VERSION;
-        const uid = getTrackingUserId();
-        const url = `${TRACKER_URL}?action=ping&version=${encodeURIComponent(version)}&uid=${encodeURIComponent(uid)}`;
-
-        if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Refreshing session:', url);
-
-        // OPTION A: Native fetch (Modern Electron net stack)
-        let confirmed = false;
-        try {
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-                }
-            });
-
-            if (response.ok) {
-                const body = await response.text();
-                // Check if it worked without challenge (standard JSON response)
-                if (body.includes('"success":true')) {
-                    if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Session confirmed via fetch.');
-                    confirmed = true;
-                }
-            }
-        } catch (e) {
-            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Native fetch failed/blocked, attempting browser fallback...');
-        }
-
-        if (confirmed) return;
-
-        // OPTION B: Fallback with standard background window (Solves host challenges)
-        let workerWin = new BrowserWindow({
-            width: 400,
-            height: 300,
-            show: false,
-            webPreferences: {
-                nodeIntegration: false,
-                contextIsolation: true
-            }
-        });
-
-        workerWin.loadURL(url);
-
-        const handleFinishLoad = () => {
-            if (!workerWin || workerWin.isDestroyed()) return;
-
-            workerWin.webContents.executeJavaScript('document.body.innerText')
-                .then((bodyText) => {
-                    if (!bodyText || bodyText.trim() === '') return;
-
-                    try {
-                        const json = JSON.parse(bodyText);
-                        if (json.success) {
-                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Sync successful.');
-                        }
-                        if (workerWin && !workerWin.isDestroyed()) workerWin.destroy();
-                    } catch (e) {
-                        if (bodyText.includes('aes.js') || bodyText.includes('__test=')) {
-                            if (CONSTANTS.DEBUG_MODE) console.log('[Solari Telemetry] Synchronizing with host...');
-                            workerWin.webContents.once('did-finish-load', handleFinishLoad);
-                        } else {
-                            if (workerWin && !workerWin.isDestroyed()) workerWin.destroy();
-                        }
-                    }
-                })
-                .catch(() => { if (workerWin && !workerWin.isDestroyed()) workerWin.destroy(); });
-        };
-
-        workerWin.webContents.once('did-finish-load', handleFinishLoad);
-    } catch (e) {
-        console.error('[Solari Telemetry] Error:', e.message);
-    }
-}
-
-// Send disconnect notification
-async function sendTrackerDisconnect() {
-    try {
-        const uid = getTrackingUserId();
-        if (!uid) return;
-        const url = `${TRACKER_URL}?action=disconnect&uid=${encodeURIComponent(uid)}`;
-
-        // Non-blocking fire and forget
-        fetch(url).catch(() => { });
-    } catch (err) { }
-}
-
-// Start tracking heartbeat
+// Start tracking heartbeat (v1.11.1: Refactored to Class)
 function startTracking() {
-    sendTrackerPing(); // Initial
-    trackerInterval = setInterval(sendTrackerPing, 20000); // 20s interval for better dashboard sync
-    console.log('[Solari Telemetry] Update cycle started');
+    if (!telemetry) {
+        telemetry = new TelemetryManager(TRACKER_URL, CONSTANTS.DEBUG_MODE);
+        telemetry.setUserId(getTrackingUserId());
+    }
+    
+    // v1.11.1: Set level based on user preference
+    telemetry.setAdvancedEnabled(appSettings.advancedTelemetry);
+    
+    // v1.11.1: Ensure we have an initial BD status before first ping
+    checkBDStatus().then(result => {
+        if (telemetry) telemetry.setBDStatus(result.status);
+    }).catch(() => { });
+
+    telemetry.start();
 }
 
 function stopTracking() {
-    if (trackerInterval) {
-        clearInterval(trackerInterval);
-        trackerInterval = null;
+    if (telemetry) {
+        telemetry.stop();
     }
-    console.log('[Solari Telemetry] Stopped');
 }
 
 let dataLoadFailed = false;
@@ -503,12 +438,76 @@ function saveDataSync() {
         clearTimeout(_saveDataTimer);
         _saveDataTimer = null;
     }
-    _saveDataImmediate();
+    _saveDataImmediateSync();
 }
 
-function _saveDataImmediate() {
+async function _saveDataImmediate() {
     if (dataLoadFailed) {
         console.warn('[Solari] Data load failed previously. Saving to RESCUE file to protect original data.');
+        try {
+            const rescuePath = path.join(app.getPath('userData'), 'customrp-data-rescue.json');
+            const rescueData = JSON.stringify({
+                defaultActivity, presets, lastFormState,
+                blockedPlugins: Array.from(blockedPlugins),
+                appSettings, autoDetectEnabled, autoDetectMappings,
+                websiteMappings, fallbackPresetIndex, useExtensionForWeb,
+                clientId, identities, prioritySettings,
+                soundBoardData: soundBoard ? soundBoard.toJSON() : null,
+                trackingUserId,
+                solariNotesSettings,
+                systemAFKSettings, // v1.11.1: Persist AFK settings
+                _rescueTimestamp: new Date().toISOString()
+            }, null, 2);
+            await fs.promises.writeFile(rescuePath, rescueData);
+        } catch (e) { console.error('Failed to save rescue file', e); }
+        return;
+    }
+
+    try {
+        const dataToSave = JSON.stringify({
+            defaultActivity, presets, lastFormState,
+            blockedPlugins: Array.from(blockedPlugins),
+            appSettings,
+            autoDetectEnabled,
+            autoDetectMappings,
+            websiteMappings,
+            fallbackPresetIndex,
+            useExtensionForWeb,
+            clientId,
+            identities,
+            prioritySettings,
+            soundBoardData: soundBoard ? soundBoard.toJSON() : null,
+            trackingUserId: trackingUserId, // Persist tracking ID
+            ecoMode: global.ecoMode || false,
+            setupCompleted: setupCompleted,
+            lastSeenVersion: lastSeenVersion,
+            hwMonitorEnabled: hwMonitorEnabled,
+            hwMonitorSettings: hwMonitorSettings,
+            solariNotesSettings: solariNotesSettings,
+            systemAFKSettings: systemAFKSettings // v1.11.1: Persist AFK settings
+        });
+
+        // Create Backup before saving (Async)
+        if (fs.existsSync(DATA_PATH)) {
+            try {
+                await fs.promises.copyFile(DATA_PATH, DATA_PATH + '.bak');
+            } catch (copyError) {
+                console.error('[Solari] Failed to create backup:', copyError);
+            }
+        }
+
+        // v1.11.1: Atomic Write Strategy (tmp -> rename) to prevent corruption
+        const tmpPath = DATA_PATH + '.tmp';
+        await fs.promises.writeFile(tmpPath, dataToSave);
+        await fs.promises.rename(tmpPath, DATA_PATH);
+    } catch (e) {
+        console.error('Failed to save data', e);
+    }
+}
+
+// v1.11.1: Synchronous version for shutdown scenarios
+function _saveDataImmediateSync() {
+    if (dataLoadFailed) {
         try {
             const rescuePath = path.join(app.getPath('userData'), 'customrp-data-rescue.json');
             fs.writeFileSync(rescuePath, JSON.stringify({
@@ -527,7 +526,6 @@ function _saveDataImmediate() {
     }
 
     try {
-        // Create Backup before saving
         if (fs.existsSync(DATA_PATH)) {
             try {
                 fs.copyFileSync(DATA_PATH, DATA_PATH + '.bak');
@@ -549,16 +547,17 @@ function _saveDataImmediate() {
             identities,
             prioritySettings,
             soundBoardData: soundBoard ? soundBoard.toJSON() : null,
-            trackingUserId: trackingUserId, // Persist tracking ID
+            trackingUserId: trackingUserId, 
             ecoMode: global.ecoMode || false,
             setupCompleted: setupCompleted,
             lastSeenVersion: lastSeenVersion,
             hwMonitorEnabled: hwMonitorEnabled,
             hwMonitorSettings: hwMonitorSettings,
-            solariNotesSettings: solariNotesSettings
+            solariNotesSettings: solariNotesSettings,
+            systemAFKSettings: systemAFKSettings // v1.11.1
         }));
     } catch (e) {
-        console.error('Failed to save data', e);
+        console.error('Failed to save data sync', e);
     }
 }
 
@@ -774,6 +773,12 @@ function applyAppSettings() {
 ipcMain.on('save-app-settings', (event, newSettings) => {
     // Merge newSettings into the global appSettings object
     Object.assign(appSettings, newSettings);
+
+    // v1.11.1: Update telemetry level immediately
+    if (telemetry) {
+        telemetry.setAdvancedEnabled(appSettings.advancedTelemetry);
+    }
+
     applyAppSettings(); // Re-register OS-level settings like auto-launch
     saveData();
     console.log('[Solari] Settings unified from frontend:', appSettings);
@@ -782,6 +787,12 @@ ipcMain.on('save-app-settings', (event, newSettings) => {
 // Single setting update (useful for Wizard toggles)
 ipcMain.on('set-setting', (event, key, value) => {
     appSettings[key] = value;
+
+    // v1.11.1: Update telemetry level immediately if this key changed
+    if (key === 'advancedTelemetry' && telemetry) {
+        telemetry.setAdvancedEnabled(value);
+    }
+
     applyAppSettings();
     saveData();
     console.log(`[Solari] Setting updated: ${key} = ${value}`);
@@ -1723,9 +1734,39 @@ function createWindow() {
         icon: ICON_PATH,
         backgroundColor: '#0f0c29',
         show: false,
-        webPreferences: { nodeIntegration: true, contextIsolation: false }
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false,
+            backgroundThrottling: true,  // v1.11.1 Opt: Throttle timers when minimized
+            spellcheck: false            // v1.11.1 Opt: Disable unneeded spell-checker process
+        }
     });
-    mainWindow.loadFile('src/renderer/index.html');
+    // v1.11.1: Navigation & Security Guard
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        try {
+            const protocol = new URL(url).protocol;
+            if (!CONSTANTS.SAFE_PROTOCOLS.includes(protocol)) {
+                console.warn('[Solari Security] Blocked navigation to unsafe protocol:', protocol);
+                event.preventDefault();
+            }
+        } catch (e) {
+            event.preventDefault();
+        }
+    });
+
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        try {
+            const protocol = new URL(url).protocol;
+            if (CONSTANTS.SAFE_PROTOCOLS.includes(protocol)) {
+                shell.openExternal(url);
+            } else {
+                console.warn('[Solari Security] Blocked external link with unsafe protocol:', protocol);
+            }
+        } catch (e) { }
+        return { action: 'deny' };
+    });
+
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
     mainWindow.on('close', (event) => {
         if (!isQuitting) {
@@ -1840,6 +1881,7 @@ function initializeDiscordRPC(targetClientId = null) {
                 console.log('[Solari] Discord RPC Connected!');
                 rpcClient = connectionClient; // Successfully connected, promote to global!
                 rpcConnected = true;
+                isReconnecting = false; // Fix: Reset reconnection lock so health checks and Client ID switching work
                 connectionAttempts = 0;
                 if (mainWindow) {
                     mainWindow.webContents.send('rpc-status', { connected: true });
@@ -2464,7 +2506,7 @@ const presenceSources = {
         source: null // 'process' or 'website'
     },
 
-    // 4. Default/Fallback - Lowest priority
+    // 5. Default/Fallback - Lowest priority
     defaultFallback: {
         active: true,
         data: null
@@ -3291,6 +3333,12 @@ ipcMain.on('update-afk-settings', (event, settings) => {
         systemAFKSettings.afkDisabledPresets = settings.afkDisabledPresets;
         console.log(`[Solari] Updated AFK disabled presets: ${settings.afkDisabledPresets.join(', ') || 'none'}`);
     }
+    if (settings.afkTiers) {
+        systemAFKSettings.afkTiers = settings.afkTiers;
+    }
+    
+    saveData(); // v1.11.1: Persist settings!
+    
     // Forward to all connected plugins
     if (wss) wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'update_afk_settings', settings })); });
 });
@@ -3405,7 +3453,7 @@ function handleShortcutPlay(soundId) {
     const sound = soundBoard.getSoundById(soundId);
     if (!sound) return;
 
-    const url = `${soundServer.getBaseUrl()}/sounds/${soundId}`;
+    const url = `${soundServer.getBaseUrl()}/sounds/${soundId}?token=${soundboardToken}`;
     const volume = sound.volume * soundBoard.settings.globalVolume;
     const loop = sound.loop || false;
 
@@ -3555,6 +3603,12 @@ ipcMain.handle('plugin:uninstall-bd', async () => {
 function broadcastBDStatus(status, extraPayload = {}, force = false) {
     if (!force && lastKnownBDStatus === status && status !== 'repairing') return;
     lastKnownBDStatus = status;
+
+    // v1.11.1: Update telemetry with BD status
+    if (telemetry) {
+        telemetry.setBDStatus(status);
+    }
+
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('bd-status-update', { status, ...extraPayload });
     }
@@ -3706,7 +3760,6 @@ function isSolariManagerEnabledInBD() {
 }
 
 // Reusable logic for BetterDiscord Check (v1.8.2 — with pending-update detection)
-let bdIncompatibleCounter = 0; // Persistent counter for incompatibility debounce
 
 async function checkBDStatus() {
     try {
@@ -3781,6 +3834,12 @@ async function checkBDStatus() {
             const smIntendedActive = isSolariManagerEnabledInBD();
 
             if (discordRunning && smFileExists && smIntendedActive && !smConnected) {
+                // v1.11.1: Skip incompatible detection during startup grace period
+                // Prevents false positives when SolariManager WS hasn't connected yet
+                if ((Date.now() - BD_STARTUP_TIME) < BD_STARTUP_GRACE_MS) {
+                    return { status: 'ok', bdVersion: getLocalBDVersion(bdAsarPath) };
+                }
+
                 // Potential incompatibility found (Plugin exists and should be on, but no signal)
                 bdIncompatibleCounter++;
 
@@ -4221,9 +4280,10 @@ function getCpuUsage() {
 async function getGpuUsage() {
     return new Promise((resolve) => {
         // Use nvidia-smi if available (fastest C++ utility), otherwise return null
-        exec('nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits',
+        activeNvidiaSmiProcess = exec('nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits',
             { timeout: 1000, windowsHide: true },
             (error, stdout) => {
+                activeNvidiaSmiProcess = null;
                 if (error || !stdout) {
                     resolve(null);
                     return;
@@ -4309,10 +4369,10 @@ async function pollHardwareStats() {
             mainWindow.webContents.send('hw-stats-update', results);
         }
 
-        // Trigger Discord RPC update if enabled and throttled (max once every 5.5s)
+        // Trigger Discord RPC update if enabled and throttled (max once every HW_RPC_THROTTLE_MS)
         if (rpcConnected && hwMonitorEnabled && isEnabled) {
             const now = Date.now();
-            if (now - lastHwRpcUpdate > 5500) {
+            if (now - lastHwRpcUpdate > CONSTANTS.HW_RPC_THROTTLE_MS) {
                 const currentHwString = formatHWStatsForRPC();
                 if (currentHwString && currentHwString !== lastHwRpcString) {
                     lastHwRpcString = currentHwString;
@@ -4348,6 +4408,10 @@ function stopHWMonitor() {
         clearInterval(hwMonitorInterval);
         hwMonitorInterval = null;
         latestHwStats = null;
+        if (activeNvidiaSmiProcess) {
+            try { activeNvidiaSmiProcess.kill(); } catch (e) { }
+            activeNvidiaSmiProcess = null;
+        }
         console.log('[HW Monitor] Stopped');
     }
 }
@@ -4400,6 +4464,7 @@ ipcMain.handle('hw-monitor:toggle', (event, enabled) => {
     }
 
     console.log('[HW Monitor] Toggled:', enabled);
+    updatePresence(); // Force immediate RPC update to show/hide stats
     return { success: true, enabled };
 });
 
@@ -4430,6 +4495,7 @@ ipcMain.handle('hw-monitor:save-settings', (event, newSettings) => {
     }
 
     console.log('[HW Monitor] Settings updated:', JSON.stringify(hwMonitorSettings));
+    if (hwMonitorEnabled) updatePresence(); // Refresh RPC with new display settings
     return { success: true, settings: hwMonitorSettings };
 });
 
@@ -4606,7 +4672,7 @@ ipcMain.handle('soundboard:play', async (event, soundId) => {
         const sound = soundBoard.getSoundById(soundId);
         if (!sound) throw new Error('Sound not found');
 
-        const url = `${soundServer.getBaseUrl()}/sounds/${soundId}`;
+        const url = `${soundServer.getBaseUrl()}/sounds/${soundId}?token=${soundboardToken}`;
         const volume = sound.volume * soundBoard.settings.globalVolume;
         const loop = sound.loop || false;
 
@@ -4846,6 +4912,19 @@ function initializeWebSocketServer() {
                                 mainWindow.webContents.send('bd-plugins-update', cachedBDPlugins);
                             }
                             console.log(`[Solari WSS] SolariManager reported ${cachedBDPlugins.length} BD plugins`);
+                            
+                            // v1.11.1: Update Telemetry with all Solari plugins and their status
+                            if (telemetry) {
+                                const solariKeywords = ['Solari', 'SmartAFK', 'SpotifySync', 'MessageTools'];
+                                const pluginStates = cachedBDPlugins
+                                    .filter(p => p.name && solariKeywords.some(kw => p.name.includes(kw)))
+                                    .map(p => {
+                                        let name = p.name.replace('.plugin.js', '').replace('Detector', '').trim();
+                                        if (name === 'SolariManager') name = 'Manager';
+                                        return `${name}:${p.enabled ? '1' : '0'}`;
+                                    });
+                                telemetry.setActivePlugins(pluginStates);
+                            }
                         }
                         break;
 
@@ -5143,6 +5222,10 @@ function stopAutoDetection() {
         currentDetectedWebsite = null;
         // v1.10 fix: Reset fail counter so it doesn't carry over on next toggle
         websiteCheckFailCount = 0;
+        if (activeTasklistProcess) {
+            try { activeTasklistProcess.kill(); } catch (e) { }
+            activeTasklistProcess = null;
+        }
         console.log('[Solari] Auto-detection stopped');
     }
 }
@@ -5170,7 +5253,8 @@ function checkRunningProcesses(isFirstCheck = false) {
     if (autoDetectMappings.length > 0) {
         isProcessCheckRunning = true; // Lock
 
-        exec('tasklist /FO CSV /NH', { encoding: 'utf8', timeout: 5000, maxBuffer: CONSTANTS.EXEC_MAX_BUFFER }, (error, stdout, stderr) => {
+        activeTasklistProcess = exec('tasklist /FO CSV /NH', { encoding: 'utf8', timeout: 5000, maxBuffer: CONSTANTS.EXEC_MAX_BUFFER }, (error, stdout, stderr) => {
+            activeTasklistProcess = null;
             isProcessCheckRunning = false; // Unlock
 
             if (error) {
@@ -5323,10 +5407,11 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
 
     if (isBrowserCheckRunning || Date.now() < processCheckBackoffUntil) return;
 
-    const psCommand = `powershell -Command "Get-Process | Where-Object {$_.MainWindowTitle -and ($_.ProcessName -match 'brave|chrome|firefox|edge|opera')} | Select-Object -ExpandProperty MainWindowTitle"`;
+    // v1.11.1: Optimized - tasklist /V is much lighter than powershell
+    const tasklistCommand = `tasklist /V /FI "STATUS eq running" /FO CSV /NH | findstr /I "brave chrome firefox msedge opera"`;
     isBrowserCheckRunning = true;
 
-    exec(psCommand, { encoding: 'utf8', timeout: 5000, maxBuffer: CONSTANTS.EXEC_MAX_BUFFER }, (error, stdout, stderr) => {
+    exec(tasklistCommand, { encoding: 'utf8', timeout: 5000, maxBuffer: CONSTANTS.EXEC_MAX_BUFFER }, (error, stdout, stderr) => {
         isBrowserCheckRunning = false;
         let shouldClear = false;
         let foundWebsite = false;
@@ -5590,11 +5675,25 @@ ipcMain.on('set-client-id', (event, newClientId) => {
 // P2-BUG-01: Removed duplicate SoundBoard IPC handlers (get-sounds, get-settings, get-categories, get-history)
 // These are already registered at lines ~4130-4290. The removeHandler+handle pattern here was causing unnecessary re-registration.
 
+function getSoundServerPort() {
+    if (!soundServer) return 6465; // default fallback
+    return soundServer.port;
+}
+
+function getSoundServerToken() {
+    return soundboardToken;
+}
+
 // IPC handler for sound server port
 ipcMain.removeHandler('soundboard:get-server-port');
 ipcMain.handle('soundboard:get-server-port', async () => {
     if (!soundServer) return 6465; // default fallback
     return soundServer.port;
+});
+
+// IPC handler for sound server token
+ipcMain.handle('soundboard:get-server-token', async () => {
+    return soundboardToken;
 });
 
 // IPC handler for direct sound data (bypasses HTTP server)
@@ -5858,7 +5957,7 @@ app.whenReady().then(async () => {
             console.error('[Solari] Error loading saved soundboard data:', e);
         }
 
-        soundServer = new SoundServer(soundBoard);
+        soundServer = new SoundServer(soundBoard, null, soundboardToken);
         soundServer.start().then(port => {
             console.log(`[Solari] SoundServer started on port ${port}`);
             // Register global shortcuts after everything is ready
