@@ -101,6 +101,11 @@ function t(key, replacements = {}) {
 function applyTranslations() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
+        
+        // v1.11.2: Skip presence.largeImageHint to prevent overwriting the dynamic Imgur link
+        // This element is handled manually in renderer.js to support the clickable link.
+        if (key === 'presence.largeImageHint') return;
+
         const translation = t(key);
 
         if (translation && translation !== key) {
@@ -137,13 +142,14 @@ function applyTranslations() {
 async function initI18n(lang = 'en') {
     await loadTranslations(lang);
     applyTranslations();
+    // Dispatch event for startup listeners
+    document.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang, translations } }));
 }
 
 // Listen for language changes from main process
 ipcRenderer.on('language-changed', async (event, lang) => {
     await loadTranslations(lang);
     applyTranslations();
-    // Dispatch custom event for components that need to update dynamically
     document.dispatchEvent(new CustomEvent('languageChanged', { detail: { lang, translations } }));
 });
 

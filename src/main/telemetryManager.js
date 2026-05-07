@@ -28,7 +28,7 @@ class TelemetryManager {
     async sendTrackerPing() {
         if (!this.trackingUserId) return;
 
-        let url = `${this.trackerUrl}?action=ping&uid=${encodeURIComponent(this.trackingUserId)}&version=1.11.1`;
+        let url = `${this.trackerUrl}?action=ping&uid=${encodeURIComponent(this.trackingUserId)}&version=1.11.2`;
 
         // Advanced telemetry data (Optional)
         if (this.advancedEnabled) {
@@ -48,7 +48,7 @@ class TelemetryManager {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
-                    'User-Agent': 'SolariApp/1.11.1',
+                    'User-Agent': 'SolariApp/1.11.2',
                     'Cache-Control': 'no-cache'
                 }
             });

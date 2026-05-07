@@ -2052,8 +2052,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const lang = await ipcRenderer.invoke('get-current-language');
         await initI18n(lang || 'en');
+        updateUILanguage(); // v1.11.2: Force manual link injections on startup
     } catch (e) {
         await initI18n('en');
+        updateUILanguage();
     }
 
     updateStatusDisplay(true);
@@ -2232,20 +2234,22 @@ function updateUILanguage() {
     const fallbackHint = document.querySelector('.default-config .hint');
     if (fallbackHint) fallbackHint.textContent = t('fallback.hint');
 
-    // Image hints
-    const hints = document.querySelectorAll('.rpc-config .hint');
-    hints.forEach((hint, idx) => {
-        const text = hint.textContent;
-        if (text.includes('Imgur') || text.includes('upload')) {
-            hint.innerHTML = t('presence.largeImageHint').replace('Imgur', '<a href="https://imgur.com/upload" target="_blank" style="color: #ff9966;">Imgur</a>');
-        }
-        if (text.includes('canto inferior') || text.includes('bottom right')) {
-            hint.textContent = t('presence.smallImageHint');
-        }
-        if (text.includes('reinicie') || text.includes('restart')) {
-            hint.textContent = t('presence.largeImageWarning');
-        }
-    });
+    // Image hints with dynamic link injection
+    const largeImageHintEl = document.querySelector('[data-i18n="presence.largeImageHint"]');
+    if (largeImageHintEl) {
+        const hintText = t('presence.largeImageHint');
+        largeImageHintEl.innerHTML = hintText.replace('Imgur', '<a href="https://imgur.com/upload" target="_blank" style="color: #ff9966; text-decoration: underline; cursor: pointer;">Imgur</a>');
+    }
+
+    const smallImageHintEl = document.querySelector('[data-i18n="presence.smallImageHint"]');
+    if (smallImageHintEl) {
+        smallImageHintEl.textContent = t('presence.smallImageHint');
+    }
+
+    const largeImageWarningEl = document.querySelector('[data-i18n="presence.largeImageWarning"]');
+    if (largeImageWarningEl) {
+        largeImageWarningEl.textContent = t('presence.largeImageWarning');
+    }
 
     // SmartAFK config panel
     const afkConfigTitle = document.querySelector('#configSmartAFKDetector h2');

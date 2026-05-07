@@ -1,3 +1,21 @@
+## [1.11.2] - 2026-05-06
+**EMERGENCY PATCH: Imgur Link Restoration**
+
+---
+
+### 🔌 Plugins & UI Experience
+- **Restored Imgur Hyperlink**: Fixed a regression where the "Imgur" keyword in the Rich Presence configuration was non-interactive.
+  - **Clickable Logic**: The "Imgur" word is now correctly transformed into a clickable hyperlink that opens the upload page in your default browser.
+  - **Visual Distinction**: Added a permanent underline and cursor pointer to make the link explicitly identifiable as interactive.
+- **Improved i18n Resilience**: Optimized the translation engine to preserve dynamic HTML injections (like links) even during UI-wide refreshes (e.g., when BetterDiscord status changes).
+- **Infinite Loop Fix**: Resolved a critical flickering issue in the Plugins tab caused by redundant event dispatches during the translation cycle.
+
+### 🛠️ Core Hardening & Stability
+- **Startup Sync**: Ensured that manual UI adjustments are applied immediately upon application launch, regardless of initialization speed.
+- **Telemetry Update**: Synchronized internal tracking headers and versioning to reflect the 1.11.2 emergency patch.
+
+---
+
 ## [1.11.1] - 2026-05-06
 **UPDATE 1.11.1: Performance & Stability**
 
