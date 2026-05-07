@@ -1,5 +1,5 @@
 ## [1.11.2] - 2026-05-06
-**EMERGENCY PATCH: Imgur Link Restoration**
+**UPDATE 1.11.2: EMERGENCY PATCH - Imgur Link Restoration**
 
 ---
 
