@@ -54,6 +54,10 @@ const soundboardToken = crypto.randomBytes(32).toString('hex'); // v1.11.1: Secu
 let activeTasklistProcess = null; // v1.11.1: Track child processes
 let activeNvidiaSmiProcess = null; // v1.11.1: Track child processes
 
+// ── Managers (modularization) ────────────────────────────────────────────
+const WindowManager = require('./managers/windowManager');
+const DataManager = require('./managers/dataManager');
+
 // v1.10: --debug CLI flag support
 if (process.argv.includes('--debug')) {
     CONSTANTS.DEBUG_MODE = true;
@@ -316,250 +320,20 @@ function stopTracking() {
     }
 }
 
-let dataLoadFailed = false;
-
 function loadData() {
-    try {
-        if (fs.existsSync(DATA_PATH)) {
-            console.log(`[Solari DEBUG] Loading data from: ${DATA_PATH}`);
-            const rawData = fs.readFileSync(DATA_PATH);
-            const data = JSON.parse(rawData);
-            console.log(`[Solari DEBUG] File parsed. Presets: ${data.presets?.length || 0}, Mappings: ${data.autoDetectMappings?.length || 0}`);
-
-            defaultActivity = data.defaultActivity || {};
-            presets = Array.isArray(data.presets) ? data.presets : [];
-            lastFormState = data.lastFormState || {};
-            if (data.blockedPlugins) blockedPlugins = new Set(data.blockedPlugins);
-            if (data.appSettings) {
-                appSettings = { ...appSettings, ...data.appSettings };
-            } else {
-                // First run or no settings: Auto-detect language
-                const systemLocale = app.getLocale();
-                if (systemLocale && systemLocale.toLowerCase().startsWith('pt')) {
-                    appSettings.language = 'pt-BR';
-                    console.log(`[Solari] Auto-detected system language: ${systemLocale} -> Set to pt-BR`);
-                } else {
-                    appSettings.language = 'en';
-                    console.log(`[Solari] Auto-detected system language: ${systemLocale} -> Set to en`);
-                }
-            }
-            // Load auto-detection settings
-            autoDetectEnabled = data.autoDetectEnabled || false;
-            autoDetectMappings = data.autoDetectMappings || [];
-            websiteMappings = data.websiteMappings || [];
-            fallbackPresetIndex = data.fallbackPresetIndex !== undefined ? data.fallbackPresetIndex : -1;
-            useExtensionForWeb = data.useExtensionForWeb !== undefined ? data.useExtensionForWeb : true;
-            // Load custom client ID
-            if (data.clientId) clientId = data.clientId;
-            // Load identities (App Profiles)
-            if (data.identities) identities = data.identities;
-
-            // MIGRATION: If any mapping exists without a preset, create a stub preset so it shows in the UI
-            autoDetectMappings.forEach(mapping => {
-                const presetExists = presets.some(p => p.name === mapping.presetName);
-                if (!presetExists && mapping.presetName) {
-                    console.log(`[Solari] Migrating orphan mapping to preset: ${mapping.presetName}`);
-                    presets.push({
-                        name: mapping.presetName,
-                        type: 0,
-                        details: '',
-                        state: '',
-                        largeImageKey: '',
-                        largeImageText: '',
-                        smallImageKey: '',
-                        smallImageText: '',
-                        button1Label: '',
-                        button1Url: '',
-                        button2Label: '',
-                        button2Url: '',
-                        clientId: ''
-                    });
-                }
-            });
-
-            // Load priority settings
-            if (data.prioritySettings) prioritySettings = { ...prioritySettings, ...data.prioritySettings };
-
-            if (data.setupCompleted !== undefined) setupCompleted = data.setupCompleted;
-            if (data.lastSeenVersion) lastSeenVersion = data.lastSeenVersion;
-
-            if (data.ecoMode !== undefined) global.ecoMode = data.ecoMode;
-
-            // Load Hardware Monitor settings
-            if (data.hwMonitorEnabled !== undefined) hwMonitorEnabled = data.hwMonitorEnabled;
-            if (data.hwMonitorSettings) hwMonitorSettings = { ...hwMonitorSettings, ...data.hwMonitorSettings };
-
-            // Load Solari Notes settings
-            if (data.solariNotesSettings) solariNotesSettings = { ...solariNotesSettings, ...data.solariNotesSettings };
-
-
-            // Send Eco Mode state to renderer on load handled via data object passed in 'data-loaded'
-            // We just need to make sure it's in the object we send back.
-            // In 'get-data' handler (which we need to find and update if it doesn't just read the file directly or use a global var).
-
-            // Actually, let's check how 'get-data' is handled. 
-            // It seems 'get-data' sends the whole 'data' object read from file + extra runtime info.
-            // So we just need to make sure we SAVE it.
-
-            // Store soundBoard data to be applied after initialization
-            if (data.soundBoardData) {
-                global.pendingSoundBoardData = data.soundBoardData;
-            }
-
-            applyAppSettings();
-
-            // Auto-start HW Monitor if it was enabled before
-            if (hwMonitorEnabled) {
-                // Delay slightly to let the app fully initialize
-                setTimeout(() => startHWMonitor(), 3000);
-            }
-        }
-        dataLoadFailed = false;
-    } catch (e) {
-        console.error('Failed to load data', e);
-        dataLoadFailed = true; // Mark as failed to prevent overwriting with empty data
-    }
+    DataManager.loadData();
 }
 
 // v1.10: Trailing debounce to prevent disk thrashing on rapid settings changes
-let _saveDataTimer = null;
-
 function saveData() {
-    if (_saveDataTimer) clearTimeout(_saveDataTimer);
-    _saveDataTimer = setTimeout(() => {
-        _saveDataImmediate();
-        _saveDataTimer = null;
-    }, CONSTANTS.SAVE_DEBOUNCE_MS);
+    DataManager.saveData();
 }
 
 // Force immediate save (for shutdown scenarios)
 function saveDataSync() {
-    if (_saveDataTimer) {
-        clearTimeout(_saveDataTimer);
-        _saveDataTimer = null;
-    }
-    _saveDataImmediateSync();
+    DataManager.saveDataSync();
 }
 
-async function _saveDataImmediate() {
-    if (dataLoadFailed) {
-        console.warn('[Solari] Data load failed previously. Saving to RESCUE file to protect original data.');
-        try {
-            const rescuePath = path.join(app.getPath('userData'), 'customrp-data-rescue.json');
-            const rescueData = JSON.stringify({
-                defaultActivity, presets, lastFormState,
-                blockedPlugins: Array.from(blockedPlugins),
-                appSettings, autoDetectEnabled, autoDetectMappings,
-                websiteMappings, fallbackPresetIndex, useExtensionForWeb,
-                clientId, identities, prioritySettings,
-                soundBoardData: soundBoard ? soundBoard.toJSON() : null,
-                trackingUserId,
-                solariNotesSettings,
-                systemAFKSettings, // v1.11.1: Persist AFK settings
-                _rescueTimestamp: new Date().toISOString()
-            }, null, 2);
-            await fs.promises.writeFile(rescuePath, rescueData);
-        } catch (e) { console.error('Failed to save rescue file', e); }
-        return;
-    }
-
-    try {
-        const dataToSave = JSON.stringify({
-            defaultActivity, presets, lastFormState,
-            blockedPlugins: Array.from(blockedPlugins),
-            appSettings,
-            autoDetectEnabled,
-            autoDetectMappings,
-            websiteMappings,
-            fallbackPresetIndex,
-            useExtensionForWeb,
-            clientId,
-            identities,
-            prioritySettings,
-            soundBoardData: soundBoard ? soundBoard.toJSON() : null,
-            trackingUserId: trackingUserId, // Persist tracking ID
-            ecoMode: global.ecoMode || false,
-            setupCompleted: setupCompleted,
-            lastSeenVersion: lastSeenVersion,
-            hwMonitorEnabled: hwMonitorEnabled,
-            hwMonitorSettings: hwMonitorSettings,
-            solariNotesSettings: solariNotesSettings,
-            systemAFKSettings: systemAFKSettings // v1.11.1: Persist AFK settings
-        });
-
-        // Create Backup before saving (Async)
-        if (fs.existsSync(DATA_PATH)) {
-            try {
-                await fs.promises.copyFile(DATA_PATH, DATA_PATH + '.bak');
-            } catch (copyError) {
-                console.error('[Solari] Failed to create backup:', copyError);
-            }
-        }
-
-        // v1.11.1: Atomic Write Strategy (tmp -> rename) to prevent corruption
-        const tmpPath = DATA_PATH + '.tmp';
-        await fs.promises.writeFile(tmpPath, dataToSave);
-        await fs.promises.rename(tmpPath, DATA_PATH);
-    } catch (e) {
-        console.error('Failed to save data', e);
-    }
-}
-
-// v1.11.1: Synchronous version for shutdown scenarios
-function _saveDataImmediateSync() {
-    if (dataLoadFailed) {
-        try {
-            const rescuePath = path.join(app.getPath('userData'), 'customrp-data-rescue.json');
-            fs.writeFileSync(rescuePath, JSON.stringify({
-                defaultActivity, presets, lastFormState,
-                blockedPlugins: Array.from(blockedPlugins),
-                appSettings, autoDetectEnabled, autoDetectMappings,
-                websiteMappings, fallbackPresetIndex, useExtensionForWeb,
-                clientId, identities, prioritySettings,
-                soundBoardData: soundBoard ? soundBoard.toJSON() : null,
-                trackingUserId,
-                solariNotesSettings,
-                _rescueTimestamp: new Date().toISOString()
-            }, null, 2));
-        } catch (e) { console.error('Failed to save rescue file', e); }
-        return;
-    }
-
-    try {
-        if (fs.existsSync(DATA_PATH)) {
-            try {
-                fs.copyFileSync(DATA_PATH, DATA_PATH + '.bak');
-            } catch (copyError) {
-                console.error('[Solari] Failed to create backup:', copyError);
-            }
-        }
-
-        fs.writeFileSync(DATA_PATH, JSON.stringify({
-            defaultActivity, presets, lastFormState,
-            blockedPlugins: Array.from(blockedPlugins),
-            appSettings,
-            autoDetectEnabled,
-            autoDetectMappings,
-            websiteMappings,
-            fallbackPresetIndex,
-            useExtensionForWeb,
-            clientId,
-            identities,
-            prioritySettings,
-            soundBoardData: soundBoard ? soundBoard.toJSON() : null,
-            trackingUserId: trackingUserId, 
-            ecoMode: global.ecoMode || false,
-            setupCompleted: setupCompleted,
-            lastSeenVersion: lastSeenVersion,
-            hwMonitorEnabled: hwMonitorEnabled,
-            hwMonitorSettings: hwMonitorSettings,
-            solariNotesSettings: solariNotesSettings,
-            systemAFKSettings: systemAFKSettings // v1.11.1
-        }));
-    } catch (e) {
-        console.error('Failed to save data sync', e);
-    }
-}
 
 // IPC handler for child windows to get current language
 // Resource fetcher for plugins (standard network sync)
@@ -969,37 +743,18 @@ async function checkForUpdates(labels) {
 let splashWindow = null;
 
 function createSplashWindow() {
-    splashWindow = new BrowserWindow({
-        width: 300,
-        height: 400,
-        frame: false,
-        transparent: false,
-        resizable: false,
-        alwaysOnTop: true,
-        skipTaskbar: false,
-        center: true,
-        icon: ICON_PATH,
-        backgroundColor: '#0f0c29',
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        }
-    });
-    splashWindow.loadFile('src/renderer/splash.html');
-    splashWindow.on('closed', () => { splashWindow = null; });
+    splashWindow = WindowManager.createSplashWindow();
     return splashWindow;
 }
 
 function sendSplashStatus(state, message) {
-    if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.webContents.send('update-status', { state, message });
-    }
+    WindowManager.sendSplashStatus(state, message);
+    // Keep local ref in sync
+    splashWindow = WindowManager.getSplashWindow();
 }
 
 function sendSplashProgress(percent, downloaded, total) {
-    if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.webContents.send('download-progress', { percent, downloaded, total });
-    }
+    WindowManager.sendSplashProgress(percent, downloaded, total);
 }
 
 /**
@@ -1728,61 +1483,20 @@ function createWindow() {
     // Log process args for debugging auto-launch detection
     if (CONSTANTS.DEBUG_MODE) console.log('[Solari] process.argv:', JSON.stringify(process.argv));
 
-    // Always start hidden - splash screen or did-finish-load will show the window
-    mainWindow = new BrowserWindow({
-        width: 1200, height: 950, minWidth: 1100, title: "Solari",
-        icon: ICON_PATH,
-        backgroundColor: '#0f0c29',
-        show: false,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            backgroundThrottling: true,  // v1.11.1 Opt: Throttle timers when minimized
-            spellcheck: false            // v1.11.1 Opt: Disable unneeded spell-checker process
-        }
-    });
-    // v1.11.1: Navigation & Security Guard
-    mainWindow.webContents.on('will-navigate', (event, url) => {
-        try {
-            const protocol = new URL(url).protocol;
-            if (!CONSTANTS.SAFE_PROTOCOLS.includes(protocol)) {
-                console.warn('[Solari Security] Blocked navigation to unsafe protocol:', protocol);
-                event.preventDefault();
+    mainWindow = WindowManager.createMainWindow({
+        onClose: (event) => {
+            if (!isQuitting) {
+                if (appSettings.closeToTray) {
+                    event.preventDefault();
+                    mainWindow.hide();
+                    return false;
+                } else {
+                    isQuitting = true;
+                    app.quit();
+                }
             }
-        } catch (e) {
-            event.preventDefault();
+            return true;
         }
-    });
-
-    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        try {
-            const protocol = new URL(url).protocol;
-            if (CONSTANTS.SAFE_PROTOCOLS.includes(protocol)) {
-                shell.openExternal(url);
-            } else {
-                console.warn('[Solari Security] Blocked external link with unsafe protocol:', protocol);
-            }
-        } catch (e) { }
-        return { action: 'deny' };
-    });
-
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-
-    mainWindow.on('close', (event) => {
-        if (!isQuitting) {
-            if (appSettings.closeToTray) {
-                event.preventDefault();
-                mainWindow.hide();
-                return false;
-            } else {
-                // If closeToTray is false, force quit the entire application
-                // because hidden windows (trackerWindow, autoDetectWindow) 
-                // will prevent 'window-all-closed' from firing organically.
-                isQuitting = true;
-                app.quit();
-            }
-        }
-        return true;
     });
 }
 
@@ -5820,6 +5534,63 @@ function checkAdminStatus() {
 app.whenReady().then(async () => {
     const _startupBegin = Date.now(); // v1.10: Startup timing
 
+    // ── Initialize Managers ──────────────────────────────────────────────────
+    // WindowManager needs the icon path (resolved after app is ready)
+    WindowManager.init(ICON_PATH);
+
+    // DataManager needs references to the mutable global state so it can
+    // read/write the same variables the rest of index.js uses.
+    const _sharedStore = {
+        get defaultActivity() { return defaultActivity; },
+        set defaultActivity(v) { defaultActivity = v; },
+        get presets() { return presets; },
+        set presets(v) { presets = v; },
+        get lastFormState() { return lastFormState; },
+        set lastFormState(v) { lastFormState = v; },
+        get blockedPlugins() { return blockedPlugins; },
+        set blockedPlugins(v) { blockedPlugins = v; },
+        get appSettings() { return appSettings; },
+        set appSettings(v) { appSettings = v; },
+        get autoDetectEnabled() { return autoDetectEnabled; },
+        set autoDetectEnabled(v) { autoDetectEnabled = v; },
+        get autoDetectMappings() { return autoDetectMappings; },
+        set autoDetectMappings(v) { autoDetectMappings = v; },
+        get websiteMappings() { return websiteMappings; },
+        set websiteMappings(v) { websiteMappings = v; },
+        get fallbackPresetIndex() { return fallbackPresetIndex; },
+        set fallbackPresetIndex(v) { fallbackPresetIndex = v; },
+        get useExtensionForWeb() { return useExtensionForWeb; },
+        set useExtensionForWeb(v) { useExtensionForWeb = v; },
+        get clientId() { return clientId; },
+        set clientId(v) { clientId = v; },
+        get identities() { return identities; },
+        set identities(v) { identities = v; },
+        get prioritySettings() { return prioritySettings; },
+        set prioritySettings(v) { prioritySettings = v; },
+        get setupCompleted() { return setupCompleted; },
+        set setupCompleted(v) { setupCompleted = v; },
+        get lastSeenVersion() { return lastSeenVersion; },
+        set lastSeenVersion(v) { lastSeenVersion = v; },
+        get hwMonitorEnabled() { return hwMonitorEnabled; },
+        set hwMonitorEnabled(v) { hwMonitorEnabled = v; },
+        get hwMonitorSettings() { return hwMonitorSettings; },
+        set hwMonitorSettings(v) { hwMonitorSettings = v; },
+        get solariNotesSettings() { return solariNotesSettings; },
+        set solariNotesSettings(v) { solariNotesSettings = v; },
+        get systemAFKSettings() { return systemAFKSettings; },
+        set systemAFKSettings(v) { systemAFKSettings = v; },
+        get trackingUserId() { return trackingUserId; },
+        set trackingUserId(v) { trackingUserId = v; },
+        get soundBoard() { return soundBoard; },
+    };
+
+    DataManager.init(_sharedStore, { app, path, fs, CONSTANTS }, (data) => {
+        // Side-effects that must run after data is loaded
+        applyAppSettings();
+        if (hwMonitorEnabled) setTimeout(() => startHWMonitor(), 3000);
+    });
+    // ── End Manager Init ─────────────────────────────────────────────────────
+
     // Check if starting hidden (auto-start with --hidden flag)
     const launchedWithHidden = process.argv.includes('--hidden');
 
@@ -5834,6 +5605,7 @@ app.whenReady().then(async () => {
     const _loadStart = Date.now();
     loadData();
     console.log(`[Solari] Phase 2 (loadData): ${Date.now() - _loadStart}ms`);
+
 
     let updatedPlugins = [];
     const shouldStartHidden = appSettings.startMinimized && appSettings.startWithWindows && launchedWithHidden;
