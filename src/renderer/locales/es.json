@@ -120,6 +120,8 @@
         "bdBtnRepairing": "Reparando...",
         "bdBtnUninstalling": "Desinstalando...",
         "bdStatusPending": "Actualización Pendiente",
+        "bdPendingTitle": "Actualización de Discord Pendiente",
+        "bdPendingDesc": "Discord ha descargado una actualización, pero aún no se ha reiniciado. Auto-Repair ha sido pausado para evitar bucles.",
         "bdBtnWaitUpdate": "Esperando Actualización",
         "bdStatusChecking": "Comprobando...",
         "update": "Actualizar",

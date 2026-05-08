@@ -127,6 +127,8 @@
         "bdBtnRepairing": "Repairing...",
         "bdBtnUninstalling": "Uninstalling...",
         "bdStatusPending": "Update Pending",
+        "bdPendingTitle": "Discord Update Pending",
+        "bdPendingDesc": "Discord has downloaded an update but hasn't restarted yet. Auto-Repair has been paused to prevent loops.",
         "bdBtnWaitUpdate": "Awaiting Update",
         "bdStatusChecking": "Checking...",
         "update": "Update",

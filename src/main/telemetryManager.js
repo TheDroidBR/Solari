@@ -1,4 +1,6 @@
 const { BrowserWindow } = require('electron');
+const CONSTANTS = require('./constants');
+
 
 class TelemetryManager {
     constructor(trackerUrl, debugMode = false) {
@@ -28,7 +30,7 @@ class TelemetryManager {
     async sendTrackerPing() {
         if (!this.trackingUserId) return;
 
-        let url = `${this.trackerUrl}?action=ping&uid=${encodeURIComponent(this.trackingUserId)}&version=1.11.2`;
+        let url = `${this.trackerUrl}?action=ping&uid=${encodeURIComponent(this.trackingUserId)}&version=${CONSTANTS.APP_VERSION}`;
 
         // Advanced telemetry data (Optional)
         if (this.advancedEnabled) {
@@ -48,7 +50,7 @@ class TelemetryManager {
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
-                    'User-Agent': 'SolariApp/1.11.2',
+                    'User-Agent': CONSTANTS.APP_USER_AGENT,
                     'Cache-Control': 'no-cache'
                 }
             });

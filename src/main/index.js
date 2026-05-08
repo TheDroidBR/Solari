@@ -3820,6 +3820,14 @@ async function checkBDStatus() {
         const discordRunning = await isDiscordRunning();
         const smConnected = Array.from(wss.clients).some(c => c.isSolariManager && c.readyState === 1);
 
+        // Heuristic: asar exists, BD is injected in an older app-* dir but NOT in the newest one,
+        // AND there are multiple app-* dirs → Discord downloaded an update but hasn't applied it yet.
+        // We must check this BEFORE the smConnected return, because if Discord is running
+        // with the old version, smConnected will be true, hiding the pending update state.
+        if (asarExists && !injectionFoundInLatest && injectionFoundInOlder && hasMultipleAppDirs) {
+            return { status: 'pending_update', bdVersion: getLocalBDVersion(bdAsarPath) };
+        }
+
         // If we have a live connection, BD is definitely working, regardless of file detection
         if (smConnected) {
             const localVersion = getLocalBDVersion(bdAsarPath);
@@ -3880,11 +3888,7 @@ async function checkBDStatus() {
             return { status: 'ok', bdVersion: localVersion, latestVersion: remoteVersion };
         }
 
-        // Heuristic: asar exists, BD is injected in an older app-* dir but NOT in the newest one,
-        // AND there are multiple app-* dirs → Discord downloaded an update but hasn't applied it yet.
-        if (asarExists && !injectionFoundInLatest && injectionFoundInOlder && hasMultipleAppDirs) {
-            return { status: 'pending_update' };
-        }
+        // The pending_update check has been moved above to take precedence over smConnected
 
         if (asarExists || injectionFoundInLatest || injectionFoundInOlder) return { status: 'broken' };
         return { status: 'not_installed' };
