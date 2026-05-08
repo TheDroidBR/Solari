@@ -13,6 +13,19 @@ const fs = require('fs');
 const path = require('path');
 const { initI18n, t, applyTranslations, loadTranslations, getCurrentLang } = require('./i18n');
 
+// --- Version Injection ---
+(function injectVersion() {
+    try {
+        const pkg = require('../../package.json');
+        const headerVer = document.getElementById('appVersionHeader');
+        const aboutVer = document.getElementById('aboutVersion');
+        if (headerVer) headerVer.textContent = `v${pkg.version}`;
+        if (aboutVer) aboutVer.textContent = `v${pkg.version}`;
+    } catch (e) {
+        console.error('[Solari] Failed to inject version:', e);
+    }
+})();
+
 // --- UI Elements ---
 const activityTypeSelect = document.getElementById('activityType');
 const detailsInput = document.getElementById('details');
@@ -3460,12 +3473,14 @@ var PluginsTabManager = {
             const outdatedBanner = document.getElementById('bd-warning-outdated');
             const incompatibleBanner = document.getElementById('bd-warning-incompatible');
             const repairingBanner = document.getElementById('bd-warning-repairing');
+            const pendingBanner = document.getElementById('bd-warning-pending');
 
             if (notInstalledBanner) notInstalledBanner.style.display = 'none';
             if (brokenBanner) brokenBanner.style.display = 'none';
             if (outdatedBanner) outdatedBanner.style.display = 'none';
             if (incompatibleBanner) incompatibleBanner.style.display = 'none';
             if (repairingBanner) repairingBanner.style.display = 'none';
+            if (pendingBanner) pendingBanner.style.display = 'none';
 
             if (indicator) {
                 indicator.className = 'bd-status-badge';
@@ -3502,6 +3517,8 @@ var PluginsTabManager = {
             } else if (result.status === 'pending_update') {
                 // Discord downloaded an update but user hasn't installed it yet
                 // Auto-repair is paused to prevent infinite loop
+                if (pendingBanner) pendingBanner.style.display = 'flex';
+                
                 if (indicator) {
                     indicator.classList.add('bd-status-broken');
                     indicator.title = 'Discord update pending — Auto-Repair paused';

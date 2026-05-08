@@ -1,3 +1,27 @@
+## [1.12.0] - 2026-05-08
+**UPDATE 1.12.0: DISCORD UPDATE DETECTION RESTORATION**
+
+---
+
+### 🔍 BetterDiscord & Runtime Integration
+- **Restored Discord Pending Update Detection**: Fixed a critical regression where the "Update Pending" state was hidden by active Discord connections, preventing the app from notifying users of necessary restarts.
+  - **Priority Logic Fix**: Rewrote the heuristic in `checkBDStatus` to prioritize pending updates over active heartbeats. Users now see the "Pending" status even while Discord is running if an update is staged.
+  - **Auto-Repair Circuit Breaker**: Refined the integration to automatically pause the Auto-Repair engine when an update is detected, preventing redundant repair attempts during the Discord update cycle.
+- **Enhanced Visual Feedback**: Introduced a high-visibility orange warning banner in the Plugins Store for the pending state.
+  - **Multi-language Support**: Restored and expanded localized strings for English, Portuguese, Spanish, and German.
+  - **Clean UI**: Removed non-essential action buttons from the warning card to focus on clear communication.
+
+### 🛠️ Core Hardening & Stability
+- **Main Process Heuristics**: Optimized the status evaluation sequence to ensure the `pending_update` state is correctly caught and broadcasted to the renderer.
+- **IPC State Synchronization**: Synchronized the new UI banner states with the backend status engine for instantaneous feedback.
+- **Single Source of Truth (Versioning)**: Centralized the application version management into `package.json`.
+  - **Dynamic Telemetry**: Telemetry pings and User-Agent headers now automatically reflect the current version without manual code updates.
+  - **Dynamic UI**: The application header and "About" modal now pull the version directly from the package metadata, ensuring 100% consistency across the app.
+  - **Auto-Update Synchronization**: Ensured the manual update check and changelog fetcher are perfectly aligned with the central versioning source.
+
+
+---
+
 ## [1.11.2] - 2026-05-06
 **UPDATE 1.11.2: EMERGENCY PATCH - Imgur Link Restoration**
 
