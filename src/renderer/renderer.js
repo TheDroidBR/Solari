@@ -4768,7 +4768,7 @@ function updateWizardUI() {
         wizardNextBtn.textContent = startText;
 
         // Trigger confetti on last slide
-        triggerConfetti();
+        uiWizard.confetti();
     } else {
         const nextText = t('wizard.next') || 'Next';
         wizardNextBtn.textContent = nextText;
@@ -5029,118 +5029,18 @@ if (wizardToggleSpotify) {
     wizardToggleSpotify?.addEventListener('change', (e) => handleWizardPluginToggle('spotify', e.target.checked));
 }
 
-// --- CONFETTI (Canvas) ---
-function triggerConfetti() {
-    // Simple particle system
-    const canvas = document.createElement('canvas');
-    const container = document.getElementById('setupWizard');
-    if (!container) return;
+// --- CONFETTI + WIZARD DRAG (extracted to module) ---
+const uiWizard = require('./modules/ui-wizard');
 
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.pointerEvents = 'none';
-    canvas.style.zIndex = '10001';
 
-    container.appendChild(canvas);
+// (wizard drag listeners registered in uiWizard.init() below)
 
-    const ctx = canvas.getContext('2d');
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
 
-    const particles = [];
-    const colors = ['#ff6b35', '#ff2d92', '#00d4ff', '#39ff14', '#ffd700'];
 
-    for (let i = 0; i < 100; i++) {
-        particles.push({
-            x: canvas.width / 2,
-            y: canvas.height / 2 + 50,
-            vx: (Math.random() - 0.5) * 15,
-            vy: (Math.random() - 1) * 15 - 5,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            size: Math.random() * 8 + 4,
-            life: 100
-        });
-    }
+// ===== CHANGELOG MODAL (extracted to module) =====
+const uiChangelog = require('./modules/ui-changelog');
+uiChangelog.init();
 
-    function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let active = false;
-
-        particles.forEach(p => {
-            if (p.life > 0) {
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 0.5; // Gravity
-                p.life--;
-
-                ctx.fillStyle = p.color;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fill();
-                active = true;
-            }
-        });
-
-        if (active) requestAnimationFrame(animate);
-        else canvas.remove();
-    }
-    animate();
-}
-
-// --- WIZARD DRAG LOGIC ---
-const wizardContainer = document.querySelector('.wizard-containerglass');
-let isDraggingWizard = false;
-let wizardDragStartX, wizardDragStartY, wizardInitialLeft, wizardInitialTop;
-
-if (wizardContainer) {
-    wizardContainer?.addEventListener('mousedown', (e) => {
-        // Only allow dragging in preview mode
-        if (!wizardOverlay.classList.contains('preview-mode')) return;
-
-        // Don't drag if clicking buttons or inputs
-        if (e.target.tagName === 'BUTTON' || e.target.closest('.theme-card') || e.target.closest('.lang-card')) return;
-
-        isDraggingWizard = true;
-        wizardDragStartX = e.clientX;
-        wizardDragStartY = e.clientY;
-
-        // Get current transform/position
-        const rect = wizardContainer.getBoundingClientRect();
-        wizardInitialLeft = rect.left;
-        wizardInitialTop = rect.top;
-
-        // Disable transitions during drag
-        wizardContainer.style.transition = 'none';
-        wizardContainer.style.cursor = 'grabbing';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (!isDraggingWizard) return;
-
-        const dx = e.clientX - wizardDragStartX;
-        const dy = e.clientY - wizardDragStartY;
-
-        // Apply new position using absolute positioning
-        wizardContainer.style.position = 'fixed';
-        wizardContainer.style.left = `${wizardInitialLeft + dx}px`;
-        wizardContainer.style.top = `${wizardInitialTop + dy}px`;
-        wizardContainer.style.margin = '0';
-        wizardContainer.style.transform = 'none';
-    });
-
-    document.addEventListener('mouseup', () => {
-        if (isDraggingWizard) {
-            isDraggingWizard = false;
-            wizardContainer.style.cursor = 'grab';
-        }
-    });
-}
-
-// ===== CHANGELOG MODAL =====
-// Shows release notes on first launch of a new version
 
 ipcRenderer.on('show-changelog', (event, data) => {
     const { version, body, name } = data;
@@ -5241,7 +5141,12 @@ function convertMarkdownToHtml(md) {
     return '<p>' + html + '</p>';
 }
 
-// ===== TOAST NOTIFICATION SYSTEM =====
+// ===== TOAST NOTIFICATION SYSTEM (extracted to module) =====
+const uiToast = require('./modules/ui-toast');
+// Backward-compatible global for existing call sites
+window.showSolariToast = uiToast.show;
+function showSolariToast(msg, type, duration) { return uiToast.show(msg, type, duration); }
+
 /**
  * Show a toast notification at the bottom-right of the screen.
  * @param {string} message - Text to display
@@ -5304,228 +5209,22 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
     });
 });
 
-// ===== IN-APP UPDATE BUTTON (v1.8.0) =====
-(function initInAppUpdateCheck() {
-    const updateBtn = document.getElementById('updateAvailableBtn');
-    const updateLabel = document.getElementById('updateVersionLabel');
-    if (!updateBtn) return;
+// ===== IN-APP UPDATE BUTTON (extracted to module) =====
+const uiUpdater = require('./modules/ui-updater');
 
-    async function checkForUpdateSilently() {
-        try {
-            const result = await ipcRenderer.invoke('check-update-silent');
-            if (result && result.hasUpdate) {
-                updateLabel.textContent = `v${result.latestVersion}`;
-                updateBtn.title = `${t('settings.updateAvailableTitle') || 'Update available!'} v${result.latestVersion}`;
-                updateBtn.style.display = 'inline-flex';
-            } else {
-                updateBtn.style.display = 'none';
-            }
-        } catch (e) {
-            console.error('[Solari] Silent update check failed:', e);
-        }
-    }
 
-    // Check on load (with a small delay to not block startup)
-    setTimeout(checkForUpdateSilently, 5000);
 
-    // Re-check every 10 minutes
-    setInterval(checkForUpdateSilently, 600000);
+// ===== HARDWARE SYSTEM MONITOR (extracted to module) =====
+const uiHardware = require('./modules/ui-hardware');
 
-    // Button click → restart with splash to update
-    updateBtn.addEventListener('click', () => {
-        updateBtn.textContent = '⏳';
-        updateBtn.disabled = true;
-        ipcRenderer.send('trigger-update-via-splash');
-    });
+// ===== LATE INIT (after all modules are defined) =====
+(function lateInit() {
+    uiWizard.init();
+    uiUpdater.init();
+    uiHardware.init();
 })();
 
-// ===== HARDWARE SYSTEM MONITOR (Renderer) =====
-(function initHWMonitor() {
-    const CIRCUMFERENCE = 2 * Math.PI * 52; // r=52 from SVG
 
-    const toggle = document.getElementById('hw-monitor-toggle');
-    const gaugesContainer = document.getElementById('hw-gauges-container');
-    const rpcPreview = document.getElementById('hw-rpc-preview');
-    const rpcPreviewText = document.getElementById('hw-rpc-preview-text');
-    const card = document.querySelector('.hw-monitor-card');
-
-    // Gauge elements
-    const cpuRing = document.getElementById('hw-cpu-ring');
-    const cpuValue = document.getElementById('hw-cpu-value');
-    const ramRing = document.getElementById('hw-ram-ring');
-    const ramValue = document.getElementById('hw-ram-value');
-    const gpuRing = document.getElementById('hw-gpu-ring');
-    const gpuValue = document.getElementById('hw-gpu-value');
-    const gpuGauge = document.getElementById('hw-gauge-gpu');
-
-    // Individual toggles
-    const toggleCPU = document.getElementById('hw-toggle-cpu');
-    const toggleRAM = document.getElementById('hw-toggle-ram');
-    const toggleGPU = document.getElementById('hw-toggle-gpu');
-
-    // Advanced toggles
-    const toggleGPUTemp = document.getElementById('hw-toggle-gputemp');
-
-    if (!toggle || !gaugesContainer) return;
-
-    function setRingProgress(ring, percent) {
-        const offset = CIRCUMFERENCE - (percent / 100) * CIRCUMFERENCE;
-        ring.style.strokeDashoffset = Math.max(0, offset);
-    }
-
-    function updateGauges(stats) {
-        if (!stats) return;
-
-        // CPU
-        if (stats.cpu && toggleCPU.checked) {
-            setRingProgress(cpuRing, stats.cpu.usage);
-            cpuValue.textContent = `${stats.cpu.usage}%`;
-            document.getElementById('hw-gauge-cpu').classList.remove('disabled');
-        }
-
-        // RAM
-        if (stats.ram && toggleRAM.checked) {
-            setRingProgress(ramRing, stats.ram.usagePercent);
-            ramValue.textContent = `${stats.ram.usedGB}/${stats.ram.totalGB}`;
-            document.getElementById('hw-gauge-ram').classList.remove('disabled');
-        }
-
-        // GPU
-        if (stats.gpu && toggleGPU.checked) {
-            gpuGauge.classList.remove('hw-gauge-gpu-unavailable');
-            const showTemp = toggleGPUTemp.checked && stats.gpu.temp !== null;
-
-            const gpuPercent = stats.gpu.usage !== null ? stats.gpu.usage : (showTemp ? Math.min(stats.gpu.temp, 100) : 0);
-            setRingProgress(gpuRing, gpuPercent);
-
-            if (stats.gpu.usage !== null && showTemp) {
-                gpuValue.innerHTML = `${stats.gpu.usage}%<br><span style="font-size: 0.55em; opacity: 0.7; font-weight: 500">${stats.gpu.temp}°C</span>`;
-            } else if (showTemp) {
-                gpuValue.textContent = `${stats.gpu.temp}°C`;
-            } else if (stats.gpu.usage !== null) {
-                gpuValue.textContent = `${stats.gpu.usage}%`;
-            } else {
-                gpuValue.textContent = '--';
-            }
-        } else if (!stats.gpu && toggleGPU.checked) {
-            gpuGauge.classList.add('hw-gauge-gpu-unavailable');
-            gpuValue.textContent = 'N/A';
-            setRingProgress(gpuRing, 0);
-        }
-
-        // Build RPC preview string
-        const parts = [];
-        if (stats.cpu && toggleCPU.checked) {
-            parts.push(`${t('hwMonitor.cpu')}: ${stats.cpu.usage}%`);
-        }
-        if (stats.ram && toggleRAM.checked) parts.push(`${t('hwMonitor.ram')}: ${stats.ram.usedGB}/${stats.ram.totalGB}GB`);
-        if (stats.gpu && toggleGPU.checked) {
-            const showTemp = toggleGPUTemp.checked && stats.gpu.temp !== null;
-
-            if (stats.gpu.usage !== null || showTemp) {
-                let gpuStr = `${t('hwMonitor.gpu')}:`;
-                if (stats.gpu.usage !== null) gpuStr += ` ${stats.gpu.usage}%`;
-                if (showTemp) gpuStr += `${stats.gpu.usage !== null ? '' : ' '}(${stats.gpu.temp}°C)`;
-                parts.push(gpuStr.trim());
-            }
-        }
-        rpcPreviewText.textContent = parts.length > 0 ? parts.join(' | ') : '—';
-    }
-
-    // Master toggle
-    toggle.addEventListener('change', async () => {
-        const enabled = toggle.checked;
-        await ipcRenderer.invoke('hw-monitor:toggle', enabled);
-
-        gaugesContainer.style.display = enabled ? 'flex' : 'none';
-        rpcPreview.style.display = enabled ? 'flex' : 'none';
-        card.classList.toggle('active', enabled);
-
-        if (!enabled) {
-            // Reset gauges
-            setRingProgress(cpuRing, 0);
-            setRingProgress(ramRing, 0);
-            setRingProgress(gpuRing, 0);
-            cpuValue.textContent = '0%';
-            ramValue.textContent = '0/0';
-            gpuValue.textContent = '--';
-            rpcPreviewText.textContent = '—';
-        }
-    });
-
-    // Individual toggles
-    function onStatToggle() {
-        const showCPU = toggleCPU.checked;
-        const showRAM = toggleRAM.checked;
-        const showGPU = toggleGPU.checked;
-        const showGPUTemp = toggleGPUTemp.checked;
-
-        document.getElementById('hw-gauge-cpu').classList.toggle('disabled', !showCPU);
-        document.getElementById('hw-gauge-ram').classList.toggle('disabled', !showRAM);
-        document.getElementById('hw-gauge-gpu').classList.toggle('disabled', !showGPU);
-
-        const gpuTempBtn = document.getElementById('hw-mini-toggle-gputemp');
-        if (gpuTempBtn) {
-            gpuTempBtn.classList.toggle('active-gpu', showGPUTemp);
-        }
-
-        ipcRenderer.invoke('hw-monitor:save-settings', { showCPU, showRAM, showGPU, showGPUTemp });
-
-        // Force an immediate UI re-render with current stats
-        ipcRenderer.invoke('hw-monitor:get-stats').then(stats => updateGauges(stats));
-    }
-
-    toggleCPU.addEventListener('change', onStatToggle);
-    toggleRAM.addEventListener('change', onStatToggle);
-    toggleGPU.addEventListener('change', onStatToggle);
-    toggleGPUTemp.addEventListener('change', onStatToggle);
-
-    // Receive live stats from main process
-    ipcRenderer.on('hw-stats-update', (event, stats) => {
-        if (stats) {
-            updateGauges(stats);
-        }
-    });
-
-    // Initialize on load
-    (async () => {
-        try {
-            const result = await ipcRenderer.invoke('hw-monitor:get-settings');
-            if (result) {
-                toggle.checked = result.enabled;
-                if (result.settings) {
-                    toggleCPU.checked = result.settings.showCPU !== false;
-                    toggleRAM.checked = result.settings.showRAM !== false;
-                    toggleGPU.checked = result.settings.showGPU !== false;
-
-                    toggleGPUTemp.checked = result.settings.showGPUTemp !== false;
-                }
-
-                if (result.enabled) {
-                    gaugesContainer.style.display = 'flex';
-                    rpcPreview.style.display = 'flex';
-                    card.classList.add('active');
-
-                    // Apply initial disabled states
-                    onStatToggle();
-
-                    // Show cached stats immediately if available
-                    if (result.stats) {
-                        updateGauges(result.stats);
-                    }
-                }
-
-                // Handle GPU unavailable
-                if (result.gpuAvailable === false) {
-                    gpuGauge.classList.add('hw-gauge-gpu-unavailable');
-                    gpuValue.textContent = 'N/A';
-                }
-            }
-        } catch (e) {
-            console.error('[HW Monitor] Init error:', e);
-        }
-    })();
-})();
 
 // --- SOLARI MESSAGETOOLS IPC & CONFIG MANAGEMENT ---
 function getMessageToolsConfigPath() {

@@ -57,6 +57,7 @@ let activeNvidiaSmiProcess = null; // v1.11.1: Track child processes
 // ── Managers (modularization) ────────────────────────────────────────────
 const WindowManager = require('./managers/windowManager');
 const DataManager = require('./managers/dataManager');
+const HWMonitor = require('./managers/hwMonitor');
 
 // v1.10: --debug CLI flag support
 if (process.argv.includes('--debug')) {
@@ -3963,10 +3964,14 @@ ipcMain.handle('plugin:delete', async (event, fileName) => {
 });
 
 
-// ===== HARDWARE SYSTEM MONITOR =====
+// ===== HARDWARE SYSTEM MONITOR (delegated to managers/hwMonitor.js) =====
+// HWMonitor is initialized in app.whenReady() after managers are set up.
+// These thin wrappers keep backward-compat for any remaining call sites.
+function startHWMonitor() { HWMonitor.startHWMonitor(); }
+function stopHWMonitor() { HWMonitor.stopHWMonitor(); }
+function formatHWStatsForRPC() { return HWMonitor.getFormattedForRPC(); }
 
-const os = require('os');
-let lastCpuInfo = null;
+
 
 // Lightweight CPU usage calculation using built-in OS module (zero external process cost)
 function getCpuUsage() {
@@ -4165,62 +4170,6 @@ function formatHWStatsForRPC() {
 
     return parts.length > 0 ? parts.join(' | ') : null;
 }
-
-// IPC: Toggle hardware monitor
-ipcMain.handle('hw-monitor:toggle', (event, enabled) => {
-    hwMonitorEnabled = enabled;
-    saveData();
-
-    if (enabled) {
-        startHWMonitor();
-    } else {
-        stopHWMonitor();
-        // Notify renderer to clear UI
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('hw-stats-update', null);
-        }
-    }
-
-    console.log('[HW Monitor] Toggled:', enabled);
-    updatePresence(); // Force immediate RPC update to show/hide stats
-    return { success: true, enabled };
-});
-
-// IPC: Get current settings
-ipcMain.handle('hw-monitor:get-settings', () => {
-    return {
-        enabled: hwMonitorEnabled,
-        settings: hwMonitorSettings,
-        stats: latestHwStats,
-        gpuAvailable: hwGpuAvailable
-    };
-});
-
-// IPC: Save settings
-ipcMain.handle('hw-monitor:save-settings', (event, newSettings) => {
-    hwMonitorSettings = { ...hwMonitorSettings, ...newSettings };
-    saveData();
-
-    // Restart polling if running (interval may have changed)
-    if (hwMonitorEnabled) {
-        stopHWMonitor();
-        startHWMonitor();
-    }
-
-    // Reset GPU detection if GPU toggle was changed
-    if ('showGPU' in newSettings) {
-        hwGpuAvailable = null;
-    }
-
-    console.log('[HW Monitor] Settings updated:', JSON.stringify(hwMonitorSettings));
-    if (hwMonitorEnabled) updatePresence(); // Refresh RPC with new display settings
-    return { success: true, settings: hwMonitorSettings };
-});
-
-// IPC: Get latest stats on demand
-ipcMain.handle('hw-monitor:get-stats', () => {
-    return latestHwStats;
-});
 
 
 // ===== SOUNDBOARD IPC HANDLERS =====
@@ -5582,12 +5531,28 @@ app.whenReady().then(async () => {
         get trackingUserId() { return trackingUserId; },
         set trackingUserId(v) { trackingUserId = v; },
         get soundBoard() { return soundBoard; },
+        // HW Monitor
+        get hwMonitorInterval() { return hwMonitorInterval; },
+        set hwMonitorInterval(v) { hwMonitorInterval = v; },
+        get latestHwStats() { return latestHwStats; },
+        set latestHwStats(v) { latestHwStats = v; },
+        get hwGpuAvailable() { return hwGpuAvailable; },
+        set hwGpuAvailable(v) { hwGpuAvailable = v; },
+        get rpcConnected() { return rpcConnected; },
+        get isEnabled() { return isEnabled; },
     };
 
     DataManager.init(_sharedStore, { app, path, fs, CONSTANTS }, (data) => {
         // Side-effects that must run after data is loaded
         applyAppSettings();
         if (hwMonitorEnabled) setTimeout(() => startHWMonitor(), 3000);
+    });
+
+    HWMonitor.init(_sharedStore, {
+        CONSTANTS,
+        saveData,
+        updatePresence,
+        getMainWindow: () => mainWindow
     });
     // ── End Manager Init ─────────────────────────────────────────────────────
 
