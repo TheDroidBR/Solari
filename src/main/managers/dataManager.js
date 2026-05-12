@@ -104,6 +104,7 @@ function loadData() {
         // Client & Identities
         if (data.clientId) _store.clientId = data.clientId;
         if (data.identities) _store.identities = data.identities;
+        if (data.globalAppName) _store.globalAppName = data.globalAppName;
 
         // Migrate orphan mappings to stub presets
         _store.autoDetectMappings.forEach(mapping => {
@@ -197,6 +198,7 @@ function _buildPayload() {
         useExtensionForWeb: _store.useExtensionForWeb,
         clientId: _store.clientId,
         identities: _store.identities,
+        globalAppName: _store.globalAppName,
         prioritySettings: _store.prioritySettings,
         soundBoardData: _store.soundBoard ? _store.soundBoard.toJSON() : null,
         trackingUserId: _store.trackingUserId,

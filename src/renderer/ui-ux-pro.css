@@ -1,0 +1,140 @@
+/* ==================== ACCESSIBILITY & FOCUS ==================== */
+:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 2px var(--bg-dark), 0 0 0 4px var(--primary) !important;
+  border-radius: inherit;
+  transition: box-shadow var(--transition-normal);
+}
+
+.btn:focus-visible, .tab-btn:focus-visible, .theme-btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--bg-dark), 0 0 15px var(--primary) !important;
+}
+
+.switch input:focus-visible + .slider {
+  box-shadow: 0 0 0 3px var(--bg-dark), 0 0 12px var(--primary) !important;
+}
+
+#solari-tooltip {
+  background: rgba(15, 12, 41, 0.85) !important;
+  backdrop-filter: blur(12px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  padding: 10px 14px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  line-height: 1.5 !important;
+}
+
+/* ==================== SKELETON LOADERS ==================== */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 2s infinite linear;
+  border-radius: 4px;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+  height: 200px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-main);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow: hidden;
+}
+
+.skeleton-circle { width: 40px; height: 40px; border-radius: 50%; }
+.skeleton-line { height: 14px; width: 100%; border-radius: 4px; }
+.skeleton-line.short { width: 60%; }
+
+/* ==================== EMPTY STATES ==================== */
+.empty-state-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  opacity: 0;
+  animation: fadeIn var(--transition-slow) forwards;
+}
+
+.empty-state-icon-wrapper {
+  position: relative;
+  font-size: 64px;
+  margin-bottom: 24px;
+  filter: drop-shadow(0 0 20px var(--glow-primary));
+}
+
+.empty-state-icon-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+  transform: translate(-50%, -50%);
+  opacity: 0.2;
+  z-index: -1;
+  animation: pulse 4s infinite;
+}
+
+.empty-state-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: var(--gradient-fire);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.empty-state-text {
+  color: var(--text-dim);
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+/* ==================== PREMIUM EXTRAS ==================== */
+/* Glow on hover for all glass cards */
+.glass-card:hover {
+  border-color: var(--glass-border-strong);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(255, 255, 255, 0.05);
+}
+
+/* Custom Scrollbar for Chrome/Electron */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--primary-light), var(--primary));
+}
+

@@ -16,6 +16,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+const _startupBegin = Date.now();
 const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, shell, powerMonitor, globalShortcut, dialog, net, session } = require('electron');
 app.setName('Solari');
 app.setPath('userData', require('path').join(require('os').homedir(), 'AppData', 'Roaming', 'Solari'));
@@ -89,11 +90,24 @@ const debugLogs = [];
 function addLog(message) {
     const timestamp = new Date().toISOString();
     debugLogs.push(`[${timestamp}] ${message}`);
-    // v1.10 fix: Trim logs immediately instead of only on reload
-    while (debugLogs.length > CONSTANTS.MAX_LOGS) {
-        debugLogs.shift();
+    if (debugLogs.length > CONSTANTS.MAX_LOGS) {
+        debugLogs.splice(0, debugLogs.length - CONSTANTS.MAX_LOGS);
     }
     console.log(message);
+}
+
+/** 
+ * Centralized error logger
+ * @param {string} context - Where the error happened
+ * @param {Error|string} error - The error object or message
+ */
+function logError(context, error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : '';
+    addLog(`[ERROR][${context}] ${errMsg}`);
+    if (stack && CONSTANTS.DEBUG_MODE) {
+        console.error(`[${context}] Stack:`, stack);
+    }
 }
 
 
@@ -267,6 +281,7 @@ const ICON_PATH = app.isPackaged
     : path.join(__dirname, '..', '..', 'SolariPhotoTransparente.png');
 const DEFAULT_CLIENT_ID = ''; // User must configure their own Client ID
 let clientId = DEFAULT_CLIENT_ID; // Can be changed by user (global default)
+let globalAppName = 'Discord App'; // Real application name (persisted)
 let identities = []; // Array of { id: string, name: string } - Multiple App Profiles
 let currentClientId = null; // Currently active Client ID for RPC connection
 let pendingActivity = null; // Activity to set after Client ID switch completes
@@ -1646,6 +1661,8 @@ function initializeDiscordRPC(targetClientId = null) {
                 }
 
                 if (rpcClient === connectionClient && mainWindow) {
+                    globalAppName = appName;
+                    saveData();
                     mainWindow.webContents.send('app-name-loaded', appName);
                 }
 
@@ -2175,7 +2192,7 @@ function setActivity(activity, presetClientId = null) {
             });
             if (CONSTANTS.DEBUG_MODE) console.log('[Solari] Activity set successfully');
         } catch (err) {
-            console.error('[Solari] setActivity error:', err.message);
+            logError('setActivity', err);
             // v1.10 fix: Don't attempt inline reconnect — it was crashing because
             // rpcClient.destroy() nullifies the transport, then login() fails.
             // Instead, mark as disconnected and let the health check handle reconnection.
@@ -2304,7 +2321,7 @@ async function updatePresence() {
             // when the same platform is reopened (e.g., close Twitch, reopen Twitch)
             currentActivity = {};
             if (rpcClient && rpcConnected) {
-                rpcClient.clearActivity().catch(err => console.error('[Solari] Failed to clear activity:', err));
+                rpcClient.clearActivity().catch(err => logError('clearActivity', err));
             }
         }
         return;
@@ -2520,6 +2537,7 @@ function handleBrowserMediaUpdate(message, ws) {
                     presenceSources.autoDetect.data = null;
                     presenceSources.autoDetect.source = null;
                     presenceSources.autoDetect.presetName = null;
+                    broadcastAutoDetectState();
                 }
 
                 // EXPLICIT CLEAR REMOVED: Rely on updatePresence() to manage priorities.
@@ -2693,6 +2711,15 @@ function broadcastPluginList() {
     }
 }
 
+function broadcastAutoDetectState() {
+    if (mainWindow) {
+        mainWindow.webContents.send('auto-detect-result', {
+            presetName: presenceSources.autoDetect.presetName
+        });
+    }
+}
+
+
 ipcMain.on('update-activity', (event, activity) => {
     // 1. Update Manual Source
     const hasData = (activity.details || activity.state);
@@ -2733,8 +2760,8 @@ ipcMain.on('reset-activity', (event) => {
     presenceSources.manualPreset.data = null;
     presenceSources.manualPreset.clientId = null;
 
-    // Trigger update (will fallback to auto-detect or default)
     updatePresence();
+    if (mainWindow) mainWindow.webContents.send('manual-mode-changed', false);
     event.reply('activity-reset');
 });
 
@@ -3083,7 +3110,9 @@ ipcMain.on('get-data', (event) => {
         rpcConnected: rpcConnected, // Send current RPC connection status
         ecoMode: global.ecoMode, // Send eco mode status
         appSettings: appSettings, // CRITICAL: Send full settings for Settings Tab
-        identities: identities // FIXED: Added missing identities list
+        identities: identities, // FIXED: Added missing identities list
+        globalClientId: clientId, // v1.12.0: Used by onboarding banner
+        autoDetectPreset: presenceSources.autoDetect.presetName // v1.12.0: Current detected preset
     });
     updateTrayMenu();
     Menu.setApplicationMenu(null); // Ensure top menu bar is disabled!
@@ -4893,6 +4922,16 @@ function stopAutoDetection() {
             try { activeTasklistProcess.kill(); } catch (e) { }
             activeTasklistProcess = null;
         }
+        // v1.12.0: Also clear the presence source state and notify renderer
+        presenceSources.autoDetect.active = false;
+        presenceSources.autoDetect.data = null;
+        presenceSources.autoDetect.source = null;
+        presenceSources.autoDetect.presetName = null;
+        broadcastAutoDetectState();
+
+        // CRITICAL FIX: Trigger updatePresence to clear the activity from Discord instantly
+        updatePresence();
+
         console.log('[Solari] Auto-detection stopped');
     }
 }
@@ -5005,6 +5044,7 @@ function checkRunningProcesses(isFirstCheck = false) {
                             presenceSources.autoDetect.source = 'process';
                             presenceSources.autoDetect.clientId = finalClientId;
                             presenceSources.autoDetect.presetName = preset.name;
+                            broadcastAutoDetectState();
 
                             updatePresence();
                         }
@@ -5035,6 +5075,7 @@ function checkRunningProcesses(isFirstCheck = false) {
                         presenceSources.autoDetect.data = null;
                         presenceSources.autoDetect.source = null;
                         presenceSources.autoDetect.presetName = null;
+                        broadcastAutoDetectState();
 
                         updatePresence();
                     }
@@ -5068,6 +5109,7 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
             presenceSources.autoDetect.data = null;
             presenceSources.autoDetect.source = null;
             presenceSources.autoDetect.presetName = null;
+            broadcastAutoDetectState();
         }
         return;
     }
@@ -5152,6 +5194,7 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
                     presenceSources.autoDetect.source = 'website';
                     presenceSources.autoDetect.clientId = preset.clientId;
                     presenceSources.autoDetect.presetName = preset.name;
+                    broadcastAutoDetectState();
 
                     // CRITICAL FIX: Update control variable so Process Monitor knows we are active
                     currentDetectedWebsite = matchedMapping.keyword;
@@ -5180,6 +5223,7 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
                 presenceSources.autoDetect.data = null;
                 presenceSources.autoDetect.source = null;
                 presenceSources.autoDetect.presetName = null;
+                broadcastAutoDetectState();
 
                 currentDetectedWebsite = null;
                 if (currentDetectedProcess === null) {
@@ -5309,6 +5353,7 @@ ipcMain.on('set-use-extension-for-web', (event, useExtension) => {
         presenceSources.autoDetect.data = null;
         presenceSources.autoDetect.source = null;
         presenceSources.autoDetect.presetName = null;
+        broadcastAutoDetectState();
     }
     // If switching to autoDetect mode, clear any existing extension state
     if (!useExtension && presenceSources.browserExtension.active) {
@@ -5538,6 +5583,10 @@ app.whenReady().then(async () => {
         set latestHwStats(v) { latestHwStats = v; },
         get hwGpuAvailable() { return hwGpuAvailable; },
         set hwGpuAvailable(v) { hwGpuAvailable = v; },
+        get identities() { return identities; },
+        set identities(v) { identities = v; },
+        get globalAppName() { return globalAppName; },
+        set globalAppName(v) { globalAppName = v; },
         get rpcConnected() { return rpcConnected; },
         get isEnabled() { return isEnabled; },
     };
@@ -5617,6 +5666,13 @@ app.whenReady().then(async () => {
             console.log('[Solari] Window loaded but staying hidden (auto-start)');
         }
 
+        // v1.12.0 FIX: Send last known app name immediately on window load
+        // This prevents the "Discord App" placeholder from appearing while RPC connects
+        if (globalAppName && globalAppName !== 'Discord App') {
+            console.log('[Solari] Sending cached app name to renderer:', globalAppName);
+            mainWindow.webContents.send('app-name-loaded', globalAppName);
+        }
+
         // Close splash if it exists
         if (splashWindow && !splashWindow.isDestroyed()) {
             splashWindow.close();
@@ -5660,6 +5716,8 @@ app.whenReady().then(async () => {
                     const parsed = JSON.parse(data);
                     if (parsed.name && mainWindow) {
                         console.log('[Solari] Early app name fetch:', parsed.name);
+                        globalAppName = parsed.name;
+                        saveData();
                         mainWindow.webContents.send('app-name-loaded', parsed.name);
                     }
                 } catch (e) {

@@ -68,6 +68,17 @@ const testResult = document.getElementById('testResult');
 // Tab System
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
+const tabIndicator = document.querySelector('.tab-indicator');
+
+/**
+ * Atualiza a posição e largura do indicador de aba
+ * @param {HTMLElement} activeBtn - O botão da aba ativa
+ */
+function updateTabIndicator(activeBtn) {
+    if (!tabIndicator || !activeBtn) return;
+    tabIndicator.style.width = `${activeBtn.offsetWidth}px`;
+    tabIndicator.style.left = `${activeBtn.offsetLeft}px`;
+}
 
 function switchTab(tabId) {
     // Remove active from all tabs
@@ -81,6 +92,7 @@ function switchTab(tabId) {
     if (targetBtn && targetContent) {
         targetBtn.classList.add('active');
         targetContent.classList.add('active');
+        updateTabIndicator(targetBtn);
     }
 }
 
@@ -90,6 +102,17 @@ tabBtns.forEach(btn => {
         const tabId = btn.dataset.tab;
         switchTab(tabId);
     });
+});
+
+// Initialize indicator on load and window resize
+window.addEventListener('load', () => {
+    const activeBtn = document.querySelector('.tab-btn.active');
+    if (activeBtn) updateTabIndicator(activeBtn);
+});
+
+window.addEventListener('resize', () => {
+    const activeBtn = document.querySelector('.tab-btn.active');
+    if (activeBtn) updateTabIndicator(activeBtn);
 });
 
 // CustomRP2 Plugin Elements
@@ -592,7 +615,7 @@ function showPromptModal(title, message, defaultValue = '') {
                 </div>
                 <div style="display: flex; gap: 15px; justify-content: center;">
                     <button class="btn btn-secondary" id="promptCancelBtn" style="flex: 1;">${t('modal.cancel') || 'Cancelar'}</button>
-                    <button class="btn-primary" id="promptConfirmBtn" style="flex: 1;">${t('modal.confirm') || 'Confirmar'}</button>
+                    <button class="btn btn-primary" id="promptConfirmBtn" style="flex: 1;">${t('modal.confirm') || 'Confirmar'}</button>
                 </div>
             </div>
         `;
@@ -667,9 +690,43 @@ if (settingsAutoCheckPlugins) {
 }
 if (settingsCheckUpdatesBtn) {
     settingsCheckUpdatesBtn.addEventListener('click', () => {
+        const btnLabel = settingsCheckUpdatesBtn.querySelector('.btn-label');
+        const btnLoader = settingsCheckUpdatesBtn.querySelector('.btn-loader');
+        
+        if (btnLabel && btnLoader) {
+            btnLabel.style.display = 'none';
+            btnLoader.style.display = 'inline-block';
+            settingsCheckUpdatesBtn.disabled = true;
+            
+            // Auto-restore after 8s if no response (safety fallback)
+            setTimeout(() => {
+                if (settingsCheckUpdatesBtn.disabled) {
+                    btnLabel.style.display = 'inline-block';
+                    btnLoader.style.display = 'none';
+                    settingsCheckUpdatesBtn.disabled = false;
+                }
+            }, 8000);
+        }
+        
         ipcRenderer.send('trigger-update-check');
     });
 }
+
+// Support Links Handlers
+document.getElementById('faqLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    shell.openExternal('https://solarirpc.com/faq.html');
+});
+
+document.getElementById('discordDevPortalLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    shell.openExternal('https://discord.com/developers/applications');
+});
+
+document.getElementById('privacyPolicyLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    shell.openExternal('https://solarirpc.com/privacy.html');
+});
 if (settingsChangelogBtn) {
     settingsChangelogBtn.addEventListener('click', () => {
         ipcRenderer.send('request-changelog'); // Must be mapped in backend
@@ -904,6 +961,9 @@ ipcRenderer.on('data-loaded', async (event, data) => {
         // If there was no restored state, trigger a preview with default empty fields
         updatePreview();
     }
+    
+    // Run validation on all fields to show visual status of loaded data
+    require('./modules/ui-validator').validateAll();
 
     // Load auto-detect toggle state
     if (data.autoDetectEnabled !== undefined) {
@@ -1057,7 +1117,7 @@ ipcRenderer.on('afk-logs-updated', (event, logs) => {
     afkLogs.innerHTML = '';
     logs.forEach(log => {
         const li = document.createElement('li');
-        li.innerHTML = `<span style="color: #888;">[${log.time}]</span> ${log.message}`;
+        li.innerHTML = `<span style="color: #888;">[${log.time}]</span> ${maskPaths(log.message)}`;
         afkLogs.appendChild(li);
     });
 });
@@ -1409,6 +1469,7 @@ function loadPreset(preset) {
         if (needsUpdate) updatePreview();
     })();
 
+    require('./modules/ui-validator').validateAll();
     saveFormState(); // Auto-save after loading preset
 
     // Update preview app name based on selected Client ID
@@ -1654,6 +1715,7 @@ function updatePreview() {
     }
 }
 
+
 // Initialize preview on page load
 setTimeout(updatePreview, 100);
 
@@ -1743,6 +1805,7 @@ updateBtn?.addEventListener('click', async () => {
         instance: false
     };
     ipcRenderer.send('update-activity', activity);
+    uiContext.forceManualMode();
     showToast('✅', t('presence.updated') || 'Status updated!', 'success');
     updateBtn.textContent = t('presence.updated');
     setTimeout(() => updateBtn.textContent = t('presence.updateStatus'), 2000);
@@ -2053,6 +2116,7 @@ renderAfkTiers();
 // Auto-Detection Handlers
 autoDetectToggle?.addEventListener('change', (e) => {
     ipcRenderer.send('toggle-autodetect', e.target.checked);
+    uiContext.setAutoDetect(e.target.checked);
 });
 
 autoDetectSettingsBtn?.addEventListener('click', () => {
@@ -2105,22 +2169,21 @@ document.addEventListener('languageChanged', (e) => {
 // --- Language Support ---
 // Update all UI text elements when language changes
 function updateUILanguage() {
-    // Section Titles
-    const sectionTitles = {
-        '.rpc-config h2': t('presence.title'),
-        '.default-config h2': t('fallback.title'),
-        '.presets h2': t('presets.title'),
-        '.server-info h2': t('server.title'),
-    };
-
-    for (const [selector, text] of Object.entries(sectionTitles)) {
-        const el = document.querySelector(selector);
-        if (el && text) el.textContent = text;
-    }
-
     // Plugin Manager h2 (preserve emoji)
     const pluginH2 = document.querySelector('.plugin-manager h2');
     if (pluginH2) pluginH2.textContent = '🔌 ' + t('plugins.title');
+    
+    // Presets h2 (preserve info icon)
+    const presetsH2 = document.querySelector('.presets h2');
+    if (presetsH2) {
+        presetsH2.innerHTML = `<span>${t('presets.title')}</span><span class="field-info" data-i18n-title="presets.infoTooltip" title="${t('presets.infoTooltip')}">ⓘ</span>`;
+    }
+
+    // App Profiles h2
+    const identitiesH2 = document.querySelector('.identity-manager h2');
+    if (identitiesH2) {
+        identitiesH2.innerHTML = `🆔 <span>${t('identities.title')}</span><span class="field-info" data-i18n-title="identities.infoTooltip" title="${t('identities.infoTooltip')}">ⓘ</span>`;
+    }
 
     // Header toggle labels
     const toggleLabels = document.querySelectorAll('.toggle-label');
@@ -2512,6 +2575,7 @@ ipcRenderer.on('show-toast', (event, data) => {
 ipcRenderer.on('preset-auto-loaded', (event, presetName) => {
     showToast('🎮 ' + t('autoDetect.title'), `Preset: ${presetName}`, 'success');
     statusText.textContent = `Auto: ${presetName}`;
+
     setTimeout(() => {
         if (statusToggle.checked) {
             // Use actual RPC state instead of always "Connected"
@@ -4408,6 +4472,7 @@ ipcRenderer.on('autodetect-toggled', (event, enabled) => {
     if (autoDetectToggle) {
         autoDetectToggle.checked = enabled;
     }
+    require('./modules/ui-context').setAutoDetect(enabled);
 });
 
 // === NEON MODE TOGGLE ===
@@ -5141,6 +5206,15 @@ function convertMarkdownToHtml(md) {
     return '<p>' + html + '</p>';
 }
 
+/**
+ * Mascara caminhos de arquivos para privacidade (ex: C:\Users\Gabriel\... -> ~\)
+ * @param {string} text 
+ */
+function maskPaths(text) {
+    if (typeof text !== 'string') return text;
+    return text.replace(/([a-zA-Z]:\\Users\\[^\\]+\\)|(\/home\/[^\/]+\/)/g, '~\\');
+}
+
 // ===== TOAST NOTIFICATION SYSTEM (extracted to module) =====
 const uiToast = require('./modules/ui-toast');
 // Backward-compatible global for existing call sites
@@ -5154,6 +5228,9 @@ function showSolariToast(msg, type, duration) { return uiToast.show(msg, type, d
  * @param {number} duration - How long to show in ms (default 4000)
  */
 function showSolariToast(message, type = 'info', duration = 4000) {
+    // Mascarar caminhos para privacidade
+    const safeMessage = maskPaths(message);
+
     // Create container if it doesn't exist
     let container = document.getElementById('solariToastContainer');
     if (!container) {
@@ -5212,17 +5289,183 @@ ipcRenderer.on('plugins-updated', (event, plugins) => {
 // ===== IN-APP UPDATE BUTTON (extracted to module) =====
 const uiUpdater = require('./modules/ui-updater');
 
-
-
 // ===== HARDWARE SYSTEM MONITOR (extracted to module) =====
 const uiHardware = require('./modules/ui-hardware');
+
+/**
+ * Helper para abrir modais com animação premium
+ * @param {string} modalId 
+ */
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.add('active');
+}
+
+/**
+ * Helper para fechar modais com animação premium
+ * @param {string} modalId 
+ */
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.remove('active');
+}
+
+/**
+ * Implementa o efeito magnético em botões principais e secundários
+ */
+function initMagneticButtons() {
+    const magneticBtns = document.querySelectorAll('.btn-primary, .update-available-btn, .btn-secondary, .btn-primary-large');
+    
+    magneticBtns.forEach(btn => {
+        btn.addEventListener('mousemove', (e) => {
+            // Desativa se o modo eco estiver ativo para economizar recursos
+            if (document.body.classList.contains('eco-mode')) return;
+            
+            const rect = btn.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            
+            // Suavidade calculada para não ser agressivo
+            btn.style.transform = `translate(${x * 0.2}px, ${y * 0.2}px) scale(1.02)`;
+        });
+        
+        btn.addEventListener('mouseleave', () => {
+            btn.style.transform = 'translate(0px, 0px) scale(1)';
+        });
+    });
+}
+
+// ===== RICH PRESENCE UX MODULES (v1.12.0) =====
+const uiValidator   = require('./modules/ui-validator');
+const uiPreviewMap  = require('./modules/ui-preview-map');
+const uiContext     = require('./modules/ui-context');
 
 // ===== LATE INIT (after all modules are defined) =====
 (function lateInit() {
     uiWizard.init();
     uiUpdater.init();
     uiHardware.init();
+    uiValidator.init();
+    uiPreviewMap.init();
+    uiContext.init();
+    initMagneticButtons();
+
+    // Wire context bar to existing state variables
+    const _autoDetTgl = document.getElementById('autoDetectToggle');
+    if (_autoDetTgl) {
+        uiContext.setAutoDetect(_autoDetTgl.checked);
+    }
+
+    // ── Floating tooltip system for .field-info (ⓘ) ──
+    // Appended to <body> so it's never clipped by section overflow:hidden
+    const _tip = document.createElement('div');
+    _tip.id = 'solari-tooltip';
+    document.body.appendChild(_tip);
+
+    let _tipTimer = null;
+
+    function _showTip(el) {
+        const text = el.getAttribute('title') || el.getAttribute('data-tip') || '';
+        if (!text) return;
+
+        // Temporarily clear title so native tooltip doesn't double-show
+        el._savedTitle = text;
+        el.removeAttribute('title');
+
+        _tip.textContent = text;
+        _tip.classList.add('visible');
+
+        const r = el.getBoundingClientRect();
+        const tipW = 260;
+        const tipH = _tip.offsetHeight || 80;
+        const margin = 8;
+
+        // Prefer showing above; fall back to below if not enough space
+        let top = r.top - tipH - margin;
+        if (top < 8) top = r.bottom + margin;
+
+        // Center horizontally; clamp to viewport
+        let left = r.left + r.width / 2 - tipW / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - tipW - 8));
+
+        _tip.style.top  = `${top}px`;
+        _tip.style.left = `${left}px`;
+        _tip.style.width = `${tipW}px`;
+    }
+
+    function _hideTip(el) {
+        _tip.classList.remove('visible');
+        // Restore title so re-hover works next time
+        if (el && el._savedTitle) {
+            el.setAttribute('title', el._savedTitle);
+            delete el._savedTitle;
+        }
+    }
+
+    // Use event delegation for tooltips to support dynamically added elements (like Presets/Plugins headers)
+    document.addEventListener('mouseover', (e) => {
+        const el = e.target.closest('.field-info');
+        if (el) {
+            clearTimeout(_tipTimer);
+            _tipTimer = setTimeout(() => _showTip(el), 80);
+        }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        const el = e.target.closest('.field-info');
+        if (el) {
+            clearTimeout(_tipTimer);
+            _hideTip(el);
+        }
+    });
+
+    // ── Global Settings Search ──
+    const settingsSearch = document.getElementById('settings-search');
+    if (settingsSearch) {
+        settingsSearch.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.settings-card');
+            
+            cards.forEach(card => {
+                const title = card.querySelector('h3')?.textContent.toLowerCase() || '';
+                const desc = card.querySelector('p')?.textContent.toLowerCase() || '';
+                const labels = Array.from(card.querySelectorAll('span')).map(s => s.textContent.toLowerCase()).join(' ');
+                
+                if (title.includes(query) || desc.includes(query) || labels.includes(query)) {
+                    card.style.display = 'flex';
+                    card.classList.add('search-match');
+                } else {
+                    card.style.display = 'none';
+                    card.classList.remove('search-match');
+                }
+            });
+        });
+    }
 })();
+
+
+// Hook: rpc-status IPC → context bar (no-op for banner since banner only cares about globalClientId)
+ipcRenderer.on('rpc-status', (_, data) => {
+    uiContext.setRpcConnected(!!(data && data.connected));
+});
+
+// Hook: data-loaded → give ui-context the actual global Client ID to decide banner visibility
+// This runs AFTER all startup data is ready, preventing any flash effect.
+ipcRenderer.on('data-loaded', (_, data) => {
+    uiContext.setGlobalClientId(data && data.globalClientId);
+    
+    // Sync current detected preset name to context bar
+    uiContext.setDetectedPreset(data ? data.autoDetectPreset : null);
+
+    // Also sync auto-detect toggle state to context bar
+    const autoDetTgl = document.getElementById('autoDetectToggle');
+    if (autoDetTgl) uiContext.setAutoDetect(autoDetTgl.checked);
+});
+
+
+
 
 
 

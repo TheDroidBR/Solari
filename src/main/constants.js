@@ -21,7 +21,7 @@ module.exports = {
     SAVE_DEBOUNCE_MS: 500, // Trailing debounce for disk writes
 
     // Debug Logs
-    MAX_LOGS: 500,
+    MAX_LOGS: 300,
     LOG_INTERVAL_CHECKS: 6, // Log every 6th check (every 30 seconds at 5s interval)
     DEBUG_MODE: false, // Master debug flag (development only)
 
@@ -68,7 +68,7 @@ module.exports = {
     EXTENSION_DISCONNECT_TIMEOUT_MS: 3000, // Wait before clearing presence on WS disconnect
 
     // Hardware Monitor
-    HW_GPU_POLL_INTERVAL_MS: 6000, // GPU sampling interval (nvidia-smi is expensive)
+    HW_GPU_POLL_INTERVAL_MS: 10000, // GPU sampling interval (nvidia-smi is expensive)
     HW_RPC_THROTTLE_MS: 3000, // Min interval between HW-triggered RPC updates (Safe limit: ~3-5s)
 
     // Website Detection

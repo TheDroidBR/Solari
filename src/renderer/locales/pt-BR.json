@@ -314,8 +314,47 @@
         "largeImageHint": "Use um asset do Discord Developer ou URL externa (Imgur recomendado)",
         "largeImageWarning": "URLs externas podem não funcionar em todos os clientes Discord",
         "updateStatus": "Atualizar Status",
-        "resetToDefault": "Resetar para Padrão"
+        "updated": "Atualizado!",
+        "fetchingImage": "Buscando Imagem...",
+        "fetchingSmallImage": "Buscando Imagem Pequena...",
+        "reset": "Resetado!",
+        "resetToDefault": "Resetar para Padrão",
+        "loadDefault": "Carregar Padrão",
+        "tipActivityType": "Define o verbo exibido no Discord: Jogando, Ouvindo, Assistindo ou Competindo. Só muda o rótulo — não afeta a conexão RPC.",
+        "tipDetails": "Linha principal do Rich Presence, logo abaixo do nome do app. Máx 128 caracteres. Suporta link clicável se a URL for preenchida.",
+        "tipDetailsUrl": "Torna a Linha 1 clicável. Deve começar com https://.",
+        "tipState": "Segunda linha, normalmente para sub-contexto como 'Em partida ranked'. Máx 128 caracteres.",
+        "tipStateUrl": "Torna a Linha 2 clicável. Deve começar com https://.",
+        "tipLargeImage": "Imagem de 512×512px que ocupa o card. Use Imgur ou URL direta. O Discord pode demorar até 1 min para cachear uma nova imagem.",
+        "tipLargeImageText": "Dica exibida ao passar o mouse sobre a imagem grande no Discord.",
+        "tipSmallImage": "Ícone de 128×128px no canto inferior direito da imagem grande. Só aparece se a imagem grande também estiver preenchida.",
+        "tipSmallImageText": "Dica exibida ao passar o mouse sobre a imagem pequena no Discord.",
+        "tipParty": "Exibe 'X de Y' no Discord (ex: '3 de 5 jogadores'). Só aparece se os dois campos estiverem preenchidos. Atual não pode ser maior que Máximo.",
+        "tipButtons": "Até 2 botões clicáveis no seu card. Label: máx 32 chars, URL deve começar com https://. Atenção: você mesmo não vê seus próprios botões — outros usuários do Discord veem.",
+        "tipTimestamp": "Controla o timer exibido no Rich Presence. 'Normal' conta a partir de quando você clicou em Atualizar Status. 'Horário Local' mostra o relógio atual. 'Personalizado' permite escolher uma data e hora específicas.",
+        "tipTimestampEnd": "Quando ativado, o Discord mostra uma contagem regressiva ('termina em X min') em vez de um timer crescente ('X min decorridos'). Requer definir um timestamp final no modo Personalizado."
     },
+
+    "onboarding": {
+        "title": "Primeiro Passo: Configure seu Client ID",
+        "desc": "O Solari precisa de um Application ID do Discord para mostrar seu Rich Presence. É gratuito e leva 2 minutos.",
+        "tutorial": "📖 Tutorial",
+        "devPortal": "🔗 Criar Client ID",
+        "configure": "⚙️ Configurar Agora"
+    },
+    "contextBar": {
+        "autoDetectActive": "Auto-Detect ativo",
+        "displaying": "exibindo",
+        "editEntersManual": "Clique em 'Atualizar Status' para entrar em modo manual.",
+        "resumeAutoDetect": "(Retomar Auto-Detect)",
+        "autoDetectOn": "Auto-Detect ativo",
+        "autoDetectIdle": "Auto-Detect ativo — nenhum app detectado. Preencha o formulário para definir manualmente.",
+        "noAppDetected": "nenhum app detectado",
+        "fillFormManual": "Preencha o formulário para definir a presença manualmente.",
+        "manualMode": "Modo Manual — o que você preencher aqui será exibido no Discord ao clicar em <b>Atualizar Status</b>."
+    },
+
+
     "preview": {
         "title": "Preview do Discord",
         "loading": "Carregando...",
@@ -327,6 +366,7 @@
     },
     "presets": {
         "title": "Presets",
+        "infoTooltip": "Salve diferentes configurações de Rich Presence como Presets para alternar rapidamente entre elas.",
         "export": "Exportar",
         "import": "Importar",
         "namePlaceholder": "Nome do Preset",
@@ -342,6 +382,7 @@
     },
     "identities": {
         "title": "App Profiles",
+        "infoTooltip": "Use Perfis de App para alternar o nome do aplicativo que aparece no seu status do Discord (ex: 'Jogando Visual Studio' em vez de apenas 'Solari').",
         "hint": "Crie múltiplos perfis com Client IDs diferentes.",
         "namePlaceholder": "Nome do App (ex: Visual Studio)",
         "idPlaceholder": "Client ID",

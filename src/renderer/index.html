@@ -8,6 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Solari</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="ui-ux-pro.css">
 </head>
 
 <body>
@@ -16,6 +17,9 @@
       <div class="brand">
         <h1>Solari</h1>
         <span class="version" id="appVersionHeader">v-.-.-</span>
+        <a href="#" class="header-link" id="faqLink" style="margin-left: 8px;">
+          <span data-i18n="app.faq">FAQ</span>
+        </a>
         <button id="updateAvailableBtn" class="update-available-btn" style="display: none;" title="Update available!">
           <span class="update-icon">⬇️</span> <span id="updateVersionLabel"></span>
         </button>
@@ -35,39 +39,40 @@
             <span class="slider round"></span>
           </label>
           <button id="autoDetectSettingsBtn" class="btn-icon" data-i18n-title="autoDetect.title"
-            style="margin-left: 5px; font-size: 1em;">⚙️</button>
+            aria-label="Configurações de Auto-Detect" style="margin-left: 5px; font-size: 1em;">⚙️</button>
           <button id="exitManualModeBtn" class="btn-icon" title="Sair do Modo Manual (Voltar para Auto)"
-            style="margin-left: 5px; font-size: 1em; display: none; color: #f59e0b; animation: pulse 2s infinite;">↩️</button>
+            aria-label="Sair do Modo Manual" style="margin-left: 5px; font-size: 1em; display: none; color: #f59e0b; animation: pulse 2s infinite;">↩️</button>
         </div>
         <div class="toggle-container" style="margin-left: 15px;">
           <span class="toggle-label" style="font-size: 0.85em;" title="Eco Mode (Saves CPU)">Eco</span>
           <label class="switch" style="transform: scale(0.85);">
-            <input type="checkbox" id="ecoModeToggle">
+            <input type="checkbox" id="ecoModeToggle" aria-label="Ativar Modo Eco">
             <span class="slider round"></span>
           </label>
         </div>
         <div class="status">
-          <span class="status-indicator"></span>
+          <span class="status-indicator" role="status"></span>
           <span class="status-text" data-i18n="app.starting">Starting...</span>
         </div>
-        <div class="afk-indicator" id="afkIndicator" style="display: none;">
+        <div class="afk-indicator" id="afkIndicator" style="display: none;" role="status">
           <span class="afk-icon">🌙</span>
           <span class="afk-text">AFK</span>
         </div>
         <div class="theme-selector">
-          <button class="theme-btn active" data-theme="default" data-i18n-title="app.themeDefault">🌅</button>
-          <button class="theme-btn" data-theme="dark" data-i18n-title="app.themeDark">🌙</button>
-          <button class="theme-btn" data-theme="light" data-i18n-title="app.themeLight">☀️</button>
+          <button class="theme-btn active" data-theme="default" data-i18n-title="app.themeDefault" aria-label="Tema Padrão">🌅</button>
+          <button class="theme-btn" data-theme="dark" data-i18n-title="app.themeDark" aria-label="Tema Escuro">🌙</button>
+          <button class="theme-btn" data-theme="light" data-i18n-title="app.themeLight" aria-label="Tema Claro">☀️</button>
           <div class="theme-divider"></div>
-          <button class="neon-btn active" id="neonToggle" title="Toggle Neon Effects">⚡</button>
+          <button class="neon-btn active" id="neonToggle" title="Toggle Neon Effects" aria-label="Alternar Efeitos Neon">⚡</button>
           <button class="btn-icon" id="customCssBtn" title="Custom CSS"
-            style="font-size: 1rem; margin-left:8px;">🎨</button>
+            aria-label="CSS Personalizado" style="font-size: 1rem; margin-left:8px;">🎨</button>
         </div>
       </div>
     </header>
 
     <!-- Tab Navigation -->
     <nav class="tab-nav">
+      <div class="tab-indicator"></div>
       <button class="tab-btn active" data-tab="rpc-tab">
         <span class="tab-icon">🎮</span>
         <span data-i18n="tabs.rpc">Rich Presence</span>
@@ -90,6 +95,10 @@
       <!-- Settings Tab -->
       <div id="settings-tab" class="tab-content">
         <div class="plugins-tab-wrapper">
+          <div class="settings-search-container">
+            <input type="text" id="settings-search" placeholder="🔍  Buscar configurações..." 
+                   data-i18n-placeholder="settings.searchPlaceholder" class="form-control-premium">
+          </div>
           <div class="settings-grid">
 
             <!-- GENERAL SETTINGS CARD -->
@@ -252,7 +261,8 @@
 
                 <div class="settings-actions-grid">
                   <button id="settings-checkUpdatesBtn" class="btn btn-primary">
-                    ⬇️ <span data-i18n="menu.checkForUpdates">Verificar Updates</span>
+                    <span class="btn-label">⬇️ <span data-i18n="menu.checkForUpdates">Verificar Updates</span></span>
+                    <span class="btn-loader" style="display: none;">⌛</span>
                   </button>
                   <button id="settings-changelogBtn" class="btn btn-secondary">
                     📋 <span data-i18n="menu.changelog">Changelog</span>
@@ -399,6 +409,11 @@
                     <input type="checkbox" id="settings-advancedTelemetry" checked>
                     <span class="slider round"></span>
                   </label>
+                </div>
+                <div style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                  <a href="#" class="header-link" id="privacyPolicyLink" style="font-size: 0.8rem;">
+                    <span>🔒</span> <span data-i18n="settings.viewPrivacyPolicy">View Privacy Policy & Data Handling</span>
+                  </a>
                 </div>
               </div>
             </div>
@@ -588,15 +603,7 @@
               <div class="plugins-store-title">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <h2><span data-i18n="pluginStore.title">Plugins Oficiais</span></h2>
-                  <div class="plugins-info-icon" data-i18n-title="pluginStore.bdDisclaimerText"
-                    title="Disclaimer & Affiliation">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="12" y1="16" x2="12" y2="12"></line>
-                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
-                  </div>
+                  <span class="field-info" data-i18n-title="pluginStore.bdDisclaimerText" title="Disclaimer & Affiliation">ⓘ</span>
                 </div>
                 <div class="plugins-subtitle-pill">
                   <p class="hint" data-i18n="pluginStore.subtitle">Plugins gratuitos para estender o Solari com
@@ -883,50 +890,85 @@
       </div> <!-- end soundboard-tab -->
       <!-- RPC Tab Content -->
       <div id="rpc-tab" class="tab-content active">
+
+        <!-- ★ Onboarding Banner (shown only when no Global Client ID is set) -->
+        <div id="onboardingBanner" class="onboarding-banner" style="display:none;" role="alert">
+          <div class="ob-icon">🔑</div>
+          <div class="ob-body">
+            <strong data-i18n="onboarding.title">First Step: Configure your Client ID</strong>
+            <p data-i18n="onboarding.desc">Solari needs a Discord Application ID to show your Rich Presence. It's free and takes 2 minutes.</p>
+          </div>
+          <div class="ob-actions">
+            <a href="https://solarirpc.com/guides" target="_blank" class="btn btn-small btn-ghost" data-i18n="onboarding.tutorial">📖 Tutorial</a>
+            <a href="https://discord.com/developers/applications" target="_blank" class="btn btn-small btn-secondary" data-i18n="onboarding.devPortal">🔗 Criar Client ID</a>
+            <button id="onboardingConfigureBtn" class="btn btn-small" data-i18n="onboarding.configure">⚙️ Configure Now</button>
+          </div>
+          <button id="onboardingDismissBtn" class="ob-dismiss" title="Dismiss">✕</button>
+        </div>
+
+
         <div class="main-grid">
           <!-- Left Column: RPC Config -->
           <section class="rpc-config">
             <h2 data-i18n="presence.title">Configuração de Presença</h2>
 
             <div class="form-group">
-              <label for="activityType" data-i18n="presence.activityType">Tipo de Atividade</label>
+              <label for="activityType">
+                <span data-i18n="presence.activityType">Activity Type</span>
+                <span class="field-info" data-i18n-title="presence.tipActivityType" title="Defines the verb shown on Discord: Playing, Listening, Watching or Competing. Only changes the label, not the RPC connection.">ⓘ</span>
+              </label>
               <select id="activityType">
-                <option value="0" data-i18n="presence.playing">Jogando (Playing)</option>
-                <option value="2" data-i18n="presence.listening">Ouvindo (Listening)</option>
-                <option value="3" data-i18n="presence.watching">Assistindo (Watching)</option>
-                <option value="5" data-i18n="presence.competing">Competindo (Competing)</option>
+                <option value="0" data-i18n="presence.playing">Playing</option>
+                <option value="2" data-i18n="presence.listening">Listening</option>
+                <option value="3" data-i18n="presence.watching">Watching</option>
+                <option value="5" data-i18n="presence.competing">Competing</option>
               </select>
             </div>
 
             <div class="form-group" style="display: flex; gap: 10px; align-items: stretch;">
               <div style="flex: 1;">
-                <label for="details" data-i18n="presence.details">Detalhes (Linha 1)</label>
-                <input type="text" id="details" placeholder="O que você está fazendo?"
+                <label for="details">
+                  <span data-i18n="presence.details">Details (Line 1)</span>
+                  <span class="field-info" data-i18n-title="presence.tipDetails" title="Main line of Rich Presence, shown right below the app name. Max 128 characters. Supports a clickable link if the URL field is filled.">ⓘ</span>
+                </label>
+                <input type="text" id="details" placeholder="What are you doing?"
                   data-i18n-placeholder="presence.detailsPlaceholder" />
               </div>
               <div style="flex: 1;">
-                <label for="detailsUrl" data-i18n="presence.detailsUrl">URL dos Detalhes (Opcional)</label>
-                <input type="text" id="detailsUrl" placeholder="Link ao clicar na Linha 1 (ex: https://...)"
+                <label for="detailsUrl">
+                  <span data-i18n="presence.detailsUrl">DETAILS URL (OPTIONAL)</span>
+                  <span class="field-info" data-i18n-title="presence.tipDetailsUrl" title="Makes Line 1 clickable. Must start with https://.">ⓘ</span>
+                </label>
+                <input type="text" id="detailsUrl" placeholder="Link when clicking Line 1 (ex: https://...)"
                   data-i18n-placeholder="presence.detailsUrlPlaceholder" />
               </div>
             </div>
 
             <div class="form-group" style="display: flex; gap: 10px; align-items: stretch;">
               <div style="flex: 1;">
-                <label for="state" data-i18n="presence.state">Estado (Linha 2)</label>
-                <input type="text" id="state" placeholder="Status atual"
+                <label for="state">
+                  <span data-i18n="presence.state">State (Line 2)</span>
+                  <span class="field-info" data-i18n-title="presence.tipState" title="Second line, usually for sub-context like 'In ranked match'. Max 128 characters.">ⓘ</span>
+                </label>
+                <input type="text" id="state" placeholder="Current status"
                   data-i18n-placeholder="presence.statePlaceholder" />
               </div>
               <div style="flex: 1;">
-                <label for="stateUrl" data-i18n="presence.stateUrl">URL do Estado (Opcional)</label>
-                <input type="text" id="stateUrl" placeholder="Link ao clicar na Linha 2 (ex: https://...)"
+                <label for="stateUrl">
+                  <span data-i18n="presence.stateUrl">STATE URL (OPTIONAL)</span>
+                  <span class="field-info" data-i18n-title="presence.tipStateUrl" title="Makes Line 2 clickable. Must start with https://.">ⓘ</span>
+                </label>
+                <input type="text" id="stateUrl" placeholder="Link when clicking Line 2 (ex: https://...)"
                   data-i18n-placeholder="presence.stateUrlPlaceholder" />
               </div>
             </div>
 
             <div class="form-group">
-              <label data-i18n="presence.largeImage">Imagem Grande (URL)</label>
-              <input type="text" id="largeImage" placeholder="Cole URL da imagem (ex: https://i.imgur.com/...)"
+              <label for="largeImage">
+                <span data-i18n="presence.largeImage">Large Image (URL)</span>
+                <span class="field-info" data-i18n-title="presence.tipLargeImage" title="512×512px image that fills the card. Use Imgur or a direct URL. Discord may take up to 1 minute to cache a new image.">ⓘ</span>
+              </label>
+              <input type="text" id="largeImage" placeholder="Paste image URL (ex: https://i.imgur.com/...)"
                 data-i18n-placeholder="presence.largeImagePlaceholder" />
               <p class="hint" style="margin-top: 5px;" data-i18n="presence.largeImageHint">Faça upload no <a
                   href="https://imgur.com/upload" target="_blank" style="color: #ff9966;">Imgur</a> e cole o link aqui
@@ -938,41 +980,51 @@
             </div>
 
             <div class="form-group">
-              <label for="largeImageText" data-i18n="presence.largeImageText">Texto da Imagem Grande</label>
-              <input type="text" id="largeImageText" placeholder="Texto ao passar o mouse"
+              <label for="largeImageText">
+                <span data-i18n="presence.largeImageText">Large Image Text</span>
+                <span class="field-info" data-i18n-title="presence.tipLargeImageText" title="Tooltip shown when hovering the large image in Discord.">ⓘ</span>
+              </label>
+              <input type="text" id="largeImageText" placeholder="Text when hovering"
                 data-i18n-placeholder="presence.largeImageTextPlaceholder" />
             </div>
 
             <div class="form-group">
-              <label data-i18n="presence.smallImage">Imagem Pequena (URL)</label>
-              <input type="text" id="smallImage" placeholder="Cole URL da imagem pequena (ex: https://i.imgur.com/...)"
+              <label for="smallImage">
+                <span data-i18n="presence.smallImage">Small Image (URL)</span>
+                <span class="field-info" data-i18n-title="presence.tipSmallImage" title="128×128px icon shown at the bottom-right of the large image. Only visible if a Large Image is also set.">ⓘ</span>
+              </label>
+              <input type="text" id="smallImage" placeholder="Paste small image URL (ex: https://i.imgur.com/...)"
                 data-i18n-placeholder="presence.smallImagePlaceholder" />
-              <p class="hint" style="margin-top: 5px;" data-i18n="presence.smallImageHint">Imagem que aparece no canto
-                inferior direito do Rich Presence</p>
+              <p class="hint" style="margin-top: 5px;" data-i18n="presence.smallImageHint">Image that appears in the bottom right corner of the Rich Presence</p>
             </div>
 
             <div class="form-group">
-              <label for="smallImageText" data-i18n="presence.smallImageText">Texto da Imagem Pequena</label>
-              <input type="text" id="smallImageText" placeholder="Texto ao passar o mouse na imagem pequena"
+              <label for="smallImageText">
+                <span data-i18n="presence.smallImageText">Small Image Text</span>
+                <span class="field-info" data-i18n-title="presence.tipSmallImageText" title="Tooltip shown when hovering the small image.">ⓘ</span>
+              </label>
+              <input type="text" id="smallImageText" placeholder="Text when hovering small image"
                 data-i18n-placeholder="presence.smallImageTextPlaceholder" />
             </div>
 
             <!-- Party Size Section -->
             <div class="form-group"
               style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 10px;">
-              <label style="font-size: 0.95em; color: #ff9966;">👥 <span
-                  data-i18n="presence.partySize">Jogadores</span></label>
+              <label style="font-size: 0.95em; color: #ff9966;">
+                👥 <span data-i18n="presence.partySize">Party Size</span>
+                <span class="field-info" data-i18n-title="presence.tipParty" title="Shows 'X of Y' in Discord (e.g. '3 of 5 players'). Only appears if both fields are filled. Current must not exceed Max.">ⓘ</span>
+              </label>
             </div>
 
             <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
               <div style="flex: 1;">
-                <label for="partyCurrent" data-i18n="presence.partyCurrent">Atual</label>
+                <label for="partyCurrent" data-i18n="presence.partyCurrent">Current</label>
                 <input type="number" id="partyCurrent" min="0" max="999" placeholder="5" />
               </div>
               <span id="partyOfLabel" style="color: var(--text-muted); font-size: 1.2em; margin-top: 20px;"
-                data-i18n="presence.partyOf">de</span>
+                data-i18n="presence.partyOf">of</span>
               <div style="flex: 1;">
-                <label for="partyMax" data-i18n="presence.partyMax">Máximo</label>
+                <label for="partyMax" data-i18n="presence.partyMax">Max</label>
                 <input type="number" id="partyMax" min="0" max="999" placeholder="10" />
               </div>
             </div>
@@ -980,8 +1032,10 @@
             <!-- Timestamp Section -->
             <div class="form-group"
               style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 10px;">
-              <label style="font-size: 0.95em; color: #ff9966;">⏱️ <span
-                  data-i18n="presence.timestamp">Tempo</span></label>
+              <label style="font-size: 0.95em; color: #ff9966;">
+                ⏱️ <span data-i18n="presence.timestamp">Timestamp</span>
+                <span class="field-info" data-i18n-title="presence.tipTimestamp" title="Controls the timer shown in your Rich Presence. 'Normal' counts up from when you clicked Update Status. 'Local' shows your current clock time. 'Custom' lets you pick a specific date and time.">ⓘ</span>
+              </label>
             </div>
 
             <div class="form-group">
@@ -1009,31 +1063,30 @@
             <div class="form-group">
               <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                 <input type="checkbox" id="useEndTimestamp" style="accent-color: #ff9966;" />
-                <span data-i18n="presence.timestampEnd">Mostrar tempo restante (termina em...)</span>
+                <span data-i18n="presence.timestampEnd">Show remaining time (ends in...)</span>
+                <span class="field-info" data-i18n-title="presence.tipTimestampEnd" title="When enabled, Discord shows a countdown ('ends in X min') instead of an elapsed timer ('X min elapsed'). Requires setting an end timestamp in 'Custom' mode.">ⓘ</span>
               </label>
-              <p class="hint" style="margin-top: 5px;" data-i18n="presence.timestampEndHint">Mostra quanto tempo falta
-                ao
-                invés de
-                quanto passou</p>
+              <p class="hint" style="margin-top: 5px;" data-i18n="presence.timestampEndHint">Shows how much time is left instead of elapsed</p>
             </div>
 
 
             <!-- Buttons Section -->
             <div class="form-group"
               style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 10px;">
-              <label style="font-size: 0.95em; color: #ff9966;">🔗 <span data-i18n="presence.buttons">Botões (aparecem
-                  no
-                  Rich Presence)</span></label>
+              <label style="font-size: 0.95em; color: #ff9966;">
+                🔗 <span data-i18n="presence.buttons">Buttons</span>
+                <span class="field-info" data-i18n-title="presence.tipButtons" title="Up to 2 clickable buttons on your card. Label: max 32 chars, URL must start with https://. Note: you won't see your own buttons — other users will.">ⓘ</span>
+              </label>
             </div>
 
             <div class="form-group" style="display: flex; gap: 10px;">
               <div style="flex: 1;">
-                <label for="button1Label" data-i18n="presence.button1Label">Botão 1 - Texto</label>
-                <input type="text" id="button1Label" placeholder="Ex: Jogar Comigo"
+                <label for="button1Label" data-i18n="presence.button1Label">Button 1 Label</label>
+                <input type="text" id="button1Label" placeholder="Ex: Play With Me"
                   data-i18n-placeholder="presence.button1Placeholder" />
               </div>
               <div style="flex: 1;">
-                <label for="button1Url" data-i18n="presence.button1Url">Botão 1 - Link</label>
+                <label for="button1Url" data-i18n="presence.button1Url">Button 1 URL</label>
                 <input type="text" id="button1Url" placeholder="https://..."
                   data-i18n-placeholder="presence.urlPlaceholder" />
               </div>
@@ -1041,22 +1094,26 @@
 
             <div class="form-group" style="display: flex; gap: 10px;">
               <div style="flex: 1;">
-                <label for="button2Label" data-i18n="presence.button2Label">Botão 2 - Texto</label>
-                <input type="text" id="button2Label" placeholder="Ex: Meu Discord"
+                <label for="button2Label" data-i18n="presence.button2Label">Button 2 Label</label>
+                <input type="text" id="button2Label" placeholder="Ex: My Discord"
                   data-i18n-placeholder="presence.button2Placeholder" />
               </div>
               <div style="flex: 1;">
-                <label for="button2Url" data-i18n="presence.button2Url">Botão 2 - Link</label>
+                <label for="button2Url" data-i18n="presence.button2Url">Button 2 URL</label>
                 <input type="text" id="button2Url" placeholder="https://..."
                   data-i18n-placeholder="presence.urlPlaceholder" />
               </div>
             </div>
 
+            <!-- ★ Mode Context Bar -->
+            <div id="rpcModeContextBar" class="rpc-mode-context-bar ctx-manual" aria-live="polite">
+              <span class="ctx-icon">✏️</span>
+              <span class="ctx-text" data-i18n="contextBar.manualMode">Manual Mode — what you fill here will be shown on Discord when you click <b>Update Status</b>.</span>
+            </div>
+
             <div class="button-group">
-              <button id="updateBtn" class="btn btn-primary" data-i18n="presence.updateStatus">Atualizar
-                Status</button>
-              <button id="resetBtn" class="btn btn-secondary" data-i18n="presence.resetToDefault">Resetar para
-                Padrão</button>
+              <button id="updateBtn" class="btn btn-primary" data-i18n="presence.updateStatus">Update Status</button>
+              <button id="resetBtn" class="btn btn-secondary" data-i18n="presence.resetToDefault">Reset to Default</button>
             </div>
           </section>
 
@@ -1094,7 +1151,7 @@
             <!-- Presets -->
             <section class="presets">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 data-i18n="presets.title">Presets</h2>
+                <h2 style="display: flex; align-items: center; gap: 8px;"><span>Presets</span><span class="field-info" data-i18n-title="presets.infoTooltip" title="About Presets">ⓘ</span></h2>
                 <div style="display: flex; gap: 5px;">
                   <button id="exportPresetsBtn" class="btn btn-small btn-secondary" title="Exportar Presets"
                     data-i18n="presets.export">📤 Exportar</button>
@@ -1115,9 +1172,16 @@
 
             <!-- App Profiles (Identity Manager) -->
             <section class="identity-manager">
-              <h2 data-i18n="identities.title">🆔 App Profiles</h2>
+              <h2>🆔 <span>App Profiles</span>
+                <span class="field-info" data-i18n-title="identities.infoTooltip" title="About App Profiles">ⓘ</span>
+              </h2>
               <p class="hint" data-i18n="identities.hint">Create multiple profiles with different Discord Client IDs.
                 Each preset can use a different profile.</p>
+              <div style="margin-bottom: 12px;">
+                <a href="#" class="header-link" id="discordDevPortalLink">
+                  <span>🔗</span> <span data-i18n="identities.getIds">Discord Developer Portal</span>
+                </a>
+              </div>
 
               <div class="identity-list" id="identityList">
                 <!-- Identities will be rendered here -->

@@ -1,8 +1,8 @@
-version: 1.11.2
+version: 1.12.0
 files:
   - url: Solari-Setup.exe
-    sha512: FUQ0laSrfF1Z978iZ3Kdl71c4YoJC19Tb9MVBcSeZ+GvoZcxtJ4cq3comwm0BBjRprO+50cttt0I3X3HQh7J3g==
-    size: 101719092
+    sha512: jZfWOkZR38W8VzkiXgoANGa5Tpf4JE2h+ZR0L/Odi+MeTC/KqrD4W+O+XqFp0MWweRVVhq/rSf7Tn6EpdXeJ/g==
+    size: 101639596
 path: Solari-Setup.exe
-sha512: FUQ0laSrfF1Z978iZ3Kdl71c4YoJC19Tb9MVBcSeZ+GvoZcxtJ4cq3comwm0BBjRprO+50cttt0I3X3HQh7J3g==
-releaseDate: '2026-05-07T01:00:40.299Z'
+sha512: jZfWOkZR38W8VzkiXgoANGa5Tpf4JE2h+ZR0L/Odi+MeTC/KqrD4W+O+XqFp0MWweRVVhq/rSf7Tn6EpdXeJ/g==
+releaseDate: '2026-05-12T03:12:21.690Z'

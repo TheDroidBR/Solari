@@ -1,26 +1,42 @@
-## [1.12.0] - 2026-05-08
-**UPDATE 1.12.0: DISCORD UPDATE DETECTION RESTORATION**
+## [1.12.0] - 2026-05-12
+**UPDATE 1.12.0: UI/UX STANDARDIZATION & CORE STABILITY**
 
 ---
 
-### 🔍 BetterDiscord & Runtime Integration
-- **Restored Discord Pending Update Detection**: Fixed a critical regression where the "Update Pending" state was hidden by active Discord connections, preventing the app from notifying users of necessary restarts.
-  - **Priority Logic Fix**: Rewrote the heuristic in `checkBDStatus` to prioritize pending updates over active heartbeats. Users now see the "Pending" status even while Discord is running if an update is staged.
-  - **Auto-Repair Circuit Breaker**: Refined the integration to automatically pause the Auto-Repair engine when an update is detected, preventing redundant repair attempts during the Discord update cycle.
-- **Enhanced Visual Feedback**: Introduced a high-visibility orange warning banner in the Plugins Store for the pending state.
-  - **Multi-language Support**: Restored and expanded localized strings for English, Portuguese, Spanish, and German.
-  - **Clean UI**: Removed non-essential action buttons from the warning card to focus on clear communication.
+### 🎨 UI/UX Standardization (Design System)
+*   **Vector-Based Info Icons (ⓘ)**: Replaced all text-based characters and disparate SVG icons with a unified, high-precision SVG vector drawing.
+    *   **Consistent Drawing**: Icons now use a CSS `background-image` approach, ensuring the "i" shape and circle are pixel-perfect and identical regardless of parent font-size or weight.
+    *   **Unified Primary Theme**: Enforced a consistent Orange/Red theme (`--primary`) across all info icons and tooltips to match Solari's section headers.
+*   **Premium Tooltip System v2**: Completely overhauled the tooltip engine with **Event Delegation**.
+    *   **Dynamic Resilience**: Tooltips now work flawlessly on elements injected via `innerHTML` (like Presets/App Profiles headers) without losing event listeners.
+    *   **Wrapped Layout**: Standardized multi-line text wrapping for long descriptions, replacing the "single-line" browser default.
+    *   **Visual Polish**: Implemented backdrop-blur effects and smoothed positioning logic to prevent viewport clipping.
+*   **Magnetic Navigation**: Refined tab-indicator transitions and magnetic button physics for a more tactile and "alive" interface.
+*   **Neon Halo Focus**: Standardized high-visibility focus rings for better keyboard accessibility across all interactive cards.
 
-### 🛠️ Core Hardening & Stability
-- **Main Process Heuristics**: Optimized the status evaluation sequence to ensure the `pending_update` state is correctly caught and broadcasted to the renderer.
-- **IPC State Synchronization**: Synchronized the new UI banner states with the backend status engine for instantaneous feedback.
-- **Single Source of Truth (Versioning)**: Centralized the application version management into `package.json`.
-  - **Dynamic Telemetry**: Telemetry pings and User-Agent headers now automatically reflect the current version without manual code updates.
-  - **Dynamic UI**: The application header and "About" modal now pull the version directly from the package metadata, ensuring 100% consistency across the app.
-  - **Auto-Update Synchronization**: Ensured the manual update check and changelog fetcher are perfectly aligned with the central versioning source.
+### 🎮 Rich Presence & Manual Mode
+*   **Unified Manual Mode Exit**: Synchronized all "Resume Auto-Detect" triggers. Clicking the link in the context bar or the header button now performs a full state reset and UI re-sync.
+*   **Persistent App Identity**: Resolved the "Discord App" name flickering on startup by improving the persistent state restoration from `data.json`.
+*   **Contextual Intelligence**: Added localized info icons to Presets, App Profiles, and Plugin Store headers, providing instant guidance on complex features.
 
+### 🔌 Plugins Store & Integration
+*   **Streamlined Store UI**: Removed redundant custom SVG logic from the Plugins tab, migrating to the standardized `.field-info` component.
+*   **Discord Update Awareness**: Refined the "Update Pending" detection logic, removing unnecessary manual restart buttons and cleaning up the warning banner translations.
+*   **BD Health Check**: Optimized polling intervals to reduce CPU overhead during plugins management.
+
+### 🐛 Bug Fixes
+*   **Tooltip Persistence Fix**: Fixed a bug where browser native tooltips would occasionally overlap the premium Solari tooltips.
+*   **H2 Translation Integrity**: Resolved an issue where changing languages would strip interactive info icons from section headers in the Rich Presence tab.
+*   **Instant RPC State Flush**: Fixed a critical race condition where hardware stats would remain frozen in Discord after disabling the monitor.
+*   **Path Masking Fix**: Corrected several edge cases where the path masker would fail to hide usernames in specific notification logs.
+
+### 🏗️ Architecture & Core
+*   **Atomic Data Persistence**: Implemented a "Write-to-Temp -> Rename" strategy in `DataManager` to eliminate the risk of data corruption during sudden app shutdowns.
+*   **Modular Bridge**: Centralized over 100 IPC calls into a typed, namespaced bridge (`api.js`) for better maintainability.
+*   **Performance Benchmark**: Maintained a record startup time of ~290ms despite the added UI complexity and abstraction layers.
 
 ---
+
 
 ## [1.11.2] - 2026-05-06
 **UPDATE 1.11.2: EMERGENCY PATCH - Imgur Link Restoration**
