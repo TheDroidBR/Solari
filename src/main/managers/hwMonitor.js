@@ -71,6 +71,7 @@ function _getCpuUsage() {
 // ── GPU (NVIDIA via nvidia-smi) ───────────────────────────────────────────────
 
 function _getGpuUsage() {
+    if (_activeNvidiaSmiProcess) return Promise.resolve(_cachedGpuStats);
     return new Promise((resolve) => {
         _activeNvidiaSmiProcess = exec(
             'nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits',
@@ -123,7 +124,7 @@ async function _pollHardwareStats() {
                 results.gpu = null;
             } else {
                 const now = Date.now();
-                if (!_cachedGpuStats || (now - _lastGpuPoll) > 6000) {
+                if (!_cachedGpuStats || (now - _lastGpuPoll) > _CONSTANTS.HW_GPU_POLL_INTERVAL_MS) {
                     const gpuResult = await _getGpuUsage();
                     _store.hwGpuAvailable = !!gpuResult;
                     _cachedGpuStats = gpuResult || null;
@@ -136,7 +137,9 @@ async function _pollHardwareStats() {
         _store.latestHwStats = results;
 
         const mw = _getMainWindow();
-        if (mw && !mw.isDestroyed()) mw.webContents.send('hw-stats-update', results);
+        if (mw && !mw.isDestroyed() && mw.isVisible()) {
+            mw.webContents.send('hw-stats-update', results);
+        }
 
         // Throttled RPC update
         if (_store.rpcConnected && _store.hwMonitorEnabled && _store.isEnabled) {

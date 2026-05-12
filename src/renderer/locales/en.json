@@ -313,7 +313,43 @@
         "largeImageHint": "Use a Discord Developer asset or external URL (Imgur recommended)",
         "largeImageWarning": "External URLs may not work with all Discord clients",
         "updateStatus": "Update Status",
-        "resetToDefault": "Reset to Default"
+        "updated": "Updated!",
+        "fetchingImage": "Fetching Image...",
+        "fetchingSmallImage": "Fetching Small Image...",
+        "reset": "Reset!",
+        "resetToDefault": "Reset to Default",
+        "loadDefault": "Load Default",
+        "tipActivityType": "Defines the verb shown on Discord: Playing, Listening, Watching or Competing. Only changes the label \u2014 not the RPC connection.",
+        "tipDetails": "Main line of Rich Presence, shown right below the app name. Max 128 characters. Supports a clickable link if the URL field is filled.",
+        "tipDetailsUrl": "Makes Line 1 clickable when users click on it. Must start with https://.",
+        "tipState": "Second line, usually for sub-context like 'In ranked match'. Max 128 characters.",
+        "tipStateUrl": "Makes Line 2 clickable when users click on it. Must start with https://.",
+        "tipLargeImage": "512\u00d7512px image that fills the card. Use Imgur or a direct URL. Discord may take up to 1 minute to cache a new image.",
+        "tipLargeImageText": "Tooltip shown when hovering the large image in Discord.",
+        "tipSmallImage": "128\u00d7128px icon at the bottom-right of the large image. Only visible if a Large Image is also set.",
+        "tipSmallImageText": "Tooltip shown when hovering the small image in Discord.",
+        "tipParty": "Shows 'X of Y' in Discord (e.g. '3 of 5 players'). Only appears if both fields are filled. Current must not exceed Max.",
+        "tipButtons": "Up to 2 clickable buttons on your card. Label: max 32 chars, URL must start with https://. Note: you won't see your own buttons \u2014 other Discord users will.",
+        "tipTimestamp": "Controls the timer shown in your Rich Presence. 'Normal' counts up from when you clicked Update Status. 'Local' shows your current clock time. 'Custom' lets you pick a specific date and time.",
+        "tipTimestampEnd": "When enabled, Discord shows a countdown ('ends in X min') instead of an elapsed timer ('X min elapsed'). Requires setting an end timestamp in Custom mode."
+    },
+    "onboarding": {
+        "title": "First Step: Configure your Client ID",
+        "desc": "Solari needs a Discord Application ID to show your Rich Presence. It's free and takes 2 minutes.",
+        "tutorial": "\ud83d\udcd6 Tutorial",
+        "devPortal": "\ud83d\udd17 Create Client ID",
+        "configure": "\u2699\ufe0f Configure Now"
+    },
+    "contextBar": {
+        "autoDetectActive": "Auto-Detect active",
+        "displaying": "displaying",
+        "editEntersManual": "Click 'Update Status' to enter manual mode.",
+        "resumeAutoDetect": "(Resume Auto-Detect)",
+        "autoDetectOn": "Auto-Detect active",
+        "autoDetectIdle": "Auto-Detect active \u2014 no app detected. Fill the form to set manually.",
+        "noAppDetected": "no app detected",
+        "fillFormManual": "Fill the form to set the presence manually.",
+        "manualMode": "Manual Mode \u2014 what you fill here will be shown on Discord when you click <b>Update Status</b>."
     },
     "preview": {
         "title": "Discord Preview",
@@ -326,6 +362,7 @@
     },
     "presets": {
         "title": "Presets",
+        "infoTooltip": "Save different Rich Presence configurations as Presets to quickly switch between them.",
         "export": "Export",
         "import": "Import",
         "namePlaceholder": "Preset Name",
@@ -341,6 +378,7 @@
     },
     "identities": {
         "title": "App Profiles",
+        "infoTooltip": "Use App Profiles to switch the application name displayed in your Discord status (e.g., 'Playing Visual Studio' instead of just 'Solari').",
         "hint": "Create multiple profiles with different Discord Client IDs.",
         "namePlaceholder": "App Name (ex: Visual Studio)",
         "idPlaceholder": "Client ID",

@@ -610,9 +610,10 @@
         // Empty state
         if (filtered.length === 0) {
             elements.soundboardGrid.innerHTML = `
-                <div class="soundboard-empty">
-                    <div class="empty-icon">🎵</div>
-                    <p>${searchQuery ? 'No sounds found for "' + searchQuery + '"' : 'No sounds yet. Add some!'}</p>
+                <div class="empty-state-visual">
+                    <div class="empty-state-icon-wrapper">🎵</div>
+                    <h3 class="empty-state-title">${searchQuery ? 'Sem resultados' : 'O silêncio é ensurdecedor...'}</h3>
+                    <p class="empty-state-text">${searchQuery ? 'Não encontramos nada para "' + searchQuery + '". Tente outro termo.' : 'Sua mesa de som está vazia. Arraste arquivos de áudio aqui para começar!'}</p>
                 </div>
             `;
             return;

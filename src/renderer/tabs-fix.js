@@ -1,6 +1,15 @@
 // Safe Tab Switching Logic - Runs on DOMContentLoaded for fast startup
 document.addEventListener('DOMContentLoaded', () => {
-    const contents = document.querySelectorAll('.tab-content');
+    const tabIndicator = document.querySelector('.tab-indicator');
+
+    /**
+     * Atualiza a posição e largura do indicador de aba
+     */
+    function updateTabIndicator(activeBtn) {
+        if (!tabIndicator || !activeBtn) return;
+        tabIndicator.style.width = `${activeBtn.offsetWidth}px`;
+        tabIndicator.style.left = `${activeBtn.offsetLeft}px`;
+    }
 
     function switchTab(targetId) {
         // Re-query LIVE buttons because we replaced them with clones
@@ -9,21 +18,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Remove active class from all tabs
         liveTabs.forEach(t => t.classList.remove('active'));
-
-        // Hide ALL tab contents explicitly (nuclear option for CSS specificity issues)
-        liveContents.forEach(c => {
-            c.classList.remove('active');
-            c.style.display = 'none';
-        });
+        liveContents.forEach(c => c.classList.remove('active'));
 
         // Add active to target
         const btn = document.querySelector(`.tab-btn[data-tab="${targetId}"]`);
         const content = document.getElementById(targetId);
 
-        if (btn) btn.classList.add('active');
+        if (btn) {
+            btn.classList.add('active');
+            updateTabIndicator(btn);
+        }
         if (content) {
             content.classList.add('active');
-            content.style.display = 'block'; // Explicitly show target
         }
 
         // Special handling for SoundBoard init
@@ -34,48 +40,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Special handling for Plugins init + Real-Time BD Polling (v1.8.0)
+        // Special handling for Plugins init
         if (targetId === 'plugins-tab') {
             if (typeof PluginsTabManager !== 'undefined') {
                 PluginsTabManager.init();
-                
-                // v1.11.1: Unified anti-flicker UI refresh when tab is opened
-                if (window.ipcRenderer) {
-                    Promise.all([
-                        window.ipcRenderer.invoke('bd:get-status'),
-                        window.ipcRenderer.invoke('bd:get-runtime-status')
-                    ]).then(([statusData, rtStatus]) => {
-                        // Prevent UI flicker by syncing the connection state before rendering
-                        if (rtStatus) {
-                            statusData.sm_connected = rtStatus.active;
-                            if (rtStatus.active) {
-                                statusData.status = 'active'; // Force BD badge to active to prevent 'incompatible' flashes
-                            }
-                        }
-                        
-                        if (typeof PluginsTabManager._handleBDStatusUpdate === 'function') {
-                            PluginsTabManager._handleBDStatusUpdate(statusData);
-                        }
-
-                        if (rtStatus && rtStatus.active) {
-                            if (typeof PluginsTabManager._handleBDRuntimeStatus === 'function') {
-                                PluginsTabManager._handleBDRuntimeStatus(rtStatus);
-                            }
-                            window.ipcRenderer.invoke('bd:get-plugins').then(cached => {
-                                if (cached && cached.length > 0 && typeof PluginsTabManager._renderBDPlugins === 'function') {
-                                    PluginsTabManager._renderBDPlugins(cached);
-                                }
-                            }).catch(() => { });
-                        } else {
-                            if (typeof PluginsTabManager._updateSolariManagerCardStatus === 'function') {
-                                PluginsTabManager._updateSolariManagerCardStatus(false);
-                            }
-                        }
-                    }).catch(() => {});
-                }
             }
-        } else {
-            // No cleanup needed for background refresh
         }
     }
 
@@ -93,5 +62,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    console.log('[SafeTabs] Initialized');
+    // Initialize indicator position
+    window.addEventListener('load', () => {
+        const activeBtn = document.querySelector('.tab-btn.active');
+        if (activeBtn) updateTabIndicator(activeBtn);
+    });
+
+    window.addEventListener('resize', () => {
+        const activeBtn = document.querySelector('.tab-btn.active');
+        if (activeBtn) updateTabIndicator(activeBtn);
+    });
+
+    console.log('[SafeTabs] Initialized with Indicator');
 });
