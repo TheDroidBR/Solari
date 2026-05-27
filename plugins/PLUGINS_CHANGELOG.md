@@ -1,5 +1,24 @@
 # Plugins Changelog
 
+## SolariNotes v1.0.3 (2026-05-26)
+- 🚀 **Dynamic Mount Architecture**: Re-engineered the notepad rendering system. The panel is now completely unmounted and removed from the DOM when closed, and only appended to `document.body` when open. This physically prevents any GPU layering or rendering conflicts (such as screen clipping or black regions) inside Discord.
+- 🎯 **Universal Header Detector**: Replaced narrow HTML element queries with tag-agnostic themed container class matching (`[class*="themed_"]`), combined with a recursive toolbar presence check. This successfully restores the notes icon in both chat channel headers and the modern Friends view tab, completely stably and safely.
+- 🛡️ **Strict Popout Filtering**: Added comprehensive filter barriers that exclude all overlays, menus, modals, and user popouts from being mutated, preventing virtual DOM collisions in Discord's React tree.
+- 🎨 **Visual Polish**: Fixed missing bottom-left resize handle styling (`.solari-notes-handle-sw`).
+
+## SolariNotes v1.0.2 (2026-03-31)
+- 🛡️ **Definitive Fix: Discord UI Crash**: Added a 300ms debounce to the MutationObserver and enforced absolute strictness on the toolbar selector. The plugin will no longer hijack user profile modals, eliminating the "black screen" Chat crash completely.
+
+## SolariNotes v1.0.1 (2026-03-24)
+- 🛡️ **Critical Fix: Discord UI Crash**: Relocated panel injection from `#app-mount` to `document.body`. This prevents a React 18 rendering conflict that caused the Discord interface to "cut off" and show black areas when opening user profiles.
+- 🎯 **Fixed Icon Injection**: Updated toolbar selectors to prevent accidental injection into user profile modals.
+
+## SolariPlayer v1.0.1 (2026-05-26)
+- 🛡️ **WebRTC Call Exclusion**: Added a filter to ignore real-time video streams from voice/video calls, group chats, or screen shares. This prevents the player's controls from attaching to Discord's native RTC media components, correcting the bug where call control buttons (mic, camera, disconnect) would disappear.
+- 🎞️ **GIF Controls Exclusion**: Added a strict filter to exclude autoplaying GIF videos (from Tenor, Giphy, or elements with GIF wrappers) from being injected with player controls, keeping them as seamless looping visuals.
+- 📱 **Portrait Layout Auto-Adaptation**: Re-engineered vertical/portrait video controls using a robust JavaScript-based `ResizeObserver`. Conditionally renders and simplifies controls at narrow widths (<450px and <320px) to prevent any CSS horizontal clipping.
+- ⏱️ **Time Overlay Staggering**: Added strict `white-space: nowrap;` rules to ensure duration labels never wrap on portrait wrappers.
+
 ## SolariPlayer v1.0.0 (2026-04-22)
 - 🚀 **Initial Release**: A high-performance, adaptive music player built entirely inside Discord.
 - 🎨 **Adaptive UI**: The player's accent colors change dynamically based on the album art of the currently playing track.

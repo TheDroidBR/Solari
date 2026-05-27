@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Sleek, synchronized notepad integrated strictly into Discord's UI. Saves securely to your local PC via the Solari App.
- * @version 1.0.2
+ * @version 1.0.3
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  */
@@ -75,7 +75,7 @@ module.exports = class SolariNotes {
 
     getSettingsSchema() {
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v1.0.2' },
+            { type: 'custom_header', title: this.t('title'), version: 'v1.0.3' },
             { type: 'status_card', id: 'solariStatus', label: this.t('status'), status: this.isConnected ? 'connected' : 'disconnected' },
             {
                 type: 'select', key: 'language', label: 'Language / Idioma', options: [
@@ -408,8 +408,8 @@ module.exports = class SolariNotes {
 
         // 3. Inject UI via MutationObserver (Reliably detects when Discord UI is ready)
         this.observer = new MutationObserver(() => {
-            if (!document.getElementById("solari-notes-icon-btn")) {
-                // Prevent synchronous React DOM mutation collisions that cause Chat crash (black screen)
+            const existingIcon = document.getElementById("solari-notes-icon-btn");
+            if (!existingIcon) {
                 if (this.injectTimeout) clearTimeout(this.injectTimeout);
                 this.injectTimeout = setTimeout(() => {
                     if (!document.getElementById("solari-notes-icon-btn")) {
@@ -484,8 +484,6 @@ module.exports = class SolariNotes {
                 min-width: 200px;
                 min-height: 150px;
                 background: color-mix(in srgb, var(--background-floating, rgba(15,15,20,1)) 85%, transparent);
-                backdrop-filter: blur(var(--solari-blur, 16px));
-                -webkit-backdrop-filter: blur(var(--solari-blur, 16px));
                 border: 1px solid var(--background-modifier-accent, rgba(255, 255, 255, 0.08));
                 border-radius: 12px;
                 box-shadow: var(--elevation-high, 0 8px 32px rgba(0, 0, 0, 0.4));
@@ -494,6 +492,7 @@ module.exports = class SolariNotes {
                 z-index: 9999;
                 opacity: 0; /* Hidden initially */
                 pointer-events: none;
+                transform: translateY(-10px);
                 transition: opacity 0.2s ease, transform 0.2s ease, backdrop-filter 0.3s ease;
             }
 
@@ -509,11 +508,14 @@ module.exports = class SolariNotes {
             .solari-notes-handle-nw { top: -6px; left: -6px; width: 12px; height: 12px; cursor: nwse-resize; }
             .solari-notes-handle-ne { top: -6px; right: -6px; width: 12px; height: 12px; cursor: nesw-resize; }
             .solari-notes-handle-se { bottom: -6px; right: -6px; width: 12px; height: 12px; cursor: nwse-resize; }
+            .solari-notes-handle-sw { bottom: -6px; left: -6px; width: 12px; height: 12px; cursor: nesw-resize; }
 
             .solari-notes-panel.open {
                 opacity: var(--solari-opacity, 1);
                 transform: translateY(0);
                 pointer-events: all;
+                backdrop-filter: blur(var(--solari-blur, 16px));
+                -webkit-backdrop-filter: blur(var(--solari-blur, 16px));
             }
             .solari-notes-panel.pinned {
                 /* No special styling needed here, logic handles it */
@@ -781,14 +783,14 @@ module.exports = class SolariNotes {
 
         // 1. Find the Discord Header Toolbar (next to Search / Help / Inbox)
         // We use focused selectors to avoid grabbing popup/message toolbars (which causes React crashes)
-        const possibleHeaders = Array.from(document.querySelectorAll('section[class*="title_"], section[class*="headerBar_"], [class*="chatContent_"] > [class*="wrapper_"]'));
+        const possibleHeaders = Array.from(document.querySelectorAll('[class*="title_"], [class*="headerBar_"], [class*="themed_"]'));
         
-        // CRITICAL: Strictly avoid layer containers and popouts to prevent React from crashing (black screen bug)
-        const headerContainer = possibleHeaders.find(c => 
-            !c.closest('.layerContainer-2v_Sit') && 
-            !c.closest('[class*="layerContainer"]') && 
-            !c.closest('[class*="popout"]')
-        );
+        // CRITICAL: Strictly avoid layer containers, popouts, modals, and other overlay elements to prevent React from crashing (black screen bug)
+        const headerContainer = possibleHeaders.find(c => {
+            if (!c.closest('#app-mount')) return false;
+            if (c.closest('[class*="popout_"], [class*="modal_"], [class*="menu_"], [class*="tooltip_"], [class*="layerContainer_"], [class*="userPopout_"], [class*="messagesWrapper_"]')) return false;
+            return !!c.querySelector('[class*="toolbar_"]');
+        });
 
         let toolbar = null;
         if (headerContainer) toolbar = headerContainer.querySelector('[class*="toolbar_"]');
@@ -816,20 +818,22 @@ module.exports = class SolariNotes {
 
         // 3. Create Floating Panels for each tracked window
         this.config.windows.forEach(win => {
-            const panel = document.createElement('div');
-            panel.dataset.windowId = win.id;
-            panel.className = "solari-notes-panel";
-            
             // Final Visibility Logic:
             // 1. Pinned windows: ALWAYS stay visible (persistent tools)
             // 2. Unpinned windows (main or detached): Follow the Master Toggle (isPanelOpen)
             const shouldBeVisible = win.isPinned || (this.isPanelOpen && (win.id === 'main' || win.isOpen));
             
-            if (shouldBeVisible) panel.classList.add('open');
+            // Physically skip creating and appending to DOM if it shouldn't be visible.
+            // This prevents closed panels with opacity 0 from causing layout clipping or hardware compositing issues in Discord.
+            if (!shouldBeVisible) return;
+
+            const panel = document.createElement('div');
+            panel.dataset.windowId = win.id;
+            panel.className = "solari-notes-panel open";
             if (win.isPinned) panel.classList.add('pinned');
 
             panel.innerHTML = `
-                <div class="solari-notes-header" class="solari-notes-header-${win.id}" data-type="header">
+                <div class="solari-notes-header solari-notes-header-${win.id}" data-type="header">
                     <div class="solari-notes-title">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21H6.75L17.81 9.94L14.06 6.19L3 17.25ZM20.71 7.04C21.1 6.65 21.1 6.02 20.71 5.63L18.37 3.29C17.98 2.9 17.35 2.9 16.96 3.29L15.13 5.12L18.88 8.87L20.71 7.04Z"/></svg>
                         Solari Notes
@@ -887,11 +891,8 @@ module.exports = class SolariNotes {
             panel.style.setProperty('--solari-blur', (this.config.blurIntensity ?? 16) + 'px');
             panel.style.setProperty('--solari-padding', (this.config.editorPadding ?? 16) + 'px');
 
-            // The panel needs absolute positioning relative to the app mount so it doesn't get clipped
-            const appMount = document.getElementById('app-mount');
-            if (appMount) {
-                appMount.appendChild(panel);
-            }
+            // Append directly to document.body to prevent backdrop-filter from causing layout clipping or hardware acceleration rendering glitches in Discord's app-mount
+            document.body.appendChild(panel);
 
             // 4. Input Listener with Debounce
             const textArea = panel.querySelector('.solari-notes-textarea');
@@ -1194,28 +1195,22 @@ module.exports = class SolariNotes {
             icon.classList.remove('active');
         }
 
-        // Just update visibility classes
-        const panels = document.querySelectorAll('.solari-notes-panel');
-        panels.forEach(panel => {
-            const winId = panel.dataset.windowId;
-            const win = this.config.windows.find(w => w.id === winId);
-            if (!win) return;
+        // Physically remove and re-inject panels based on the new isPanelOpen state.
+        // Closed panels will not be present in the DOM, preventing any GPU compositing side effects.
+        document.querySelectorAll('.solari-notes-panel').forEach(p => p.remove());
+        this.injectUI();
 
-            const shouldBeOpen = win.isPinned || (this.isPanelOpen && (win.id === 'main' || win.isOpen));
-            
-            if (shouldBeOpen) {
-                panel.classList.add('open');
-                if (win.id === 'main') {
-                     const textArea = panel.querySelector('.solari-notes-textarea');
-                     if (textArea) {
-                         textArea.focus();
-                         textArea.selectionStart = textArea.selectionEnd = textArea.value.length;
-                     }
+        // Focus the text area if opened
+        if (this.isPanelOpen) {
+            const mainPanel = document.querySelector('.solari-notes-panel[data-window-id="main"]');
+            if (mainPanel) {
+                const textArea = mainPanel.querySelector('.solari-notes-textarea');
+                if (textArea) {
+                    textArea.focus();
+                    textArea.selectionStart = textArea.selectionEnd = textArea.value.length;
                 }
-            } else {
-                panel.classList.remove('open');
             }
-        });
+        }
     }
 
     handleOutsideClick(e) {

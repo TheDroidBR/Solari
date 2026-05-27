@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Video Player for Discord. Features Theater Mode, Glassmorphism UI, Picture-in-Picture, Speed Control, and Screenshot Bypass.
- * @version 1.0.0
+ * @version 1.0.1
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariPlayer.plugin.js
@@ -13,7 +13,7 @@ class SolariPlayer {
 
     getName() { return "SolariPlayer"; }
     getDescription() { return "Premium Video Player for Discord. Features Theater Mode, Glassmorphism UI, Picture-in-Picture, Speed Control, and Screenshot Bypass."; }
-    getVersion() { return "1.0.0"; }
+    getVersion() { return "1.0.1"; }
     getAuthor() { return "TheDroid"; }
 
     static PLUGIN_ID = "SolariPlayer";
@@ -98,7 +98,11 @@ class SolariPlayer {
             '[aria-label*="Download"]', '[title*="Download"]',
             'a[href*="discordapp.net/attachments/"]'
         ];
-        root.querySelectorAll(selectors.join(',')).forEach(el => {
+        
+        // Apenas buscar elementos de UI nativa a serem limpos se estiverem dentro do nosso wrapper
+        const wrapperSelectors = selectors.map(s => `.solari-video-wrapper ${s}`);
+        
+        root.querySelectorAll(wrapperSelectors.join(',')).forEach(el => {
             if (!el.closest('.solari-video-overlay')) {
                 el.style.setProperty('display', 'none', 'important');
                 el.style.setProperty('opacity', '0', 'important');
@@ -111,11 +115,29 @@ class SolariPlayer {
     injectOverlay(videoNode) {
         if (videoNode.dataset.solari || videoNode.classList.contains('solari-vp-preview-vid')) return;
 
-        // 1. Filtro Agressivo (Proibir UI fora de mensagens)
+        // 0. Filtrar transmissões de chamadas WebRTC (câmeras/telas compartilhadas)
+        if (!videoNode.src || videoNode.src.trim() === '') return;
+
+        // 0.1 Adicional: Evitar blobs de stream em chamadas se usarem ObjectURL
+        if (videoNode.src.startsWith('blob:') && videoNode.closest('[class*="callContainer_"], [class*="videoGrid_"], [class*="videoWrapper_"], [class*="rtcConnection_"]')) {
+            return;
+        }
+
+        // 0.2 Filtrar GIFs (Tenor, Giphy ou qualquer contêiner com classe de gif)
+        const isGif = videoNode.src.toLowerCase().includes('tenor') || 
+                      videoNode.src.toLowerCase().includes('giphy') || 
+                      videoNode.closest('[class*="gif"]') ||
+                      videoNode.closest('[class*="gifFavoriteButton_"]');
+        if (isGif) return;
+
+        // 1. Filtro Agressivo (Proibir UI fora de mensagens e em contêineres de chamadas)
         const isInvalidArea = videoNode.closest(`
             [class*="avatar"], [class*="panels_"], [class*="members_"], 
             [class*="sidebar_"], [class*="banner_"], [class*="profile"],
-            [class*="emoji"], [class*="sticker"]
+            [class*="emoji"], [class*="sticker"],
+            [class*="callContainer_"], [class*="videoGrid_"], [class*="videoWrapper_"],
+            [class*="streamWrapper_"], [class*="voiceChannel_"], [class*="rtcConnection_"],
+            [class*="callWrapper_"], [class*="videoGridWrapper_"], [class*="pictureInPictureVideo_"]
         `);
         if (isInvalidArea) return;
 
@@ -209,6 +231,24 @@ class SolariPlayer {
         // OSD & Ripple state
         const [osd, setOsd] = React.useState(null);
         const [ripple, setRipple] = React.useState(null);
+        const [containerWidth, setContainerWidth] = React.useState(450);
+
+        React.useEffect(() => {
+            const container = containerRef.current;
+            if (!container) return;
+            const observer = new ResizeObserver((entries) => {
+                if (!entries || !entries[0]) return;
+                setContainerWidth(entries[0].contentRect.width);
+            });
+            observer.observe(container);
+            return () => observer.disconnect();
+        }, []);
+
+        const getWidthClass = () => {
+            if (containerWidth < 320) return 'solari-vp-width-narrow';
+            if (containerWidth < 450) return 'solari-vp-width-compact';
+            return 'solari-vp-width-normal';
+        };
 
         const timeoutRef = React.useRef(null);
         const containerRef = React.useRef(null);
@@ -576,7 +616,7 @@ class SolariPlayer {
         };
 
         return React.createElement('div', {
-            className: `solari-vp-overlay-container ${showControls ? 'show' : 'hide'}`,
+            className: `solari-vp-overlay-container ${showControls ? 'show' : 'hide'} ${getWidthClass()}`,
             onMouseMove: resetIdleTimer,
             onMouseLeave: () => { if (isPlaying) setShowControls(false); },
             onClick: handleOverlayClick,
@@ -676,7 +716,7 @@ class SolariPlayer {
                                 isMuted || volume === 0 ? React.createElement(SolariPlayer.Icons.VolumeMuted, null) :
                                     volume < 0.5 ? React.createElement(SolariPlayer.Icons.VolumeLow, null) : React.createElement(SolariPlayer.Icons.VolumeHigh, null)
                             ),
-                            React.createElement('div', { className: 'solari-vp-volume-slider-container', onClick: handleVolume },
+                            containerWidth >= 450 && React.createElement('div', { className: 'solari-vp-volume-slider-container', onClick: handleVolume },
                                 React.createElement('div', { className: 'solari-vp-volume-bg' },
                                     React.createElement('div', { className: 'solari-vp-volume-fill', style: { width: `${volumePercent}%` } }),
                                     React.createElement('div', { className: 'solari-vp-volume-thumb', style: { left: `${volumePercent}%` } })
@@ -684,24 +724,24 @@ class SolariPlayer {
                             )
                         ),
 
-                        React.createElement('div', { className: 'solari-vp-time' }, `${formatTime(currentTime)} / ${formatTime(duration)}`)
+                        containerWidth >= 320 && React.createElement('div', { className: 'solari-vp-time' }, `${formatTime(currentTime)} / ${formatTime(duration)}`)
                     ),
 
                     // Right: Camera, Theater, Loop, PiP, Settings, Fullscreen
                     React.createElement('div', { className: 'solari-vp-right' },
-                        React.createElement('button', { className: 'solari-vp-btn', onClick: handleScreenshot, title: "Screenshot" },
+                        containerWidth >= 320 && React.createElement('button', { className: 'solari-vp-btn', onClick: handleScreenshot, title: "Screenshot" },
                             React.createElement(SolariPlayer.Icons.Camera, null)
                         ),
-                        React.createElement('button', { className: `solari-vp-btn ${isTheater ? 'active' : ''}`, onClick: toggleTheater, title: "Modo Teatro" },
+                        containerWidth >= 450 && React.createElement('button', { className: `solari-vp-btn ${isTheater ? 'active' : ''}`, onClick: toggleTheater, title: "Modo Teatro" },
                             React.createElement(SolariPlayer.Icons.Theater, null)
                         ),
-                        React.createElement('button', { className: `solari-vp-btn ${isLooping ? 'active' : ''}`, onClick: toggleLoop, title: "Loop" },
+                        containerWidth >= 450 && React.createElement('button', { className: `solari-vp-btn ${isLooping ? 'active' : ''}`, onClick: toggleLoop, title: "Loop" },
                             React.createElement(SolariPlayer.Icons.Loop, null)
                         ),
-                        React.createElement('button', { className: 'solari-vp-btn', onClick: togglePiP, title: "Picture in Picture" },
+                        containerWidth >= 450 && React.createElement('button', { className: 'solari-vp-btn', onClick: togglePiP, title: "Picture in Picture" },
                             React.createElement(SolariPlayer.Icons.PiP, null)
                         ),
-                        React.createElement('button', { className: `solari-vp-btn ${showSettings ? 'active' : ''}`, onClick: e => { e.stopPropagation(); setShowSettings(!showSettings); }, title: "Configurações" },
+                        containerWidth >= 320 && React.createElement('button', { className: `solari-vp-btn ${showSettings ? 'active' : ''}`, onClick: e => { e.stopPropagation(); setShowSettings(!showSettings); }, title: "Configurações" },
                             React.createElement(SolariPlayer.Icons.Settings, null)
                         ),
                         React.createElement('button', { className: 'solari-vp-btn', onClick: toggleFullscreen, title: "Tela Cheia" },
@@ -719,9 +759,13 @@ class SolariPlayer {
             .solari-video-wrapper > *:not(video):not(.solari-video-overlay) {
                 display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important;
             }
-            /* Esconder controles nativos residuais de forma agressiva */
-            [class*="videoControls_"], [class*="downloadButton_"], [class*="playButton_"], 
-            [class*="downloadWrapper_"], [class*="downloadLink_"], a[href*="discordapp.net/attachments/"] { 
+            /* Esconder controles nativos residuais de forma agressiva apenas dentro de nossos wrappers */
+            .solari-video-wrapper [class*="videoControls_"], 
+            .solari-video-wrapper [class*="downloadButton_"], 
+            .solari-video-wrapper [class*="playButton_"], 
+            .solari-video-wrapper [class*="downloadWrapper_"], 
+            .solari-video-wrapper [class*="downloadLink_"], 
+            .solari-video-wrapper a[href*="discordapp.net/attachments/"] { 
                 display: none !important; opacity: 0 !important; pointer-events: none !important; 
                 width: 0 !important; height: 0 !important; position: absolute !important;
             }
@@ -783,6 +827,42 @@ class SolariPlayer {
                 transform: translateY(20px);
             }
 
+            /* Ajustes responsivos dinâmicos baseados nas classes de largura */
+            .solari-vp-overlay-container.solari-vp-width-compact .solari-vp-bottom-pill {
+                margin: 0 6px 6px 6px;
+                padding: 6px 10px;
+                border-radius: 12px;
+                gap: 6px;
+            }
+            .solari-vp-overlay-container.solari-vp-width-compact .solari-vp-volume-slider-container {
+                display: none !important;
+            }
+            .solari-vp-overlay-container.solari-vp-width-compact .solari-vp-controls-row {
+                gap: 4px;
+            }
+            .solari-vp-overlay-container.solari-vp-width-compact .solari-vp-left,
+            .solari-vp-overlay-container.solari-vp-width-compact .solari-vp-right {
+                gap: 6px;
+            }
+            .solari-vp-overlay-container.solari-vp-width-compact .solari-vp-time {
+                font-size: 10px;
+                margin-left: 0;
+            }
+
+            .solari-vp-overlay-container.solari-vp-width-narrow .solari-vp-bottom-pill {
+                margin: 0 4px 4px 4px;
+                padding: 4px 6px;
+                border-radius: 8px;
+                gap: 4px;
+            }
+            .solari-vp-overlay-container.solari-vp-width-narrow .solari-vp-controls-row {
+                gap: 2px;
+            }
+            .solari-vp-overlay-container.solari-vp-width-narrow .solari-vp-left,
+            .solari-vp-overlay-container.solari-vp-width-narrow .solari-vp-right {
+                gap: 4px;
+            }
+
             /* Seek Bar */
             .solari-vp-seek-container {
                 height: 16px; display: flex; align-items: center; cursor: pointer; position: relative;
@@ -835,7 +915,7 @@ class SolariPlayer {
             
             .btn-play svg { width: 22px; height: 22px; }
 
-            .solari-vp-time { color: #fff; font-size: 12px; font-weight: 500; opacity: 0.85; margin-left: 4px; font-variant-numeric: tabular-nums; }
+            .solari-vp-time { color: #fff; font-size: 12px; font-weight: 500; opacity: 0.85; margin-left: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
             /* Volume Group */
             .solari-vp-volume-group { display: flex; align-items: center; gap: 6px; }
