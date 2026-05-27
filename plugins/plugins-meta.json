@@ -61,20 +61,5 @@
     "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariPlayer.plugin.js",
     "fileName": "SolariPlayer.plugin.js",
     "changelog": "### v1.0.1 (2026-05-26)\n- 🛡️ **WebRTC Call Exclusion**: Added a filter to ignore real-time video streams from voice/video calls, group chats, or screen shares. This prevents the player's controls from attaching to Discord's native RTC media components, correcting the bug where call control buttons (mic, camera, disconnect) would disappear.\n- 🎞️ **GIF Controls Exclusion**: Added a strict filter to exclude autoplaying GIF videos (from Tenor, Giphy, or elements with GIF wrappers) from being injected with player controls, keeping them as seamless looping visuals.\n- 📱 **Portrait Layout Auto-Adaptation**: Re-engineered vertical/portrait video controls using a robust JavaScript-based `ResizeObserver`. Conditionally renders and simplifies controls at narrow widths (<450px and <320px) to prevent any CSS horizontal clipping.\n- ⏱️ **Time Overlay Staggering**: Added strict `white-space: nowrap;` rules to ensure duration labels never wrap on portrait wrappers.\n\n### v1.0.0\n- 🚀 **Initial Release**: A brand new Premium Video Player for Discord.\n- 🎭 **Theater Mode**: Transforms any video into a cinematic, centered lightbox with a darkened background.\n- ⚡ **Speed Control**: Advanced speed selector (0.5x, 1x, 1.25x, 1.5x, 2x) straight from the player.\n- 📱 **Double Tap to Seek**: Instantly skip or rewind 10 seconds with a double tap on the sides of the video, complete with ripple animations.\n- 🖼️ **Picture-in-Picture**: Watch videos in a floating window while browsing other channels.\n- 📸 **Screenshot Bypass**: Easily capture video frames with our anti-CORS clone strategy.\n- 🎨 **Glassmorphism UI**: Beautiful, fully customized controls using Solari's premium aesthetic, completely replacing Discord's native UI."
-  },
-  "solarimotion": {
-    "version": "1.0.0",
-    "title": "Solari Motion",
-    "author": "TheDroid",
-    "description": "Transform Discord with Physics-based Premium Animations. 14 animation types, 12 categories, real spring engine.",
-    "features": [
-      "Real Spring Physics Engine",
-      "14 Animation Types & 12 Categories",
-      "10 Premium Thematic Presets",
-      "Live Visual Settings Preview"
-    ],
-    "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMotion.plugin.js",
-    "fileName": "SolariMotion.plugin.js",
-    "changelog": "### v1.0.0\n- 🚀 **Initial Release**: The ultimate animation plugin for Discord, vastly superior to BetterAnimations.\n- ⚙️ **Spring Engine**: Real physics simulation for snappy, liquid, or bouncy movements.\n- 🎨 **14 Animation Types**: Slide, Scale, Fade, Flip, Glide, Warp, Bounce, and more.\n- 📋 **12 Categories**: Granular control over Context Menus, Modals, Popouts, Messages, Guilds, and Channels.\n- 🎮 **Premium Settings UI**: Features 10 built-in presets and a visual configuration panel directly inside Discord.\n- ⚡ **Performance Mode**: GPU-accelerated CSS mapping prevents UI thread blocking, ensuring perfect 60fps."
   }
 }
