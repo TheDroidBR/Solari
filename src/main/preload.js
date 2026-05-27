@@ -130,7 +130,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         try {
             const parsed = new URL(url);
             if (['https:', 'http:'].includes(parsed.protocol)) {
-                shell.openExternal(url);
+                ipcRenderer.send('open-external-url', url);
             }
         } catch (e) {
             // Invalid URL, ignore

@@ -1030,7 +1030,7 @@
 
     // Open VB-Cable download page
     window.sbDownloadDriver = function () {
-        require('electron').shell.openExternal('https://vb-audio.com/Cable/');
+        sbIpcRenderer.send('open-external-url', 'https://vb-audio.com/Cable/');
     };
 
     // Refresh driver detection

@@ -61,5 +61,26 @@
     "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariPlayer.plugin.js",
     "fileName": "SolariPlayer.plugin.js",
     "changelog": "### v1.0.1 (2026-05-26)\n- 🛡️ **WebRTC Call Exclusion**: Added a filter to ignore real-time video streams from voice/video calls, group chats, or screen shares. This prevents the player's controls from attaching to Discord's native RTC media components, correcting the bug where call control buttons (mic, camera, disconnect) would disappear.\n- 🎞️ **GIF Controls Exclusion**: Added a strict filter to exclude autoplaying GIF videos (from Tenor, Giphy, or elements with GIF wrappers) from being injected with player controls, keeping them as seamless looping visuals.\n- 📱 **Portrait Layout Auto-Adaptation**: Re-engineered vertical/portrait video controls using a robust JavaScript-based `ResizeObserver`. Conditionally renders and simplifies controls at narrow widths (<450px and <320px) to prevent any CSS horizontal clipping.\n- ⏱️ **Time Overlay Staggering**: Added strict `white-space: nowrap;` rules to ensure duration labels never wrap on portrait wrappers.\n\n### v1.0.0\n- 🚀 **Initial Release**: A brand new Premium Video Player for Discord.\n- 🎭 **Theater Mode**: Transforms any video into a cinematic, centered lightbox with a darkened background.\n- ⚡ **Speed Control**: Advanced speed selector (0.5x, 1x, 1.25x, 1.5x, 2x) straight from the player.\n- 📱 **Double Tap to Seek**: Instantly skip or rewind 10 seconds with a double tap on the sides of the video, complete with ripple animations.\n- 🖼️ **Picture-in-Picture**: Watch videos in a floating window while browsing other channels.\n- 📸 **Screenshot Bypass**: Easily capture video frames with our anti-CORS clone strategy.\n- 🎨 **Glassmorphism UI**: Beautiful, fully customized controls using Solari's premium aesthetic, completely replacing Discord's native UI."
+  },
+  "solarimotion": {
+    "version": "1.0.0",
+    "title": "Solari Motion",
+    "author": "TheDroid",
+    "description": "The most advanced animation system for Discord — 22 UI categories, 28 animation types, Stagger cascades, Global Intensity, visual Cubic-Bézier editor, and Live DOM Preview. 100% Standalone.",
+    "features": [
+      "28 Animation Types (Glide, Wipe, Clip-Circle, Morph, Gravity, Pendulum...)",
+      "22 Customizable UI Categories (incl. Autocomplete, DM List, Call Overlay...)",
+      "✦ Stagger System — Cascade animations for lists and messages",
+      "Global Intensity Slider (0–200%)",
+      "Visual Cubic-Bézier Editor with drag-and-drop control points",
+      "Live DOM Preview Overlay — animate a real Discord mock element",
+      "5 Presets: Fluid, Snappy, Bounce, Minimal, Off",
+      "Import / Export settings as JSON",
+      "FPS Protection — pauses animations below 30fps",
+      "100% Standalone — No Solari App Required"
+    ],
+    "downloadUrl": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMotion.plugin.js",
+    "fileName": "SolariMotion.plugin.js",
+    "changelog": "### v1.0.0 (2026-05-27)\n- 🚀 **Initial Release**: The most advanced animation system for Discord ever built. Fully standalone.\n- 🗂️ **22 UI Categories**: Total UI coverage including DMs, Channels, Server Switcher, Folders, Auto-Complete, Modals, Call Overlay, and Inbox.\n- 🌊 **28 Animation Types**: Rich visual choices from classic Glide/Slide to organic Bounce, Clip-Circle, Wipe-Right, and Pendulum.\n- ✦ **Stagger Cascades**: Animate lists (messages, members, DMs, results) with cascading delays for a flowing, premium entrance.\n- 🎚️ **Global Intensity Slider**: Scale all animations from 0% (disabled) up to 200% (extreme dramatics) on a single master dial.\n- 🎨 **Visual Cubic-Bézier Editor**: Fully interactive canvas drag-and-drop handles to craft custom easing curves in real-time.\n- ▶️ **Live DOM Preview**: Spawn a real Discord mock message card in-editor to test your custom transitions instantly.\n- 🤖 **5 Presets**: Fluid (default), Snappy, Bounce, Minimal (fade-only), and Off.\n- 🛡️ **FPS Guard & GPU acceleration**: Actively tracks performance to scale down/pause animations if FPS drops below 30, and manages `will-change` dynamic lifetimes.\n- 📋 **Import/Export Settings**: Share or backup configurations instantly using clean JSON strings."
   }
 }

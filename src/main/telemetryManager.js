@@ -1,4 +1,5 @@
 const { BrowserWindow } = require('electron');
+const { exec } = require('child_process');
 const CONSTANTS = require('./constants');
 
 
@@ -13,6 +14,32 @@ class TelemetryManager {
 
     setUserId(uid) {
         this.trackingUserId = uid;
+    }
+
+    checkSBDriverInstalled() {
+        return new Promise((resolve) => {
+            exec('powershell -Command "Get-WmiObject Win32_SoundDevice | Select-Object Name | ConvertTo-Json"', (error, stdout) => {
+                if (error) {
+                    resolve(false);
+                    return;
+                }
+                try {
+                    const devices = JSON.parse(stdout || '[]');
+                    const deviceList = Array.isArray(devices) ? devices : [devices];
+                    const vbCableFound = deviceList.some(d =>
+                        d && d.Name && (
+                            d.Name.includes('CABLE Input') ||
+                            d.Name.includes('CABLE Output') ||
+                            d.Name.toLowerCase().includes('vb-audio') ||
+                            d.Name.toLowerCase().includes('voicemeeter')
+                        )
+                    );
+                    resolve(vbCableFound);
+                } catch (e) {
+                    resolve(false);
+                }
+            });
+        });
     }
 
     setActivePlugins(plugins) {
@@ -32,14 +59,23 @@ class TelemetryManager {
 
         let url = `${this.trackerUrl}?action=ping&uid=${encodeURIComponent(this.trackingUserId)}&version=${CONSTANTS.APP_VERSION}`;
 
+        // Mandatory additions: BD status and advanced flag
+        if (this.bdStatus) {
+            url += `&bd=${encodeURIComponent(this.bdStatus)}`;
+        }
+        url += `&advanced=${this.advancedEnabled ? '1' : '0'}`;
+
         // Advanced telemetry data (Optional)
         if (this.advancedEnabled) {
             if (this.activePlugins && this.activePlugins.length > 0) {
                 url += `&plugins=${encodeURIComponent(this.activePlugins.join(','))}`;
             }
 
-            if (this.bdStatus) {
-                url += `&bd=${encodeURIComponent(this.bdStatus)}`;
+            try {
+                const driverInstalled = await this.checkSBDriverInstalled();
+                url += `&driver=${driverInstalled ? '1' : '0'}`;
+            } catch (e) {
+                if (this.debugMode) console.error('[Solari Telemetry] Driver check error:', e);
             }
         }
 

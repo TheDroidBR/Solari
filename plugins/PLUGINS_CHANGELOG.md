@@ -1,5 +1,17 @@
 # Plugins Changelog
 
+## SolariMotion v1.0.0 (2026-05-26)
+- 🚀 **Initial Release**: The most advanced animation system for Discord ever built. Completely standalone, outperforming Better Animations in every single category.
+- 🗂️ **22 UI Categories**: Total UI coverage including DM List, Autocomplete, Image Viewer, Call Overlay, Upload Preview, Server Folders, Thread Panel, Search Results, Inbox, and App Directory.
+- 🌊 **28 Animation Types**: Expanded choices with Wipe-Right, Wipe-Up, Clip-Circle, Morph, Gravity, Float, Pendulum, Pop, and more.
+- ✦ **Stagger Cascades**: Cascades list items (messages, DMs, search results, member list) sequentially with customizable delays to prevent sudden UI jumps.
+- 🎚️ **Global Intensity Slider**: Master dial allows you to scale all animation durations and amplitudes from 0% (disabled) up to 200% (extreme dramatics).
+- 🎨 **Visual Cubic-Bézier Editor**: An interactive canvas allowing drag-and-drop curves, preset easings, and instant previewing.
+- ▶️ **Live DOM Preview**: Spawn a real Discord mock message card in the center of the screen to preview animations and custom curves in real-time.
+- 🤖 **5 Presets**: Fluid, Snappy, Bounce, Minimal (fade-only), and Off.
+- 🛡️ **FPS Guard & GPU acceleration**: Actively tracks performance to scale down/pause animations if FPS drops below 30, and manages `will-change` dynamic lifetimes.
+- 📋 **Import/Export Settings**: Share or backup configurations instantly using clean JSON strings.
+
 ## SolariNotes v1.0.3 (2026-05-26)
 - 🚀 **Dynamic Mount Architecture**: Re-engineered the notepad rendering system. The panel is now completely unmounted and removed from the DOM when closed, and only appended to `document.body` when open. This physically prevents any GPU layering or rendering conflicts (such as screen clipping or black regions) inside Discord.
 - 🎯 **Universal Header Detector**: Replaced narrow HTML element queries with tag-agnostic themed container class matching (`[class*="themed_"]`), combined with a recursive toolbar presence check. This successfully restores the notes icon in both chat channel headers and the modern Friends view tab, completely stably and safely.

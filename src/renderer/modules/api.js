@@ -320,7 +320,9 @@ const api = {
         openExternal: (url) => {
             try {
                 const protocol = new URL(url).protocol;
-                if (['https:', 'http:'].includes(protocol)) shell.openExternal(url);
+                if (['https:', 'http:'].includes(protocol)) {
+                    send('open-external-url', url);
+                }
             } catch { /* invalid URL */ }
         }
     }

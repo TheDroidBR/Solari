@@ -92,11 +92,9 @@
         "showEcoModeDesc": "Displays the Eco Mode bar at the top of Solari.",
         "privacyTitle": "Privacy",
         "privacyDesc": "Manage how Solari collects data for improvement.",
-        "labelBasicTelemetry": "Basic (Mandatory)",
-        "basicTelemetryDesc": "Collects only the application version.",
-        "labelAdvancedTelemetry": "Advanced (Developer)",
-        "advancedTelemetryTitle": "Help the Developer",
-        "advancedTelemetryDesc": "Collects additional telemetry related to the Solari App."
+        "labelAdditionalTelemetry": "Additional Telemetry",
+        "additionalTelemetryTitle": "Help the Developer",
+        "additionalTelemetryDesc": "Collects additional data (such as active Solari plugins and SoundBoard driver installation status) to help us optimize the application."
     },
     "pluginStore": {
         "title": "Official Plugins",

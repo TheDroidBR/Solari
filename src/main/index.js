@@ -976,6 +976,23 @@ ipcMain.on('request-changelog', () => {
     shell.openExternal('https://solarirpc.com/changelog.html');
 });
 
+ipcMain.on('open-external-url', (event, url) => {
+    try {
+        const protocol = new URL(url).protocol;
+        if (['https:', 'http:'].includes(protocol)) {
+            if (process.platform === 'win32') {
+                // Windows: use 'explorer' which acts as a COM bridge, allowing elevated apps (Admin)
+                // to spawn standard user processes (like Brave browser) and bypassing UIPI privilege isolation.
+                exec(`explorer "${url}"`);
+            } else {
+                shell.openExternal(url).catch(() => {});
+            }
+        }
+    } catch (e) {
+        console.error('[Solari] Failed to open external URL:', e);
+    }
+});
+
 
 
 async function updatePluginsOnStartup() {

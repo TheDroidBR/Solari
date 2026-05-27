@@ -1,3 +1,37 @@
+## [1.12.1] - 2026-05-26
+**UPDATE 1.12.1: HOTFIX**
+
+---
+
+### 🔌 Plugins Store Performance
+*   **CDN Cache-Busting**: Overhauled the Plugin Store fetch mechanism by appending dynamic timestamps (`?t=Date.now()`) to `plugins-meta.json` fetches during manual updates, instantly bypassing GitHub/Fastly CDN cache.
+*   **Immortal Updates Detection**: Added cache-busting checks on the download URLs themselves inside `get-remote-version`, ensuring updates are detected instantly.
+*   **Bypassed Plugin Download Caching**: Forced Electron plugin download calls to bypass cache, ensuring updates download the absolute latest code directly from raw GitHub branches.
+*   **Dynamic Plugin Names**: Implemented a 100% dynamic display name resolver that prioritizes remote metadata titles (`plugin.title`) directly from the repository's `plugins-meta.json` and uses a regex fallback casing parser, eliminating hardcoded local string mappings.
+*   **Collisionless Deletion**: Fixed an issue where the uninstall confirmation dialog would show `"undefined"` as the plugin name for extensions not present in the local static configuration map.
+
+### ⚡ SolariMotion v1.0.0 (New Animation System)
+*   **Initial Release**: Added the most advanced animation system for Discord ever built. Completely standalone, outperforming Better Animations in every single category.
+*   **22 UI Categories**: Total UI coverage including DM List, Autocomplete, Image Viewer, Call Overlay, Upload Preview, Server Folders, Thread Panel, Search Results, Inbox, and App Directory.
+*   **28 Animation Types**: Expanded choices with Wipe-Right, Wipe-Up, Clip-Circle, Morph, Gravity, Float, Pendulum, Pop, and more.
+*   **Visual Cubic-Bézier Editor**: An interactive canvas allowing drag-and-drop curves, preset easings, and instant previewing.
+*   **FPS Guard & GPU Acceleration**: Actively tracks performance to scale down/pause animations if FPS drops below 30, and manages `will-change` dynamic lifetimes.
+
+### 🎬 SolariPlayer v1.0.1 (Responsive Video UI)
+*   **ResizeObserver Adaptive UI**: Re-engineered vertical/portrait video controls to conditionally hide non-essential buttons and volume sliders at narrow width breakpoints (<450px and <320px).
+*   **Collisionless UI Cleanup**: Restored Discord's WebRTC call control bar layout by strictly scoping UI cleaning routines inside the custom player wrapper.
+
+### 📝 SolariNotes v1.0.3 (Mount Architecture)
+*   **Dynamic Unmount & Inject**: Re-engineered mounting strategy, completely unmounting the notepad panel when closed to eliminate black region screen clipping.
+*   **Tag-Agnostic Icons**: Fixed notes icon injection in modernized chat header containers and the Friends view toolbar.
+
+### ⚙️ Settings & System Integration
+*   **Sandbox-Proof External Link Launcher**: Built a resilient main-process IPC channel listener (`open-external-url`) routing links (like Privacy Policy) through `explorer.exe` on Windows. This acts as a COM/DCOM desktop shell launcher, successfully spawning standard-user default browsers (like Brave) even when completely closed, bypassing User Interface Privilege Isolation (UIPI) constraints when Solari runs as Administrator.
+*   **Duplicate Tabs Prevention**: Fixed a duplication bug where async execution callbacks erroneously fired fallback links when the COM process exited immediately.
+*   **Non-destructive Settings Search**: Resolved a visual breakage in the settings tab search bar by resetting matching cards' display styles to their default instead of forcing an inline `flex` layout, keeping the premium vertical grid intact.
+
+---
+
 ## [1.12.0] - 2026-05-12
 **UPDATE 1.12.0: UI/UX STANDARDIZATION & CORE STABILITY**
 

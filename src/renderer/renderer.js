@@ -189,6 +189,7 @@ const settingsLanguage = document.getElementById('settings-language');
 const settingsClientIdBtn = document.getElementById('settings-clientIdBtn');
 const settingsAutoCheckApp = document.getElementById('settings-autoCheckApp');
 const settingsAutoCheckPlugins = document.getElementById('settings-autoCheckPlugins');
+const settingsAdvancedTelemetry = document.getElementById('settings-advancedTelemetry');
 const settingsCheckUpdatesBtn = document.getElementById('settings-checkUpdatesBtn');
 const settingsChangelogBtn = document.getElementById('settings-changelogBtn');
 const settingsSetupWizardBtn = document.getElementById('settings-setupWizardBtn');
@@ -688,6 +689,12 @@ if (settingsAutoCheckPlugins) {
         appSettings.autoCheckPluginUpdates = e.target.checked;
     });
 }
+if (settingsAdvancedTelemetry) {
+    settingsAdvancedTelemetry.addEventListener('change', (e) => {
+        ipcRenderer.send('save-app-settings', { advancedTelemetry: e.target.checked });
+        appSettings.advancedTelemetry = e.target.checked;
+    });
+}
 if (settingsCheckUpdatesBtn) {
     settingsCheckUpdatesBtn.addEventListener('click', () => {
         const btnLabel = settingsCheckUpdatesBtn.querySelector('.btn-label');
@@ -715,17 +722,17 @@ if (settingsCheckUpdatesBtn) {
 // Support Links Handlers
 document.getElementById('faqLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    shell.openExternal('https://solarirpc.com/faq.html');
+    ipcRenderer.send('open-external-url', 'https://solarirpc.com/faq.html');
 });
 
 document.getElementById('discordDevPortalLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    shell.openExternal('https://discord.com/developers/applications');
+    ipcRenderer.send('open-external-url', 'https://discord.com/developers/applications');
 });
 
 document.getElementById('privacyPolicyLink')?.addEventListener('click', (e) => {
     e.preventDefault();
-    shell.openExternal('https://solarirpc.com/privacy.html');
+    ipcRenderer.send('open-external-url', 'https://solarirpc.com/privacy.html');
 });
 if (settingsChangelogBtn) {
     settingsChangelogBtn.addEventListener('click', () => {
@@ -778,6 +785,7 @@ function syncSettingsUI(loadedSettings) {
     if (settingsShowEcoMode) settingsShowEcoMode.checked = appSettings.showEcoMode !== false;
     if (settingsAutoCheckApp) settingsAutoCheckApp.checked = appSettings.autoCheckAppUpdates || false;
     if (settingsAutoCheckPlugins) settingsAutoCheckPlugins.checked = appSettings.autoCheckPluginUpdates || false;
+    if (settingsAdvancedTelemetry) settingsAdvancedTelemetry.checked = appSettings.advancedTelemetry !== false;
 
     // Apply UI Dependencies
     updateStartMinimizedUI();
@@ -3212,6 +3220,28 @@ var PluginsTabManager = {
                 'Retenção de Ghost Messages',
                 'Furtividade Anti-Typing'
             ]
+        },
+        solariplayer: {
+            displayName: 'Solari Player',
+            icon: '🔌',
+            requires: 'BetterDiscord',
+            features: [
+                'Theater Mode & Picture-in-Picture',
+                'Double Tap to Seek & Speed Controls',
+                'Screenshot Bypass (CORS)',
+                'Premium Glassmorphism UI'
+            ]
+        },
+        solarimotion: {
+            displayName: 'Solari Motion',
+            icon: '✨',
+            requires: 'BetterDiscord',
+            features: [
+                '28 Animation Types & 22 UI Categories',
+                'Stagger Cascades & Global Intensity Slider',
+                'Visual Cubic-Bézier Editor & Live DOM Preview',
+                'FPS Guard & Standalone Mode'
+            ]
         }
     },
 
@@ -4070,11 +4100,8 @@ var PluginsTabManager = {
             // SolariManager is the core plugin, rendered specifically in the bd-manager-section at the top
             if (key.toLowerCase() === 'solarimanager') continue;
 
-            // Get translations with robust fallback (handles undefined, empty, or key string)
-            const tTitleKey = `plugins.${key}.title`;
-            const tTitle = t(tTitleKey);
-            const isMissingTitle = !tTitle || tTitle === tTitleKey;
-            const displayName = isMissingTitle ? (plugin.title || this.pluginInfo[key]?.displayName || key) : tTitle;
+            // Plugin names must not be translated
+            const displayName = this.getPluginDisplayName(key, plugin);
 
             const tDescKey = `plugins.${key}.description`;
             const tDesc = t(tDescKey);
@@ -4087,7 +4114,7 @@ var PluginsTabManager = {
                 features = Array.isArray(plugin.features) ? plugin.features : (this.pluginInfo[key]?.features || []);
             }
 
-            const info = this.pluginInfo[key] || { icon: '🔌', requires: 'BetterDiscord' };
+            const info = this.pluginInfo[key] || { icon: '🔌', requires: 'BetterDiscord', displayName: displayName };
             const card = document.createElement('div');
             card.className = 'plugin-store-card';
 
@@ -4212,7 +4239,7 @@ var PluginsTabManager = {
             const deleteBtn = card.querySelector('.btn-plugin-delete');
             if (deleteBtn) {
                 deleteBtn?.addEventListener('click', function () {
-                    PluginsTabManager.handleDelete(plugin.fileName, info.displayName, this);
+                    PluginsTabManager.handleDelete(plugin.fileName, displayName, this);
                 });
             }
 
@@ -4339,16 +4366,48 @@ var PluginsTabManager = {
         return html;
     },
 
+    getPluginDisplayName(key, plugin) {
+        if (plugin?.title) {
+            return plugin.title;
+        }
+        if (this.pluginInfo[key]?.displayName) {
+            return this.pluginInfo[key].displayName;
+        }
+
+        // 100% Dynamic Fallback (for any future plugin missing a title/displayName metadata)
+        let name = key;
+
+        // Split camelCase (e.g., "SpotifySync" -> "Spotify Sync")
+        name = name.replace(/([a-z])([A-Z])/g, '$1 $2');
+        // Split snake_case and spinal-case
+        name = name.replace(/[_-]/g, ' ');
+
+        // Split brand prefix "solari" dynamically (e.g. "solariplayer" -> "Solari player")
+        if (name.toLowerCase().startsWith('solari') && name.length > 6) {
+            const remainder = name.slice(6);
+            if (!remainder.startsWith(' ')) {
+                name = 'Solari ' + remainder;
+            }
+        }
+
+        // Capitalize each word properly
+        return name.split(' ').map(word => {
+            if (!word) return '';
+            if (word.toLowerCase() === 'solari') return 'Solari';
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        }).join(' ');
+    },
+
     showChangelog(key) {
         if (!this.metaData || !this.metaData[key]) return;
         const plugin = this.metaData[key];
-        const info = this.pluginInfo[key] || { displayName: key };
+        const displayName = this.getPluginDisplayName(key, plugin);
         const modal = document.getElementById('plugin-changelog-modal');
         const title = document.getElementById('plugin-changelog-title');
         const content = document.getElementById('plugin-changelog-content');
 
         if (modal && title && content) {
-            title.textContent = `${info.displayName} — Changelog`;
+            title.textContent = `${displayName} — Changelog`;
             content.innerHTML = this.simpleMarkdown(plugin.changelog);
             modal.classList.add('active');
         }
@@ -5026,7 +5085,7 @@ const wizardPortalLink = document.getElementById('wizardPortalLink');
 if (wizardPortalLink) {
     wizardPortalLink?.addEventListener('click', (e) => {
         e.preventDefault();
-        shell.openExternal('https://discord.com/developers/applications');
+        ipcRenderer.send('open-external-url', 'https://discord.com/developers/applications');
     });
 }
 
@@ -5438,7 +5497,7 @@ const uiContext     = require('./modules/ui-context');
                 const labels = Array.from(card.querySelectorAll('span')).map(s => s.textContent.toLowerCase()).join(' ');
                 
                 if (title.includes(query) || desc.includes(query) || labels.includes(query)) {
-                    card.style.display = 'flex';
+                    card.style.display = '';
                     card.classList.add('search-match');
                 } else {
                     card.style.display = 'none';
