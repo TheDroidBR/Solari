@@ -3938,9 +3938,10 @@ var PluginsTabManager = {
 
         try {
             let data = null;
-            const primaryUrl = `https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json`;
-            const gitlabUrl = `https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/plugins-meta.json`;
-            const fallbackUrl = `https://solarirpc.com/plugins-meta.json`;
+            const timestamp = forceRefresh ? `?t=${Date.now()}` : '';
+            const primaryUrl = `https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json${timestamp}`;
+            const gitlabUrl = `https://gitlab.com/TheDroidBR/solari/-/raw/main/plugins/plugins-meta.json${timestamp}`;
+            const fallbackUrl = `https://solarirpc.com/plugins-meta.json${timestamp}`;
 
             // 1. Primary Attempt (GitHub)
             try {
@@ -3987,7 +3988,8 @@ var PluginsTabManager = {
             try {
                 const versionChecks = Object.entries(data).map(async ([key, plugin]) => {
                     if (plugin.downloadUrl) {
-                        const actualVersion = await ipcRenderer.invoke('plugin:get-remote-version', plugin.downloadUrl);
+                        const checkUrl = `${plugin.downloadUrl}?t=${Date.now()}`;
+                        const actualVersion = await ipcRenderer.invoke('plugin:get-remote-version', checkUrl);
                         if (actualVersion) {
                             const isNewer = (v1, v2) => {
                                 const a = v1.split('.').map(Number);
@@ -4254,7 +4256,9 @@ var PluginsTabManager = {
         btnElement.disabled = true;
 
         try {
-            const result = await ipcRenderer.invoke('plugin:download', { url, fileName });
+            // Append cache-buster to bypass raw github CDN caching when installing/updating
+            const downloadUrl = `${url}?t=${Date.now()}`;
+            const result = await ipcRenderer.invoke('plugin:download', { url: downloadUrl, fileName });
             if (result.success) {
                 btnElement.className = 'btn-plugin-install installed';
                 btnElement.innerHTML = `${checkSvg} ${installedLabel}`;
