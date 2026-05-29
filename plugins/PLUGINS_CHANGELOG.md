@@ -1,5 +1,9 @@
 # Plugins Changelog
 
+## SolariMotion v1.0.1 (2026-05-29)
+- 🚀 **Auto-Updater System**: Integrated a premium, fully-translated confirmation modal to notify you on update availability.
+- 📋 **Integrated Changelog**: Automatically parses and shows native BetterDiscord changelog details on successful update.
+
 ## SolariMotion v1.0.0 (2026-05-26)
 - 🚀 **Initial Release**: The most advanced animation system for Discord ever built. Completely standalone, outperforming Better Animations in every single category.
 - 🗂️ **22 UI Categories**: Total UI coverage including DM List, Autocomplete, Image Viewer, Call Overlay, Upload Preview, Server Folders, Thread Panel, Search Results, Inbox, and App Directory.
@@ -11,6 +15,10 @@
 - 🤖 **5 Presets**: Fluid, Snappy, Bounce, Minimal (fade-only), and Off.
 - 🛡️ **FPS Guard & GPU acceleration**: Actively tracks performance to scale down/pause animations if FPS drops below 30, and manages `will-change` dynamic lifetimes.
 - 📋 **Import/Export Settings**: Share or backup configurations instantly using clean JSON strings.
+
+## SolariNotes v1.0.4 (2026-05-29)
+- 🚀 **Auto-Updater System**: Integrated a premium, fully-translated confirmation modal to notify you on update availability.
+- 📋 **Integrated Changelog**: Automatically parses and shows native BetterDiscord changelog details on successful update.
 
 ## SolariNotes v1.0.3 (2026-05-26)
 - 🚀 **Dynamic Mount Architecture**: Re-engineered the notepad rendering system. The panel is now completely unmounted and removed from the DOM when closed, and only appended to `document.body` when open. This physically prevents any GPU layering or rendering conflicts (such as screen clipping or black regions) inside Discord.
@@ -25,6 +33,10 @@
 - 🛡️ **Critical Fix: Discord UI Crash**: Relocated panel injection from `#app-mount` to `document.body`. This prevents a React 18 rendering conflict that caused the Discord interface to "cut off" and show black areas when opening user profiles.
 - 🎯 **Fixed Icon Injection**: Updated toolbar selectors to prevent accidental injection into user profile modals.
 
+## SolariPlayer v1.0.2 (2026-05-29)
+- 🚀 **Auto-Updater System**: Integrated a premium, fully-translated confirmation modal to notify you on update availability.
+- 📋 **Integrated Changelog**: Automatically parses and shows native BetterDiscord changelog details on successful update.
+
 ## SolariPlayer v1.0.1 (2026-05-26)
 - 🛡️ **WebRTC Call Exclusion**: Added a filter to ignore real-time video streams from voice/video calls, group chats, or screen shares. This prevents the player's controls from attaching to Discord's native RTC media components, correcting the bug where call control buttons (mic, camera, disconnect) would disappear.
 - 🎞️ **GIF Controls Exclusion**: Added a strict filter to exclude autoplaying GIF videos (from Tenor, Giphy, or elements with GIF wrappers) from being injected with player controls, keeping them as seamless looping visuals.
@@ -32,10 +44,41 @@
 - ⏱️ **Time Overlay Staggering**: Added strict `white-space: nowrap;` rules to ensure duration labels never wrap on portrait wrappers.
 
 ## SolariPlayer v1.0.0 (2026-04-22)
-- 🚀 **Initial Release**: A high-performance, adaptive music player built entirely inside Discord.
-- 🎨 **Adaptive UI**: The player's accent colors change dynamically based on the album art of the currently playing track.
-- 📝 **Live Synced Lyrics**: Automatic lyric fetching and syncing via LrcLib without any authentication required.
-- 🌊 **Waveform & Progress**: Clickable seek bar and beautiful animations for a premium music experience.
+- 🚀 **Initial Release**: A brand new Premium Video Player for Discord.
+- 🎭 **Theater Mode**: Transforms any video into a cinematic, centered lightbox with a darkened background.
+- ⚡ **Speed Control**: Advanced speed selector (0.5x, 1x, 1.25x, 1.5x, 2x) straight from the player.
+- 📱 **Double Tap to Seek**: Instantly skip or rewind 10 seconds with a double tap on the sides of the video, complete with ripple animations.
+- 🖼️ **Picture-in-Picture**: Watch videos in a floating window while browsing other channels.
+- 📸 **Screenshot Bypass**: Easily capture video frames with our anti-CORS clone strategy.
+- 🎨 **Glassmorphism UI**: Beautiful, fully customized controls using Solari's premium aesthetic, completely replacing Discord's native UI.
+
+## SolariManager v1.0.1 (2026-05-29)
+- 🚀 **Auto-Updater System**: Integrated a premium, fully-translated confirmation modal to notify you on update availability.
+- 📋 **Integrated Changelog**: Automatically parses and shows native BetterDiscord changelog details on successful update.
+
+## SolariManager v1.0.0 (2026-04-29)
+- 🚀 **Initial Release**: Core manager plugin for the Solari ecosystem.
+- 💓 **Runtime Heartbeat**: Sends a heartbeat every 30s confirming BD is alive, unlocking the new 'active' status badge in the Solari App.
+- 🔌 **Remote Plugin Control**: Allows the Solari App to enable/disable any BetterDiscord plugin with a single toggle, relayed via WebSocket.
+- 📋 **Plugin List Sync**: Reports the full list of installed BD plugins (name, version, enabled state) to the Solari App on connect and on demand.
+- 🌍 **Language Sync**: Automatically syncs the language setting with the Solari App.
+- 🛡️ **Self-Protection**: SolariManager cannot disable itself via remote commands.
+
+## SolariMessageTools v1.0.1 (2026-05-29)
+- 🚀 **Auto-Updater System**: Integrated a premium, fully-translated confirmation modal to notify you on update availability.
+- 📋 **Integrated Changelog**: Automatically parses and shows native BetterDiscord changelog details on successful update.
+
+## SolariMessageTools v1.0.0 (2026-05-28)
+- 🚀 **Initial Release**: Message utilities integrated natively with Solari App.
+- ⚡ **Text Macros**: Instant shortcuts like /shrug and /solari.
+- 🌍 **Active Translation**: Translate incoming messages on the fly via context menus.
+- ⚡ **Quick Edit**: Double click to edit, Shift+Click to delete instantly.
+- 🤫 **Anti-Typing**: Prevent Discord from broadcasting your typing status.
+
+## SmartAFKDetector v1.1.4 (2026-05-29)
+- 🚀 **Auto-Updater System**: Integrated a premium, fully-translated confirmation modal to notify you on update availability.
+- 📋 **Integrated Changelog**: Automatically parses and shows native BetterDiscord changelog details on successful update.
+
 ## SmartAFKDetector v1.1.3 (2026-04-05)
 - 🚀 **Critical Fix (Status Stuck):** Solved a Discord API Rate Limiting issue (HTTP 429) that caused the AFK Custom Status to appear cleared locally, but remain stuck globally.
 - 🛡️ **Improvement:** Removed 5-second aggressive spam and implemented a safe 4-minute network renewal to keep the AFK Status perfectly synced and stable.
@@ -55,7 +98,7 @@
 - ⚠️ **Explicit Premium Warning**: Added prominent UI alerts (styled boxes and text) to clarify that Spotify Premium is required for full functionality.
 - 🔍 **Improved Detection**: Enhanced account resolution engine for more reliable Discord local control.
 
-## SpotifySync v2.1.2 (2026-03-18)
+## SpotifySync v2.1.1 (2026-02-25)
 - 🛡️ **Critical Fix:** **Premium Fallback** now activates even when Discord reports the player as open but has no real track data (e.g., Spotify not linked to Discord).
 - 🎵 **Improvement:** **Lyrics Search** completely rewritten with 4-tier fallback. Strips suffixes like (Remastered), (feat. X), [Deluxe], etc. Prioritizes synced (LRC) lyrics.
 

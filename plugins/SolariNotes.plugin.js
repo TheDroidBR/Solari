@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Sleek, synchronized notepad integrated strictly into Discord's UI. Saves securely to your local PC via the Solari App.
- * @version 1.0.3
+ * @version 1.0.4
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariNotes.plugin.js

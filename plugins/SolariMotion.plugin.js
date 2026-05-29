@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description The most advanced animation system for Discord — 22 UI categories, 28 animation types, Stagger system, Global Intensity, visual Cubic-Bézier editor, Live DOM Preview. Powered by Solari.
- * @version 1.0.0
+ * @version 1.0.1
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMotion.plugin.js
@@ -15,7 +15,7 @@ module.exports = class SolariMotion {
     // CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════
 
-    static VERSION        = '1.0.0';
+    static VERSION        = '1.0.1';
     static CONFIG_VERSION = 2;
     static ID             = 'SolariMotion';
 

@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Video Player for Discord. Features Theater Mode, Glassmorphism UI, Picture-in-Picture, Speed Control, and Screenshot Bypass.
- * @version 1.0.1
+ * @version 1.0.2
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariPlayer.plugin.js
@@ -13,7 +13,7 @@ class SolariPlayer {
 
     getName() { return "SolariPlayer"; }
     getDescription() { return "Premium Video Player for Discord. Features Theater Mode, Glassmorphism UI, Picture-in-Picture, Speed Control, and Screenshot Bypass."; }
-    getVersion() { return "1.0.1"; }
+    getVersion() { return "1.0.2"; }
     getAuthor() { return "TheDroid"; }
 
     static PLUGIN_ID = "SolariPlayer";

@@ -2,7 +2,7 @@
  * @name SolariMessageTools
  * @author TheDroid
  * @authorLink https://solarirpc.com
- * @version 1.0.0
+ * @version 1.0.1
  * @description A powerful suite of message utilities for Discord including Quick Edit, Macros, and Active Translation. Integrated with Solari.
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
@@ -82,7 +82,7 @@ module.exports = class SolariMessageTools {
 
     getSettingsSchema() {
         return [
-            { type: 'custom_header', title: 'Solari MessageTools', icon: '💬', version: 'v1.0.0' },
+            { type: 'custom_header', title: 'Solari MessageTools', icon: '💬', version: 'v1.0.1' },
             { type: 'toggle', key: 'quickEditEnabled', label: 'Quick Edit & Delete', description: 'Duplo clique para editar, Shift+Clique para deletar de vez.' },
             { type: 'toggle', key: 'antiTypingEnabled', label: 'Anti-Typing (Modo Anônimo)', description: 'Digite livremente sem acionar o indicador de is typing do Discord na DM ou Canais.' },
             { type: 'toggle', key: 'translationEnabled', label: 'Tradução Ativa (Pelo Google)', description: 'Menu de contexto super tunado de tradução direta nos chats em tempo real.' },

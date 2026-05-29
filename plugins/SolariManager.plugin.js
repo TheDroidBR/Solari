@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Core manager plugin for the Solari ecosystem. Confirms BetterDiscord is running and allows the Solari App to remotely enable/disable other plugins.
- * @version 1.0.0
+ * @version 1.0.1
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariManager.plugin.js

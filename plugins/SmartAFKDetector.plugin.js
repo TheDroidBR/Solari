@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Detects AFK and changes Discord status. ⚠️ LIMITATION: BetterDiscord plugins have limited AFK detection (only works while Discord is focused). For full system-wide AFK detection, use the Solari app!
- * @version 1.1.3
+ * @version 1.1.4
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SmartAFKDetector.plugin.js
