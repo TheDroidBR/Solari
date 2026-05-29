@@ -6,6 +6,7 @@
  * @version 1.0.0
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
+ * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMotion.plugin.js
  */
 
 module.exports = class SolariMotion {
@@ -217,7 +218,16 @@ module.exports = class SolariMotion {
             btn_preview: "▶  Live Preview",
             preview_title: "Preview",
             preview_dismiss: "Click anywhere to dismiss",
-            preview_mock_text: "This is how your animation looks! ✨"
+            preview_mock_text: "This is how your animation looks! ✨",
+            updateTitle: 'Update Available',
+            updateDesc: 'A new version of {name} is available!',
+            currentVersion: 'Current Version',
+            newVersion: 'New Version',
+            updateAction: 'Update Now',
+            updateLater: 'Later',
+            updateNotice: 'The plugin will be updated automatically and reloaded instantly in the background.',
+            updateSuccess: 'Updated to v{version}!',
+            changelogTitle: "What's New"
         },
         pt: {
             header_subtitle: "O sistema de animações mais avançado para o Discord",
@@ -324,7 +334,128 @@ module.exports = class SolariMotion {
             btn_preview: "▶  Live Preview",
             preview_title: "Preview",
             preview_dismiss: "Clique em qualquer lugar para fechar",
-            preview_mock_text: "É assim que sua animação se parece! ✨"
+            preview_mock_text: "É assim que sua animação se parece! ✨",
+            updateTitle: 'Atualização Disponível',
+            updateDesc: 'Uma nova versão do {name} está disponível!',
+            currentVersion: 'Versão Atual',
+            newVersion: 'Nova Versão',
+            updateAction: 'Atualizar Agora',
+            updateLater: 'Depois',
+            updateNotice: 'O plugin será atualizado automaticamente e recarregado em segundo plano de forma instantânea.',
+            updateSuccess: 'Atualizado para v{version}!',
+            changelogTitle: 'O que há de novo'
+        },
+        es: {
+            header_subtitle: "El sistema de animaciones más avanzado para Discord",
+            stat_animated: "Animado en esta sesión",
+            stat_active: "Categorías activas",
+            stat_intensity: "Intensidad",
+            stat_preset: "Preset activo",
+            sec_intensity: "Intensidad Global",
+            label_subtle: "Sutil",
+            label_normal: "Normal",
+            label_dramatic: "Dramático",
+            sec_presets: "Presets Rápidos",
+            preset_sub_fluid: "Apple-style",
+            preset_sub_snappy: "Rápido y nítido",
+            preset_sub_bounce: "Diversión elástica",
+            preset_sub_minimal: "Solo fundido",
+            preset_sub_off: "Sin animaciones",
+            preset_sub_cinematic: "Revelados de cine",
+            preset_sub_jelly: "Gelatina wobbly",
+            preset_sub_gravity: "Caída física",
+            preset_sub_glass: "Desenfoque y morph",
+            preset_sub_retro: "Giro y rotación",
+            preset_sub_zen: "Ultra lento",
+            preset_sub_sharp: "Nítido instantáneo",
+            preset_sub_cascade: "Stagger en todo",
+            preset_sub_pendulum: "Balanceo orgánico",
+            toggle_perf_label: "Modo Rendimiento",
+            toggle_perf_sub: "Limita todas las duraciones a 100ms",
+            toggle_fps_label: "Protección FPS",
+            toggle_fps_sub: "Pausa las animaciones por debajo de 30fps",
+            toggle_motion_label: "Respetar Movimiento Reducido",
+            toggle_motion_sub: "Preferencia de accesibilidad del SO",
+            btn_export: "📋 Exportar Config",
+            btn_copied: "✅ ¡Copiado!",
+            btn_import: "📥 Importar Config",
+            btn_reset: "🔄 Restablecer Todo",
+            placeholder_import: "Pega tu JSON de configuración aquí...",
+            btn_apply: "Aplicar",
+            confirm_reset: "¿Restablecer todos los ajustes de SolariMotion a los valores predeterminados?",
+            toast_copy_error: "No se pudo copiar al portapapeles.",
+            toast_invalid_json: "JSON de configuración no válido.",
+            sec_categories: "Categorías de Animación",
+            placeholder_search: "🔍 Buscar categorías...",
+            chip_all: "Todo",
+            chip_nav: "🧭 Nav",
+            chip_overlays: "🔲 Overlays",
+            chip_content: "💬 Contenido",
+            chip_server: "🌐 Servidor",
+            cat_channelSwitch_label: "Cambio de Canal",
+            cat_channelSwitch_desc: "Navegación entre canales y DMs.",
+            cat_serverSwitch_label: "Cambio de Servidor",
+            cat_serverSwitch_desc: "Cambiar entre servidores.",
+            cat_settings_label: "Paneles de Ajustes",
+            cat_settings_desc: "Abrir o cambiar páginas de ajustes.",
+            cat_contextMenu_label: "Menús de Contexto",
+            cat_contextMenu_desc: "Menús de clic derecho.",
+            cat_tooltips_label: "Tooltips",
+            cat_tooltips_desc: "Dicas flotantes al pasar el ratón.",
+            cat_modals_label: "Modales y Pop-ups",
+            cat_modals_desc: "Cajas de diálogo y ventanas pop-up.",
+            cat_userPopout_label: "Popout de Usuario",
+            cat_userPopout_desc: "Tarjetas de perfil al hacer clic en un avatar.",
+            cat_emojiPicker_label: "Seletor de Emojis",
+            cat_emojiPicker_desc: "Seletor de emojis, stickers y GIFs.",
+            cat_autoComplete_label: "Autocompletar",
+            cat_autoComplete_desc: "Sugerencias de @mención, #canal, :emoji:.",
+            cat_imageViewer_label: "Visualizador de Imagen",
+            cat_imageViewer_desc: "Lightbox al abrir imágenes.",
+            cat_callOverlay_label: "Call Overlay",
+            cat_callOverlay_desc: "Controles y UI durante llamadas de voz/vídeo.",
+            cat_messages_label: "Mensajes Nuevos",
+            cat_messages_desc: "Cada mensaje nuevo que aparece en el chat.",
+            cat_reactions_label: "Reacciones",
+            cat_reactions_desc: "Reacciones de emojis que aparecen en mensajes.",
+            cat_uploadPreview_label: "Vista Previa de Carga",
+            cat_uploadPreview_desc: "Vista previa de archivos antes de enviar.",
+            cat_memberList_label: "Lista de Miembros",
+            cat_memberList_desc: "El panel de la lista de miembros del servidor.",
+            cat_voiceIndicator_label: "Indicadores de Voz",
+            cat_voiceIndicator_desc: "Indicadores de habla en canales de voz.",
+            cat_dmList_label: "Lista de DMs",
+            cat_dmList_desc: "Conversaciones directas en la barra lateral.",
+            cat_serverFolders_label: "Carpetas de Servidores",
+            cat_serverFolders_desc: "Expandir/contraer grupos de carpetas.",
+            cat_threadPanel_label: "Panel de Hilos",
+            cat_threadPanel_desc: "Apertura y cierre de la barra de hilos.",
+            cat_searchResults_label: "Resultados de Búsqueda",
+            cat_searchResults_desc: "Itens de los resultados de búsqueda.",
+            cat_inbox_label: "Inbox",
+            cat_inbox_desc: "Panel de menciones y notificaciones.",
+            cat_appDirectory_label: "Directorio de Apps",
+            cat_appDirectory_desc: "Directorio de aplicaciones y panel de navegar canales.",
+            field_animation: "Animation",
+            field_easing: "Easing",
+            field_duration: "Duration",
+            field_delay: "Delay per item",
+            field_max_items: "Max items",
+            field_stagger_title: "✦ Stagger Effect",
+            field_stagger_sub: "Items animate in cascading sequence",
+            btn_preview: "▶  Live Preview",
+            preview_title: "Preview",
+            preview_dismiss: "Haz clic en cualquier lugar para cerrar",
+            preview_mock_text: "¡Así es como se ve tu animación! ✨",
+            updateTitle: 'Actualización Disponible',
+            updateDesc: '¡Una nueva versión de {name} está disponible!',
+            currentVersion: 'Versión Actual',
+            newVersion: 'Nueva Versión',
+            updateAction: 'Actualizar Ahora',
+            updateLater: 'Más tarde',
+            updateNotice: 'El plugin se actualizará automáticamente y se recargará al instante en segundo plano.',
+            updateSuccess: '¡Actualizado a v{version}!',
+            changelogTitle: 'Novedades'
         }
     };
 
@@ -741,6 +872,156 @@ module.exports = class SolariMotion {
         return saved;
     }
 
+    checkForUpdates() {
+        const updateUrl = this.meta?.updateUrl;
+        if (!updateUrl) return;
+
+        fetch(`${updateUrl}?t=${Date.now()}`)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.text();
+            })
+            .then(code => {
+                const versionMatch = code.match(/@version\s+([0-9.]+)/);
+                if (!versionMatch) return;
+                const remoteVersion = versionMatch[1];
+
+                if (this.isNewerVersion(this.meta.version, remoteVersion)) {
+                    this.showUpdateModal(remoteVersion, code);
+                }
+            })
+            .catch(err => {
+                console.error(`[${this.meta.name}] Update check failed:`, err);
+            });
+    }
+
+    showUpdateModal(remoteVersion, code) {
+        const React = BdApi.React;
+        const content = React.createElement("div", {
+            style: {
+                color: "#f3f4f6",
+                fontFamily: "'Inter', sans-serif",
+                lineHeight: "1.6",
+                fontSize: "14px"
+            }
+        },
+            React.createElement("p", { style: { marginBottom: "12px" } },
+                this._t('updateDesc').replace('{name}', this.meta.name)
+            ),
+            React.createElement("div", {
+                style: {
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "8px",
+                    padding: "12px",
+                    marginBottom: "16px",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "10px",
+                    textAlign: "center"
+                }
+            },
+                React.createElement("div", {},
+                    React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" } }, this._t('currentVersion')),
+                    React.createElement("div", { style: { fontSize: "16px", fontWeight: "bold", color: "#ef4444" } }, `v${this.meta.version}`)
+                ),
+                React.createElement("div", {},
+                    React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" } }, this._t('newVersion')),
+                    React.createElement("div", { style: { fontSize: "16px", fontWeight: "bold", color: "#1DB954" } }, `v${remoteVersion}`)
+                )
+            ),
+            React.createElement("p", { style: { fontSize: "12px", color: "rgba(255,255,255,0.5)" } },
+                this._t('updateNotice')
+            )
+        );
+
+        BdApi.UI.showConfirmationModal(
+            this._t('updateTitle'),
+            content,
+            {
+                confirmText: this._t('updateAction'),
+                cancelText: this._t('updateLater'),
+                onConfirm: () => {
+                    const fs = require("fs");
+                    const path = require("path");
+                    const filename = `${this.meta.name}.plugin.js`;
+                    const pluginPath = path.join(BdApi.Plugins.folder, filename);
+
+                    fs.writeFile(pluginPath, code, "utf8", (err) => {
+                        if (err) {
+                            console.error(`[${this.meta.name}] Failed to write update:`, err);
+                            BdApi.UI.showToast(`❌ Error: ${err.message}`, { type: "error" });
+                            return;
+                        }
+                        BdApi.UI.showToast(`✨ ${this._t('updateSuccess').replace('{version}', remoteVersion)}`, { type: "success" });
+                    });
+                }
+            }
+        );
+    }
+
+    isNewerVersion(current, remote) {
+        const c = current.split('.').map(Number);
+        const r = remote.split('.').map(Number);
+        for (let i = 0; i < Math.max(c.length, r.length); i++) {
+            const cVal = c[i] || 0;
+            const rVal = r[i] || 0;
+            if (rVal > cVal) return true;
+            if (cVal > rVal) return false;
+        }
+        return false;
+    }
+
+    checkChangelog() {
+        try {
+            const lastVersion = BdApi.Data.load(SolariMotion.ID, 'lastVersion');
+            if (lastVersion && this.isNewerVersion(lastVersion, this.meta.version)) {
+                const metaUrl = "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json";
+                fetch(`${metaUrl}?t=${Date.now()}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error("HTTP error " + res.status);
+                        return res.json();
+                    })
+                    .then(data => {
+                        const pluginKey = this.meta.name.toLowerCase();
+                        const pMeta = data[pluginKey];
+                        if (pMeta && pMeta.changelog) {
+                            const changelog = pMeta.changelog;
+                            const versionHeader = `### v${this.meta.version}`;
+                            const idx = changelog.indexOf(versionHeader);
+                            if (idx !== -1) {
+                                const nextIdx = changelog.indexOf("###", idx + versionHeader.length);
+                                const versionText = nextIdx !== -1 ? changelog.substring(idx, nextIdx) : changelog.substring(idx);
+                                const lines = versionText.split("\n")
+                                    .map(line => line.trim())
+                                    .filter(line => line.startsWith("-"))
+                                    .map(line => line.substring(1).trim());
+
+                                if (lines.length > 0) {
+                                    BdApi.UI.showChangelogModal({
+                                        title: this.meta.name,
+                                        subtitle: `v${this.meta.version}`,
+                                        blurb: this._t('updateSuccess').replace('{version}', this.meta.version),
+                                        changes: [
+                                            {
+                                                title: this._t('changelogTitle'),
+                                                type: "improved",
+                                                items: lines
+                                            }
+                                        ]
+                                    });
+                                }
+                            }
+                        }
+                    })
+                    .catch(err => console.error(`[${this.meta.name}] Failed to show changelog:`, err));
+            }
+            BdApi.Data.save(SolariMotion.ID, 'lastVersion', this.meta.version);
+        } catch (e) {
+            console.error(`[${this.meta.name}] Error in checkChangelog:`, e);
+        }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // LIFECYCLE
     // ═══════════════════════════════════════════════════════════════════════
@@ -748,6 +1029,13 @@ module.exports = class SolariMotion {
     start() {
         console.log(`[SolariMotion] v${SolariMotion.VERSION} starting...`);
         this.loadConfig();
+
+        // Check if we just updated to show the changelog
+        this.checkChangelog();
+
+        // Check for updates with premium confirmation modal
+        this.checkForUpdates();
+
         document.documentElement.style.setProperty('--sm-int', this.config.intensity / 100);
         this._injectStaticCSS();
         this._injectDynamicCSS();

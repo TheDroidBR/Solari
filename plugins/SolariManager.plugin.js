@@ -26,6 +26,15 @@ module.exports = class SolariManager {
             language: 'Language',
             done: '💾 Done',
             noPlugins: 'No plugins detected.',
+            updateTitle: 'Update Available',
+            updateDesc: 'A new version of {name} is available!',
+            currentVersion: 'Current Version',
+            newVersion: 'New Version',
+            updateAction: 'Update Now',
+            updateLater: 'Later',
+            updateNotice: 'The plugin will be updated automatically and reloaded instantly in the background.',
+            updateSuccess: 'Updated to v{version}!',
+            changelogTitle: "What's New"
         },
         'pt-BR': {
             connected: 'Conectado ao Solari',
@@ -42,6 +51,40 @@ module.exports = class SolariManager {
             language: 'Idioma',
             done: '💾 Feito',
             noPlugins: 'Nenhum plugin detectado.',
+            updateTitle: 'Atualização Disponível',
+            updateDesc: 'Uma nova versão do {name} está disponível!',
+            currentVersion: 'Versão Atual',
+            newVersion: 'Nova Versão',
+            updateAction: 'Atualizar Agora',
+            updateLater: 'Depois',
+            updateNotice: 'O plugin será atualizado automaticamente e recarregado em segundo plano de forma instantânea.',
+            updateSuccess: 'Atualizado para v{version}!',
+            changelogTitle: 'O que há de novo'
+        },
+        es: {
+            connected: 'Conectado a Solari',
+            disconnected: 'Desconectado de Solari',
+            connectedToast: 'SolariManager: ¡Conectado!',
+            pluginEnabled: 'Plugin habilitado',
+            pluginDisabled: 'Plugin deshabilitado',
+            title: 'Solari Manager',
+            status: 'Estado de la Conexión',
+            heartbeat: 'Heartbeat',
+            active: 'Activo',
+            inactive: 'Inactivo',
+            plugins: 'Plugins Gestionados',
+            language: 'Idioma',
+            done: '💾 Listo',
+            noPlugins: 'No se detectaron plugins.',
+            updateTitle: 'Actualización Disponible',
+            updateDesc: '¡Una nueva versión de {name} está disponible!',
+            currentVersion: 'Versión Actual',
+            newVersion: 'Nueva Versión',
+            updateAction: 'Actualizar Ahora',
+            updateLater: 'Más tarde',
+            updateNotice: 'El plugin se actualizará automáticamente y se recargará al instante en segundo plano.',
+            updateSuccess: '¡Actualizado a v{version}!',
+            changelogTitle: 'Novedades'
         }
     };
 
@@ -83,9 +126,160 @@ module.exports = class SolariManager {
         }
     }
 
+    checkForUpdates() {
+        const updateUrl = this.meta?.updateUrl;
+        if (!updateUrl) return;
+
+        fetch(`${updateUrl}?t=${Date.now()}`)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                return res.text();
+            })
+            .then(code => {
+                const versionMatch = code.match(/@version\s+([0-9.]+)/);
+                if (!versionMatch) return;
+                const remoteVersion = versionMatch[1];
+
+                if (this.isNewerVersion(this.meta.version, remoteVersion)) {
+                    this.showUpdateModal(remoteVersion, code);
+                }
+            })
+            .catch(err => {
+                console.error(`[${this.meta.name}] Update check failed:`, err);
+            });
+    }
+
+    showUpdateModal(remoteVersion, code) {
+        const React = BdApi.React;
+        const content = React.createElement("div", {
+            style: {
+                color: "#f3f4f6",
+                fontFamily: "'Inter', sans-serif",
+                lineHeight: "1.6",
+                fontSize: "14px"
+            }
+        },
+            React.createElement("p", { style: { marginBottom: "12px" } },
+                this.t('updateDesc').replace('{name}', this.meta.name)
+            ),
+            React.createElement("div", {
+                style: {
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    borderRadius: "8px",
+                    padding: "12px",
+                    marginBottom: "16px",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "10px",
+                    textAlign: "center"
+                }
+            },
+                React.createElement("div", {},
+                    React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" } }, this.t('currentVersion')),
+                    React.createElement("div", { style: { fontSize: "16px", fontWeight: "bold", color: "#ef4444" } }, `v${this.meta.version}`)
+                ),
+                React.createElement("div", {},
+                    React.createElement("div", { style: { fontSize: "11px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" } }, this.t('newVersion')),
+                    React.createElement("div", { style: { fontSize: "16px", fontWeight: "bold", color: "#1DB954" } }, `v${remoteVersion}`)
+                )
+            ),
+            React.createElement("p", { style: { fontSize: "12px", color: "rgba(255,255,255,0.5)" } },
+                this.t('updateNotice')
+            )
+        );
+
+        BdApi.UI.showConfirmationModal(
+            this.t('updateTitle'),
+            content,
+            {
+                confirmText: this.t('updateAction'),
+                cancelText: this.t('updateLater'),
+                onConfirm: () => {
+                    const fs = require("fs");
+                    const path = require("path");
+                    const filename = `${this.meta.name}.plugin.js`;
+                    const pluginPath = path.join(BdApi.Plugins.folder, filename);
+
+                    fs.writeFile(pluginPath, code, "utf8", (err) => {
+                        if (err) {
+                            console.error(`[${this.meta.name}] Failed to write update:`, err);
+                            BdApi.UI.showToast(`❌ Error: ${err.message}`, { type: "error" });
+                            return;
+                        }
+                        BdApi.UI.showToast(`✨ ${this.t('updateSuccess').replace('{version}', remoteVersion)}`, { type: "success" });
+                    });
+                }
+            }
+        );
+    }
+
+    isNewerVersion(current, remote) {
+        const c = current.split('.').map(Number);
+        const r = remote.split('.').map(Number);
+        for (let i = 0; i < Math.max(c.length, r.length); i++) {
+            const cVal = c[i] || 0;
+            const rVal = r[i] || 0;
+            if (rVal > cVal) return true;
+            if (cVal > rVal) return false;
+        }
+        return false;
+    }
+
+    checkChangelog() {
+        try {
+            const lastVersion = BdApi.Data.load('SolariManager', 'lastVersion');
+            if (lastVersion && this.isNewerVersion(lastVersion, this.meta.version)) {
+                const metaUrl = "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json";
+                fetch(`${metaUrl}?t=${Date.now()}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error("HTTP error " + res.status);
+                        return res.json();
+                    })
+                    .then(data => {
+                        const spotMeta = data.solarimanager;
+                        if (spotMeta && spotMeta.changelog) {
+                            const changelog = spotMeta.changelog;
+                            const versionHeader = `### v${this.meta.version}`;
+                            const idx = changelog.indexOf(versionHeader);
+                            if (idx !== -1) {
+                                const nextIdx = changelog.indexOf("###", idx + versionHeader.length);
+                                const versionText = nextIdx !== -1 ? changelog.substring(idx, nextIdx) : changelog.substring(idx);
+                                const lines = versionText.split("\n")
+                                    .map(line => line.trim())
+                                    .filter(line => line.startsWith("-"))
+                                    .map(line => line.substring(1).trim());
+
+                                if (lines.length > 0) {
+                                    BdApi.UI.showChangelogModal({
+                                        title: "Solari Manager",
+                                        subtitle: `v${this.meta.version}`,
+                                        blurb: this.t('updateSuccess').replace('{version}', this.meta.version),
+                                        changes: [
+                                            {
+                                                title: this.t('changelogTitle'),
+                                                type: "improved",
+                                                items: lines
+                                            }
+                                        ]
+                                    });
+                                }
+                            }
+                        }
+                    })
+                    .catch(err => console.error('[SolariManager] Failed to show changelog:', err));
+            }
+            BdApi.Data.save('SolariManager', 'lastVersion', this.meta.version);
+        } catch (e) {
+            console.error('[SolariManager] Error in checkChangelog:', e);
+        }
+    }
+
     start() {
         console.log('[SolariManager] Starting...');
         this.loadConfig();
+        this.checkChangelog();
+        this.checkForUpdates();
         this.connectToServer();
     }
 

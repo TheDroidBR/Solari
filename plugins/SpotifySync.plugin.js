@@ -269,7 +269,7 @@ module.exports = class SpotifySync {
     getSettingsSchema() {
         const premiumStatus = this.hasPremium() ? 'connected' : 'disconnected';
         return [
-            { type: 'custom_header', title: this.t('title'), version: 'v2.1.3' },
+            { type: 'custom_header', title: this.t('title'), version: 'v2.1.4' },
             { type: 'status_card', id: 'solariStatus', label: this.t('solari'), status: this.isConnectedToSolari ? 'connected' : 'disconnected' },
 
             {
@@ -357,7 +357,7 @@ module.exports = class SpotifySync {
         const updateUrl = this.meta?.updateUrl;
         if (!updateUrl) return;
 
-        fetch(updateUrl)
+        fetch(`${updateUrl}?t=${Date.now()}`)
             .then(res => {
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 return res.text();
@@ -459,7 +459,7 @@ module.exports = class SpotifySync {
             const lastVersion = BdApi.Data.load('SpotifySync', 'lastVersion');
             if (lastVersion && this.isNewerVersion(lastVersion, this.meta.version)) {
                 const metaUrl = "https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/plugins-meta.json";
-                fetch(metaUrl)
+                fetch(`${metaUrl}?t=${Date.now()}`)
                     .then(res => {
                         if (!res.ok) throw new Error("HTTP error " + res.status);
                         return res.json();
@@ -727,7 +727,7 @@ module.exports = class SpotifySync {
 
     // ═══════════════════ LIFECYCLE ═══════════════════
     start() {
-        console.log('[SpotifySync] v2.1.3 Starting...');
+        console.log('[SpotifySync] v2.1.4 Starting...');
         this.loadConfig();
 
         // Check if we just updated to show the changelog
@@ -1624,7 +1624,7 @@ module.exports = class SpotifySync {
         const cacheKey = this._trackId;
         if (cacheKey && this._lyricsCache[cacheKey]) return this._lyricsCache[cacheKey];
 
-        const UA = { 'User-Agent': 'SpotifySync/2.1.3 (https://solarirpc.com)' };
+        const UA = { 'User-Agent': 'SpotifySync/2.1.4 (https://solarirpc.com)' };
         // Clean track name: remove common suffixes that prevent matching
         const cleanTrack = (trackName || '').replace(/\s*[-–]\s*(Remaster(ed)?|Deluxe|Bonus Track|Anniversary|Edition|Mix|Version|Live|Acoustic|Demo|Radio Edit).*$/i, '')
             .replace(/\s*\((?:feat\.|ft\.|with |Remaster|Deluxe|Bonus|Anniversary|Edition|Live|Acoustic|Demo|Radio Edit)[^)]*\)\s*/gi, '')
@@ -2517,7 +2517,7 @@ module.exports = class SpotifySync {
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                     <h2 style="color:#fff;margin:0;display:flex;align-items:center;gap:8px;">
                         <span style="color:#1DB954;">🎵</span> ${this.t('title')}
-                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.1.3</span>
+                        <span style="color:rgba(255,255,255,0.3);font-size:0.5em;font-weight:400;">v2.1.4</span>
                     </h2>
                     <select id="ss2-lang" style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;padding:5px 8px;">
                         <option value="en" ${this.config.language === 'en' ? 'selected' : ''}>English</option>
