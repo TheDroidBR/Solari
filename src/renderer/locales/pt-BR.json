@@ -685,10 +685,17 @@
         "searchPlaceholder": "🔍 Buscar presets públicos...",
         "applyBtn": "⚡ Ativar Status",
         "customizeBtn": "✏️ Customizar",
+        "saveLocalBtn": "💾 Salvar Local",
         "errorTitle": "Não foi possível carregar o catálogo",
         "errorDesc": "Verifique sua conexão com a Internet e tente novamente.",
         "retryBtn": "🔄 Tentar Novamente",
         "loading": "Carregando catálogo premium...",
-        "appliedToast": "Preset '{name}' ativado com sucesso!"
+        "appliedToast": "Preset '{name}' ativado com sucesso!",
+        "savedLocalToast": "Preset '{name}' salvo localmente e vinculado ao perfil!",
+        "conflictTitle": "Preset Duplicado",
+        "conflictDesc": "Já existe um preset local salvo com este mesmo Client ID ({clientId}). O que você gostaria de fazer?",
+        "conflictOverwrite": "🔄 Sobrescrever o existente",
+        "conflictCopy": "➕ Criar uma nova cópia mesmo assim",
+        "conflictCancel": "Cancelar"
     }
 }

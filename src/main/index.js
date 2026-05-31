@@ -498,6 +498,10 @@ ipcMain.handle('get-identities', () => {
     return identities;
 });
 
+ipcMain.handle('get-presets', () => {
+    return presets;
+});
+
 ipcMain.handle('get-global-client-id', () => {
     return clientId;
 });

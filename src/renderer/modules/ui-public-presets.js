@@ -240,6 +240,7 @@ function renderPresetsGrid(presets) {
             <div class="preset-card-actions">
                 <button class="preset-btn-apply" data-index="${index}">${t('publicPresets.applyBtn') || '⚡ Ativar Status'}</button>
                 <button class="preset-btn-customize" data-index="${index}">${t('publicPresets.customizeBtn') || '✏️ Customizar'}</button>
+                <button class="preset-btn-save" data-index="${index}">${t('publicPresets.saveLocalBtn') || '💾 Salvar Local'}</button>
             </div>
         `;
 
@@ -250,6 +251,10 @@ function renderPresetsGrid(presets) {
 
         card.querySelector('.preset-btn-customize').addEventListener('click', () => {
             handleCustomizePreset(preset);
+        });
+
+        card.querySelector('.preset-btn-save').addEventListener('click', () => {
+            handleSaveLocalPreset(preset);
         });
 
         gridEl.appendChild(card);
@@ -393,6 +398,201 @@ async function handleCustomizePreset(preset) {
 
     } catch (e) {
         console.error('[Public Presets] Customization prefill failed:', e);
+    }
+}
+
+/**
+ * Dynamic Conflict Modal to prompt user when saving a preset with an existing Discord Client ID.
+ * Evokes premium dark-mode styling with vibrant orange accent warning and smooth micro-interactions.
+ * 
+ * @param {Object} preset - The cloud preset being saved
+ * @returns {Promise<number>} Resolves with 1 (overwrite), 2 (copy anyway), or 0 (cancel)
+ */
+function showConflictModal(preset) {
+    return new Promise((resolve) => {
+        const modalDiv = document.createElement('div');
+        modalDiv.className = 'modal-overlay active';
+        modalDiv.id = 'presetConflictModal';
+        modalDiv.style.position = 'fixed';
+        modalDiv.style.top = '0';
+        modalDiv.style.left = '0';
+        modalDiv.style.width = '100%';
+        modalDiv.style.height = '100%';
+        modalDiv.style.background = 'rgba(0, 0, 0, 0.7)';
+        modalDiv.style.backdropFilter = 'blur(5px)';
+        modalDiv.style.display = 'flex';
+        modalDiv.style.justifyContent = 'center';
+        modalDiv.style.alignItems = 'center';
+        modalDiv.style.zIndex = '1100';
+        modalDiv.style.opacity = '0';
+        modalDiv.style.transition = 'opacity 0.2s';
+        modalDiv.style.pointerEvents = 'all';
+
+        modalDiv.innerHTML = `
+            <div class="modal-content" style="max-width: 420px; text-align: center; border-color: rgba(249, 115, 22, 0.3) !important; box-shadow: 0 10px 40px rgba(249, 115, 22, 0.15); transform: translateY(20px); transition: transform 0.2s;">
+                <div style="font-size: 2.8rem; margin-bottom: 12px; filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.3)); line-height: 1;">⚠️</div>
+                <h3 style="color: #fff; font-size: 1.3rem; margin-top: 0; margin-bottom: 10px; font-weight: 700;">${t('publicPresets.conflictTitle') || 'Preset Duplicado'}</h3>
+                <p style="color: rgba(255, 255, 255, 0.75); line-height: 1.5; margin-bottom: 20px; font-size: 0.88rem;">
+                    ${(t('publicPresets.conflictDesc') || 'Já existe um preset local salvo com este mesmo Client ID ({clientId}). O que você gostaria de fazer?').replace('{clientId}', preset.clientId)}
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button id="conflictOverwriteBtn" class="btn" style="background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important; color: #fff !important; font-weight: 600; padding: 10px; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2); font-size: 0.85rem;">
+                        ${t('publicPresets.conflictOverwrite') || '🔄 Sobrescrever o existente'}
+                    </button>
+                    <button id="conflictCopyBtn" class="btn" style="background: rgba(255, 255, 255, 0.08) !important; color: #fff !important; font-weight: 600; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.15) !important; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 0.85rem;">
+                        ${t('publicPresets.conflictCopy') || '➕ Criar uma nova cópia mesmo assim'}
+                    </button>
+                    <button id="conflictCancelBtn" class="btn btn-secondary" style="margin-top: 5px; padding: 8px; border-radius: 8px; font-weight: 600; transition: all 0.2s; font-size: 0.85rem;">
+                        ${t('publicPresets.conflictCancel') || 'Cancelar'}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modalDiv);
+
+        // Force a reflow to trigger opacity transition
+        setTimeout(() => {
+            modalDiv.style.opacity = '1';
+            modalDiv.querySelector('.modal-content').style.transform = 'translateY(0)';
+        }, 10);
+
+        const cleanup = () => {
+            modalDiv.style.opacity = '0';
+            modalDiv.querySelector('.modal-content').style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                modalDiv.remove();
+            }, 200);
+        };
+
+        const overwriteBtn = modalDiv.querySelector('#conflictOverwriteBtn');
+        const copyBtn = modalDiv.querySelector('#conflictCopyBtn');
+        const cancelBtn = modalDiv.querySelector('#conflictCancelBtn');
+
+        // Dynamic Micro-interactions
+        overwriteBtn.addEventListener('mouseover', () => {
+            overwriteBtn.style.transform = 'translateY(-1px)';
+            overwriteBtn.style.boxShadow = '0 6px 16px rgba(249, 115, 22, 0.35)';
+        });
+        overwriteBtn.addEventListener('mouseout', () => {
+            overwriteBtn.style.transform = 'translateY(0)';
+            overwriteBtn.style.boxShadow = '0 4px 12px rgba(249, 115, 22, 0.2)';
+        });
+
+        copyBtn.addEventListener('mouseover', () => {
+            copyBtn.style.transform = 'translateY(-1px)';
+            copyBtn.style.background = 'rgba(255, 255, 255, 0.12)';
+        });
+        copyBtn.addEventListener('mouseout', () => {
+            copyBtn.style.transform = 'translateY(0)';
+            copyBtn.style.background = 'rgba(255, 255, 255, 0.08)';
+        });
+
+        cancelBtn.addEventListener('mouseover', () => {
+            cancelBtn.style.transform = 'translateY(-1px)';
+        });
+        cancelBtn.addEventListener('mouseout', () => {
+            cancelBtn.style.transform = 'translateY(0)';
+        });
+
+        overwriteBtn.onclick = () => {
+            cleanup();
+            resolve(1);
+        };
+
+        copyBtn.onclick = () => {
+            cleanup();
+            resolve(2);
+        };
+
+        cancelBtn.onclick = () => {
+            cleanup();
+            resolve(0);
+        };
+    });
+}
+
+/**
+ * Action: Saves a community cloud preset to the user's local database.
+ * Automatically registers the preset's identity profile in App Profiles
+ * with the exact same name as the preset.
+ * 
+ * Safe duplication check: Prompts user with premium modal if Client ID conflict is detected.
+ */
+async function handleSaveLocalPreset(preset) {
+    try {
+        if (!preset.clientId) return;
+
+        // 1. Fetch current local presets and identities to run safety conflict check
+        const localPresets = await dependencies.ipcRenderer.invoke('get-presets');
+        const localIdentities = dependencies.getIdentities();
+
+        // Resolve identity with same Discord Client ID
+        const existingPresetIndex = localPresets.findIndex(p => {
+            const identity = localIdentities.find(i => i.id === p.clientId);
+            return identity && identity.clientId === preset.clientId;
+        });
+
+        let choice = -1; // -1 means no conflict, proceed default
+        let identityId = '';
+
+        if (existingPresetIndex !== -1) {
+            // Conflict detected! Show dynamic warning dialog
+            choice = await showConflictModal(preset);
+            if (choice === 0) {
+                // User cancelled, abort save
+                return;
+            }
+        }
+
+        if (choice === 1) {
+            // Case 1: Overwrite existing preset
+            const existingPreset = localPresets[existingPresetIndex];
+            identityId = existingPreset.clientId; // Keep the same identity link
+        } else {
+            // Case 2 (choice === 2 or -1): Create/Ensure identity profile
+            identityId = await ensurePresetIdentity(preset.name, preset.clientId);
+        }
+
+        // 2. Build local preset object
+        const localPreset = {
+            name: preset.name,
+            type: parseInt(preset.activityType || '0', 10),
+            details: preset.details || '',
+            detailsUrl: preset.detailsUrl || '',
+            state: preset.state || '',
+            stateUrl: preset.stateUrl || '',
+            largeImageKey: preset.largeImage || '',
+            largeImageText: preset.largeImageText || '',
+            smallImageKey: preset.smallImage || '',
+            smallImageText: preset.smallImageText || '',
+            button1Label: preset.button1Label || '',
+            button1Url: preset.button1Url || '',
+            button2Label: preset.button2Label || '',
+            button2Url: preset.button2Url || '',
+            partyCurrent: preset.partyCurrent ? parseInt(preset.partyCurrent, 10) : 0,
+            partyMax: preset.partyMax ? parseInt(preset.partyMax, 10) : 0,
+            timestampMode: 'normal',
+            customTimestamp: null,
+            useEndTimestamp: false,
+            clientId: identityId // link to local identity ID
+        };
+
+        if (choice === 1) {
+            // Send update-preset message to main process
+            await dependencies.ipcRenderer.send('update-preset', { index: existingPresetIndex, preset: localPreset });
+        } else {
+            // Send save-preset IPC message to main process
+            await dependencies.ipcRenderer.send('save-preset', localPreset);
+        }
+
+        // 3. Show success toast
+        const toastText = (t('publicPresets.savedLocalToast') || "Preset '{name}' salvo localmente!").replace('{name}', preset.name);
+        dependencies.showToast('💾', toastText, 'success');
+
+    } catch (e) {
+        console.error('[Public Presets] Save local preset failed:', e);
+        dependencies.showToast('❌', 'Erro ao salvar o preset localmente.', 'error');
     }
 }
 

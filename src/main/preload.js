@@ -90,6 +90,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'get-current-language',
             'get-spotify-status',
             'get-identities',
+            'get-presets',
             'get-global-client-id',
             'set-global-client-id',
             'add-identity',

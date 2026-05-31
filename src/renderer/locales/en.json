@@ -681,10 +681,17 @@
         "searchPlaceholder": "🔍 Search public presets...",
         "applyBtn": "⚡ Enable Status",
         "customizeBtn": "✏️ Customize",
+        "saveLocalBtn": "💾 Save Local",
         "errorTitle": "Could not load catalogue",
         "errorDesc": "Check your Internet connection and try again.",
         "retryBtn": "🔄 Retry",
         "loading": "Loading premium catalogue...",
-        "appliedToast": "Preset '{name}' successfully activated!"
+        "appliedToast": "Preset '{name}' successfully activated!",
+        "savedLocalToast": "Preset '{name}' saved locally and linked to profile!",
+        "conflictTitle": "Duplicate Preset",
+        "conflictDesc": "A local preset with this same Client ID ({clientId}) already exists. What would you like to do?",
+        "conflictOverwrite": "🔄 Overwrite the existing one",
+        "conflictCopy": "➕ Create a new copy anyway",
+        "conflictCancel": "Cancel"
     }
 }

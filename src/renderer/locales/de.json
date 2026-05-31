@@ -603,10 +603,17 @@
         "searchPlaceholder": "🔍 Öffentliche Presets suchen...",
         "applyBtn": "⚡ Status aktivieren",
         "customizeBtn": "✏️ Anpassen",
+        "saveLocalBtn": "💾 Lokal speichern",
         "errorTitle": "Katalog konnte nicht geladen werden",
         "errorDesc": "Überprüfe deine Internetverbindung und versuche es erneut.",
         "retryBtn": "🔄 Wiederholen",
         "loading": "Premium-Katalog wird geladen...",
-        "appliedToast": "Preset '{name}' erfolgreich aktiviert!"
+        "appliedToast": "Preset '{name}' erfolgreich aktiviert!",
+        "savedLocalToast": "Preset '{name}' lokal gespeichert und mit Profil verknüpft!",
+        "conflictTitle": "Doppeltes Preset",
+        "conflictDesc": "Ein lokales Preset mit derselben Client-ID ({clientId}) existiert bereits. Was möchtest du tun?",
+        "conflictOverwrite": "🔄 Existierendes überschreiben",
+        "conflictCopy": "➕ Trotzdem eine neue Kopie erstellen",
+        "conflictCancel": "Abbrechen"
     }
 }
