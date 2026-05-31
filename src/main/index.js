@@ -286,6 +286,7 @@ let identities = []; // Array of { id: string, name: string } - Multiple App Pro
 let currentClientId = null; // Currently active Client ID for RPC connection
 let pendingActivity = null; // Activity to set after Client ID switch completes
 let isSwitching = false; // Flag to prevent multiple concurrent switches
+let switchingTargetClientId = null; // Target Client ID currently being switched to
 
 // ===== USER TRACKING SYSTEM =====
 const TRACKER_URL = 'https://solarirpc.com/counter.php';
@@ -1835,12 +1836,8 @@ async function switchRpcClient(newClientId) {
         return true;
     }
 
-    if (isSwitching) {
-        console.log('[Solari] Switch already in progress, ignoring...');
-        return false;
-    }
-
     isSwitching = true;
+    switchingTargetClientId = newClientId;
     console.log('[Solari] Switching RPC from', currentClientId, 'to', newClientId);
 
     // Notify UI
@@ -1877,9 +1874,10 @@ async function switchRpcClient(newClientId) {
 
     while (attempt <= MAX_SWITCH_ATTEMPTS) {
         // ABORT CHECK 1: If user wants to switch to yet ANOTHER client ID, abort this one
-        if (currentClientId !== newClientId) {
+        if (switchingTargetClientId !== newClientId) {
             console.log('[Solari] Switch aborted: Target Client ID changed');
             isSwitching = false;
+            switchingTargetClientId = null;
             return false;
         }
 
@@ -1913,10 +1911,11 @@ async function switchRpcClient(newClientId) {
 
             // Success! 
             // FINAL RACE GUARD: Ensure another switch hasn't started while we were awaiting login
-            if (currentClientId !== newClientId) {
+            if (switchingTargetClientId !== newClientId) {
                 console.log('[Solari] Smart switch aborted: newer Client ID is now active');
                 try { newClient.destroy(); } catch (_) { }
                 isSwitching = false;
+                switchingTargetClientId = null;
                 return false;
             }
 
@@ -1924,6 +1923,7 @@ async function switchRpcClient(newClientId) {
             rpcClient = newClient;
             rpcConnected = true;
             isSwitching = false;
+            switchingTargetClientId = null;
 
             if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] Switch successful on attempt ${attempt}! (validated)`);
 
@@ -2002,6 +2002,7 @@ async function switchRpcClient(newClientId) {
     // BUG-08: Max attempts reached — stop trying
     console.error(`[Solari] Switch to ${newClientId} failed after ${MAX_SWITCH_ATTEMPTS} attempts. Giving up.`);
     isSwitching = false;
+    switchingTargetClientId = null;
     rpcConnected = false;
     if (mainWindow) {
         mainWindow.webContents.send('show-toast', {
@@ -2364,7 +2365,7 @@ async function updatePresence() {
 
     // 3. HANDLE CLIENT ID SWITCHING
     if (targetClientId !== currentClientId) {
-        if (!isSwitching) {
+        if (!isSwitching || targetClientId !== switchingTargetClientId) {
             console.log(`[Solari-Core] Switching Client ID from ${currentClientId} to ${targetClientId}`);
 
             // Store this update as pending so it applies immediately after connect
@@ -2382,11 +2383,11 @@ async function updatePresence() {
             currentPrioritySource = sourceType;
 
             // Start the switch
+            isSwitching = false; // Force allow new switch
             switchRpcClient(targetClientId);
         } else {
-            // Already switching, just update the pending buffer
-            // This fixes the "dropped update" bug during 2s switch window
-            console.log('[Solari-Core] Switch in progress, updating pending buffer');
+            // Already switching to the SAME target client ID, just update the pending buffer
+            console.log('[Solari-Core] Switch in progress to same target, updating pending buffer');
             pendingActivity = activeSource.data;
         }
         return;
