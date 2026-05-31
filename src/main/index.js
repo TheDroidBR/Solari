@@ -2744,15 +2744,13 @@ function broadcastAutoDetectState() {
 
 ipcMain.on('update-activity', (event, activity) => {
     // 1. Update Manual Source
-    const hasData = (activity.details || activity.state);
-
     presenceSources.manualPreset.data = activity;
-    presenceSources.manualPreset.active = hasData; // Only active if there's actual data
+    presenceSources.manualPreset.active = true; // Always active when manually updated
     presenceSources.manualPreset.clientId = activity.clientId;
     presenceSources.manualPreset.presetName = "Manual Update"; // Could be refined if we passed the name
 
     // Notify Renderer of manual mode state
-    if (mainWindow) mainWindow.webContents.send('manual-mode-changed', presenceSources.manualPreset.active);
+    if (mainWindow) mainWindow.webContents.send('manual-mode-changed', true);
 
     // 2. Trigger Update
     if (isEnabled) {

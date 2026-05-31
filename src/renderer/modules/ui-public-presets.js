@@ -337,7 +337,7 @@ async function handleApplyPreset(preset) {
             timestampMode: 'normal' // default
         };
 
-        await dependencies.ipcRenderer.invoke('update-activity', payload);
+        dependencies.ipcRenderer.send('update-activity', payload);
 
         // 5. Update UI
         dependencies.updatePreviewAppNameFromDropdown();
@@ -351,7 +351,7 @@ async function handleApplyPreset(preset) {
         const toggle = document.getElementById('statusToggle');
         if (toggle && !toggle.checked) {
             toggle.checked = true;
-            await dependencies.ipcRenderer.invoke('status:toggle', true);
+            dependencies.ipcRenderer.send('toggle-activity', true);
         }
 
     } catch (e) {

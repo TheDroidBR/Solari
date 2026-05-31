@@ -120,10 +120,6 @@ function setAutoDetect(on) {
 
 function setDetectedPreset(presetName) {
     _detectedPreset = presetName || null;
-    // If a real preset is detected, we clear the manual override
-    if (_detectedPreset) {
-        _manualOverride = false;
-    }
     _updateBar();
 }
 
