@@ -1,3 +1,14 @@
+## [1.12.2] - 2026-05-29
+**UPDATE 1.12.2: TELEMETRY HOTFIX**
+
+---
+
+### 🔌 Plugins Telemetry & Robustness
+*   **Case-Insensitive Match**: Upgraded the telemetry plugin mapping system inside `index.js` to be case-insensitive, preventing active plugins from being dropped due to slight naming/casing variations.
+*   **Regex-Based Cleanup**: Implemented robust regular expression filters to strip `.plugin.js` and `detector` case-insensitively, correcting dynamic mapping discrepancies (e.g. for `SmartAFKDetector`).
+
+---
+
 ## [1.12.1] - 2026-05-26
 **UPDATE 1.12.1: HOTFIX**
 

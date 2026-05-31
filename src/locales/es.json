@@ -384,5 +384,19 @@
     "next": "Siguiente",
     "finish": "Lanzar Solari",
     "start": "Lanzar Solari"
+  },
+  "rpcSubTabs": {
+    "custom": "Custom Presence",
+    "public": "Presets Públicos"
+  },
+  "publicPresets": {
+    "searchPlaceholder": "🔍 Buscar presets públicos...",
+    "applyBtn": "⚡ Activar Status",
+    "customizeBtn": "✏️ Personalizar",
+    "errorTitle": "No se pudo cargar el catálogo",
+    "errorDesc": "Revisa tu conexión a Internet e inténtalo de nuevo.",
+    "retryBtn": "🔄 Reintentar",
+    "loading": "Cargando catálogo premium...",
+    "appliedToast": "¡Preset '{name}' activado con éxito!"
   }
 }

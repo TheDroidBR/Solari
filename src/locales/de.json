@@ -363,5 +363,19 @@
     "next": "Weiter",
     "finish": "Solari starten",
     "start": "Starten"
+  },
+  "rpcSubTabs": {
+    "custom": "Custom Presence",
+    "public": "Öffentliche Presets"
+  },
+  "publicPresets": {
+    "searchPlaceholder": "🔍 Öffentliche Presets suchen...",
+    "applyBtn": "⚡ Status aktivieren",
+    "customizeBtn": "✏️ Anpassen",
+    "errorTitle": "Katalog konnte nicht geladen werden",
+    "errorDesc": "Bitte überprüfe deine Internetverbindung und versuche es erneut.",
+    "retryBtn": "🔄 Erneut versuchen",
+    "loading": "Premium-Katalog wird geladen...",
+    "appliedToast": "Preset '{name}' erfolgreich aktiviert!"
   }
 }

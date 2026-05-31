@@ -5558,3 +5558,20 @@ window.loadSolariMessageToolsConfig = function () {
         console.error("[MessageTools] Error loading dynamic config schema:", error);
     }
 };
+
+// ============================================================================
+// ==================== RPC SUB-TABS & PUBLIC PRESETS LOGIC ====================
+// ============================================================================
+const uiPublicPresets = require('./modules/ui-public-presets');
+uiPublicPresets.init({
+    ipcRenderer,
+    t,
+    showToast,
+    loadIdentities,
+    updatePreview,
+    updatePreviewAppNameFromDropdown,
+    getIdentities: () => identities,
+    setIdentities: (val) => { identities = val; },
+    getDiscordAppName: () => discordAppName,
+    setDiscordAppName: (val) => { discordAppName = val; }
+});

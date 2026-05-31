@@ -389,5 +389,19 @@
     "next": "Next",
     "finish": "Launch Solari",
     "start": "Launch Solari"
+  },
+  "rpcSubTabs": {
+    "custom": "Custom Presence",
+    "public": "Public Presets"
+  },
+  "publicPresets": {
+    "searchPlaceholder": "🔍 Search public presets...",
+    "applyBtn": "⚡ Apply Status",
+    "customizeBtn": "✏️ Customize",
+    "errorTitle": "Could not load the catalog",
+    "errorDesc": "Please check your internet connection and try again.",
+    "retryBtn": "🔄 Try Again",
+    "loading": "Loading premium catalog...",
+    "appliedToast": "Preset '{name}' applied successfully!"
   }
 }

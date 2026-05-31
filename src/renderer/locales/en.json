@@ -672,5 +672,19 @@
         "tempTitle": "Include GPU Temperature",
         "temp": "+ Temp",
         "preview": "Discord Preview:"
+    },
+    "rpcSubTabs": {
+        "custom": "Custom Presence",
+        "public": "Public Presets"
+    },
+    "publicPresets": {
+        "searchPlaceholder": "🔍 Search public presets...",
+        "applyBtn": "⚡ Enable Status",
+        "customizeBtn": "✏️ Customize",
+        "errorTitle": "Could not load catalogue",
+        "errorDesc": "Check your Internet connection and try again.",
+        "retryBtn": "🔄 Retry",
+        "loading": "Loading premium catalogue...",
+        "appliedToast": "Preset '{name}' successfully activated!"
     }
 }

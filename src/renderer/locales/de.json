@@ -594,5 +594,19 @@
         "tempTitle": "GPU-Temperatur einschließen",
         "temp": "+ Temp",
         "preview": "Discord Vorschau:"
+    },
+    "rpcSubTabs": {
+        "custom": "Custom Presence",
+        "public": "Öffentliche Presets"
+    },
+    "publicPresets": {
+        "searchPlaceholder": "🔍 Öffentliche Presets suchen...",
+        "applyBtn": "⚡ Status aktivieren",
+        "customizeBtn": "✏️ Anpassen",
+        "errorTitle": "Katalog konnte nicht geladen werden",
+        "errorDesc": "Überprüfe deine Internetverbindung und versuche es erneut.",
+        "retryBtn": "🔄 Wiederholen",
+        "loading": "Premium-Katalog wird geladen...",
+        "appliedToast": "Preset '{name}' erfolgreich aktiviert!"
     }
 }

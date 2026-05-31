@@ -894,8 +894,19 @@
           <button id="onboardingDismissBtn" class="ob-dismiss" title="Dismiss">✕</button>
         </div>
 
+        <!-- Sub-Abas do RPC -->
+        <div class="rpc-sub-tabs-container">
+          <button class="rpc-sub-tab-btn active" data-rpc-sub-tab="rpc-custom-presence">
+            <span>🎮</span> <span data-i18n="rpcSubTabs.custom">Custom Presence</span>
+          </button>
+          <button class="rpc-sub-tab-btn" data-rpc-sub-tab="rpc-public-presets">
+            <span>✨</span> <span data-i18n="rpcSubTabs.public">Presets Públicos</span>
+          </button>
+        </div>
 
-        <div class="main-grid">
+        <!-- Conteúdo: Custom Presence -->
+        <div id="rpc-custom-presence-content" class="rpc-sub-tab-content active">
+          <div class="main-grid">
           <!-- Left Column: RPC Config -->
           <section class="rpc-config">
             <h2 data-i18n="presence.title">Configuração de Presença</h2>
@@ -1198,6 +1209,27 @@
         </div>
 
       </div> <!-- end main-grid -->
+    </div> <!-- end rpc-custom-presence-content -->
+
+    <!-- Conteúdo: Presets Públicos -->
+    <div id="rpc-public-presets-content" class="rpc-sub-tab-content" style="display: none;">
+      <div class="public-presets-header" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
+        <input type="text" id="public-presets-search" class="form-control-premium" placeholder="🔍 Buscar presets públicos..." data-i18n-placeholder="publicPresets.searchPlaceholder" style="flex: 1; padding: 12px; font-size: 1rem;">
+      </div>
+      <div id="public-presets-loading" class="public-presets-loading-state" style="text-align: center; padding: 40px; font-size: 1.2em; color: var(--text-muted);">
+        <span class="spinner" style="display: inline-block; animation: spin 2s linear infinite; margin-right: 10px;">⏳</span>
+        <span data-i18n="publicPresets.loading">Carregando catálogo premium...</span>
+      </div>
+      <div id="public-presets-error" class="public-presets-error-state" style="display: none; text-align: center; padding: 40px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; margin: 20px 0;">
+        <span class="error-icon" style="font-size: 3em; display: block; margin-bottom: 15px;">📡</span>
+        <h3 data-i18n="publicPresets.errorTitle" style="color: #ef4444; margin-bottom: 10px; font-size: 1.3em;">Não foi possível carregar o catálogo</h3>
+        <p data-i18n="publicPresets.errorDesc" style="color: var(--text-muted); margin-bottom: 20px;">Verifique sua conexão com a Internet.</p>
+        <button id="retryPublicPresetsBtn" class="btn btn-secondary" data-i18n="publicPresets.retryBtn" style="padding: 10px 20px;">🔄 Tentar Novamente</button>
+      </div>
+      <div id="public-presets-grid" class="public-presets-grid" style="display: none;">
+        <!-- Cards renderizados dinamicamente -->
+      </div>
+    </div>
   </div> <!-- end rpc-tab -->
 
   <!-- Plugin Config Modal -->

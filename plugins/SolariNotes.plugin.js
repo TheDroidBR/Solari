@@ -336,8 +336,8 @@ module.exports = class SolariNotes {
         try {
             BdApi.Data.save("SolariNotes", "config", this.config);
             if (this.isConnected) {
-                this.send({ 
-                    type: 'notes_config_sync', 
+                this.send({
+                    type: 'notes_config_sync',
                     config: this.config,
                     schema: this.getSettingsSchema()
                 });
@@ -357,10 +357,10 @@ module.exports = class SolariNotes {
                 this.safeShowToast('Solari Notes: Conectado!', { type: "success" });
 
                 // Envia o esquema de configurações inicial e o estado atual para o aplicativo Solari
-                this.send({ 
-                    type: 'notes_config_sync', 
-                    config: this.config, 
-                    schema: this.getSettingsSchema() 
+                this.send({
+                    type: 'notes_config_sync',
+                    config: this.config,
+                    schema: this.getSettingsSchema()
                 });
 
                 // Request the latest notes from the disk immediately
@@ -393,24 +393,24 @@ module.exports = class SolariNotes {
             case 'notes_sync':
                 // Check if backend data is the new JSON Tabs schema or Legacy Phase 6 String
                 try {
-                if (data.content && data.content.startsWith('{"tabs":')) {
-                    const parsed = JSON.parse(data.content);
-                    this.tabs = parsed.tabs;
-                    // Ensure legacy tabs get a windowId
-                    this.tabs.forEach(t => { if (!t.windowId) t.windowId = 'main'; });
-                    this.activeTabId = parsed.activeTabId || this.tabs[0].id;
-                } else if (data.content !== undefined) {
-                    // Legacy migration format
+                    if (data.content && data.content.startsWith('{"tabs":')) {
+                        const parsed = JSON.parse(data.content);
+                        this.tabs = parsed.tabs;
+                        // Ensure legacy tabs get a windowId
+                        this.tabs.forEach(t => { if (!t.windowId) t.windowId = 'main'; });
+                        this.activeTabId = parsed.activeTabId || this.tabs[0].id;
+                    } else if (data.content !== undefined) {
+                        // Legacy migration format
+                        this.tabs = [{ id: 1, title: 'Main', content: data.content || '', windowId: 'main' }];
+                        this.activeTabId = 1;
+                    }
+                } catch (e) {
+                    // If parse fails or something weird, assume legacy string
                     this.tabs = [{ id: 1, title: 'Main', content: data.content || '', windowId: 'main' }];
                     this.activeTabId = 1;
                 }
-            } catch (e) {
-                // If parse fails or something weird, assume legacy string
-                this.tabs = [{ id: 1, title: 'Main', content: data.content || '', windowId: 'main' }];
-                this.activeTabId = 1;
-            }
 
-            this.updateTextAreaUI();
+                this.updateTextAreaUI();
             case 'update_notes_settings':
                 this.config = { ...this.config, ...data.settings };
                 this.saveConfig();
@@ -993,7 +993,7 @@ module.exports = class SolariNotes {
         // 1. Find the Discord Header Toolbar (next to Search / Help / Inbox)
         // We use focused selectors to avoid grabbing popup/message toolbars (which causes React crashes)
         const possibleHeaders = Array.from(document.querySelectorAll('[class*="title_"], [class*="headerBar_"], [class*="themed_"]'));
-        
+
         // CRITICAL: Strictly avoid layer containers, popouts, modals, and other overlay elements to prevent React from crashing (black screen bug)
         const headerContainer = possibleHeaders.find(c => {
             if (!c.closest('#app-mount')) return false;
@@ -1031,7 +1031,7 @@ module.exports = class SolariNotes {
             // 1. Pinned windows: ALWAYS stay visible (persistent tools)
             // 2. Unpinned windows (main or detached): Follow the Master Toggle (isPanelOpen)
             const shouldBeVisible = win.isPinned || (this.isPanelOpen && (win.id === 'main' || win.isOpen));
-            
+
             // Physically skip creating and appending to DOM if it shouldn't be visible.
             // This prevents closed panels with opacity 0 from causing layout clipping or hardware compositing issues in Discord.
             if (!shouldBeVisible) return;
@@ -1603,7 +1603,7 @@ module.exports = class SolariNotes {
 
     updateTextAreaUI() {
         const panels = document.querySelectorAll('.solari-notes-panel');
-        
+
         panels.forEach(panel => {
             const winId = panel.dataset.windowId;
             const textArea = panel.querySelector('.solari-notes-textarea');

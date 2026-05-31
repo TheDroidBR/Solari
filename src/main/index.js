@@ -4628,12 +4628,12 @@ function initializeWebSocketServer() {
                             
                             // v1.11.1: Update Telemetry with all Solari plugins and their status
                             if (telemetry) {
-                                const solariKeywords = ['Solari', 'SmartAFK', 'SpotifySync', 'MessageTools'];
+                                const solariKeywords = ['solari', 'smartafk', 'spotifysync', 'messagetools'];
                                 const pluginStates = cachedBDPlugins
-                                    .filter(p => p.name && solariKeywords.some(kw => p.name.includes(kw)))
+                                    .filter(p => p.name && solariKeywords.some(kw => p.name.toLowerCase().includes(kw)))
                                     .map(p => {
-                                        let name = p.name.replace('.plugin.js', '').replace('Detector', '').trim();
-                                        if (name === 'SolariManager') name = 'Manager';
+                                        let name = p.name.replace(/\.plugin\.js$/i, '').replace(/detector$/i, '').trim();
+                                        if (name.toLowerCase() === 'solarimanager') name = 'Manager';
                                         return `${name}:${p.enabled ? '1' : '0'}`;
                                     });
                                 telemetry.setActivePlugins(pluginStates);
