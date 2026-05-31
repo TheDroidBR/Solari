@@ -1828,6 +1828,14 @@ async function handleImgurConversion(inputElement) {
             if (resolved) {
                 inputElement.value = resolved;
                 showToast('🪄', t('toasts.imgurConverted'), 'success');
+                
+                // Dispatch input/change events to trigger core listeners
+                inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // Force immediate preview update and debounced state save
+                if (typeof updatePreview === 'function') updatePreview();
+                if (typeof debouncedSaveFormState === 'function') debouncedSaveFormState();
             }
         } catch (err) {
             console.error('[Solari] Auto-convert failed:', err);
