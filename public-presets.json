@@ -303,5 +303,236 @@
       "button1Label": "Official Website",
       "button2Label": "Solari RPC"
     }
+  },
+  {
+    "name": "League of Legends",
+    "clientId": "1511612772889264001",
+    "activityType": "0",
+    "details": "Partida de Rift (Competitivo)",
+    "detailsUrl": "https://www.leagueoflegends.com",
+    "state": "Campeão: Yasuo | 7 / 2 / 5 ⚔️",
+    "stateUrl": "https://www.leagueoflegends.com",
+    "largeImage": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png",
+    "largeImageText": "League of Legends",
+    "smallImage": "https://i.imgur.com/Iv90wsz.png",
+    "smallImageText": "Elo: Desafiante",
+    "button1Label": "Ver Estatísticas",
+    "button1Url": "https://www.leagueoflegends.com",
+    "button2Label": "Jogar LoL",
+    "button2Url": "https://www.leagueoflegends.com",
+    "pt": {
+      "details": "Partida de Rift (Competitivo)",
+      "state": "Campeão: Yasuo | 7 / 2 / 5 ⚔️",
+      "largeImageText": "League of Legends",
+      "smallImageText": "Elo: Desafiante",
+      "button1Label": "Ver Estatísticas",
+      "button2Label": "Jogar LoL"
+    },
+    "en": {
+      "details": "Summoner's Rift Match (Ranked)",
+      "state": "Champion: Yasuo | 7 / 2 / 5 ⚔️",
+      "largeImageText": "League of Legends",
+      "smallImageText": "Rank: Challenger",
+      "button1Label": "View Stats",
+      "button2Label": "Play LoL"
+    }
+  },
+  {
+    "name": "Counter-Strike 2",
+    "clientId": "1511612772889264002",
+    "activityType": "0",
+    "details": "Modo Premier Competitivo",
+    "detailsUrl": "https://www.counter-strike.net",
+    "state": "Mapa: Mirage | Placar: 13 - 9 💣",
+    "stateUrl": "https://www.counter-strike.net",
+    "largeImage": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png",
+    "largeImageText": "Counter-Strike 2",
+    "smallImage": "https://i.imgur.com/Iv90wsz.png",
+    "smallImageText": "Pontuação: 18,500 CS",
+    "button1Label": "Ver Perfil",
+    "button1Url": "https://www.counter-strike.net",
+    "button2Label": "Jogar CS2",
+    "button2Url": "https://www.counter-strike.net",
+    "pt": {
+      "details": "Modo Premier Competitivo",
+      "state": "Mapa: Mirage | Placar: 13 - 9 💣",
+      "largeImageText": "Counter-Strike 2",
+      "smallImageText": "Pontuação: 18,500 CS",
+      "button1Label": "Ver Perfil",
+      "button2Label": "Jogar CS2"
+    },
+    "en": {
+      "details": "Premier Competitive Mode",
+      "state": "Map: Mirage | Score: 13 - 9 💣",
+      "largeImageText": "Counter-Strike 2",
+      "smallImageText": "Rating: 18,500 CS",
+      "button1Label": "View Profile",
+      "button2Label": "Play CS2"
+    }
+  },
+  {
+    "name": "Roblox",
+    "clientId": "1511612772889264003",
+    "activityType": "0",
+    "details": "Explorando Blox Fruits 🍎",
+    "detailsUrl": "https://www.roblox.com",
+    "state": "Nível: Max | Em busca de Frutas Místicas",
+    "stateUrl": "https://www.roblox.com",
+    "largeImage": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png",
+    "largeImageText": "Roblox",
+    "smallImage": "https://i.imgur.com/Iv90wsz.png",
+    "smallImageText": "Modo de Jogo Ativo",
+    "button1Label": "Jogar Roblox",
+    "button1Url": "https://www.roblox.com",
+    "button2Label": "Entrar no Jogo",
+    "button2Url": "https://www.roblox.com",
+    "pt": {
+      "details": "Explorando Blox Fruits 🍎",
+      "state": "Nível: Max | Em busca de Frutas Místicas",
+      "largeImageText": "Roblox",
+      "smallImageText": "Modo de Jogo Ativo",
+      "button1Label": "Jogar Roblox",
+      "button2Label": "Entrar no Jogo"
+    },
+    "en": {
+      "details": "Exploring Blox Fruits 🍎",
+      "state": "Level: Max | Searching for Mythical Fruits",
+      "largeImageText": "Roblox",
+      "smallImageText": "Game Mode Active",
+      "button1Label": "Play Roblox",
+      "button2Label": "Join Game"
+    }
+  },
+  {
+    "name": "GTA RP",
+    "clientId": "1511612772889264004",
+    "activityType": "0",
+    "details": "Conectado ao Servidor RP 🚗",
+    "detailsUrl": "https://www.rockstargames.com",
+    "state": "Trabalhando: Entregas | Capital Social",
+    "stateUrl": "https://www.rockstargames.com",
+    "largeImage": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png",
+    "largeImageText": "GTA RP",
+    "smallImage": "https://i.imgur.com/Iv90wsz.png",
+    "smallImageText": "Cidade Ativa",
+    "button1Label": "Jogar GTA V",
+    "button1Url": "https://www.rockstargames.com",
+    "button2Label": "Website do Servidor",
+    "button2Url": "https://www.rockstargames.com",
+    "pt": {
+      "details": "Conectado ao Servidor RP 🚗",
+      "state": "Trabalhando: Entregas | Capital Social",
+      "largeImageText": "GTA RP",
+      "smallImageText": "Cidade Ativa",
+      "button1Label": "Jogar GTA V",
+      "button2Label": "Website do Servidor"
+    },
+    "en": {
+      "details": "Connected to RP Server 🚗",
+      "state": "Working: Deliveries | Social Capital",
+      "largeImageText": "GTA RP",
+      "smallImageText": "Active City",
+      "button1Label": "Play GTA V",
+      "button2Label": "Server Website"
+    }
+  },
+  {
+    "name": "Crunchyroll",
+    "clientId": "1511612772889264005",
+    "activityType": "3",
+    "details": "Assistindo: Solo Leveling ⚔️",
+    "detailsUrl": "https://www.crunchyroll.com",
+    "state": "Temporada 1 | Episódio 12 (Final)",
+    "stateUrl": "https://www.crunchyroll.com",
+    "largeImage": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png",
+    "largeImageText": "Crunchyroll Premium",
+    "smallImage": "https://i.imgur.com/Iv90wsz.png",
+    "smallImageText": "Qualidade Full HD",
+    "button1Label": "Assistir Junto",
+    "button1Url": "https://www.crunchyroll.com",
+    "button2Label": "Crunchyroll",
+    "button2Url": "https://www.crunchyroll.com",
+    "pt": {
+      "details": "Assistindo: Solo Leveling ⚔️",
+      "state": "Temporada 1 | Episódio 12 (Final)",
+      "largeImageText": "Crunchyroll Premium",
+      "smallImageText": "Qualidade Full HD",
+      "button1Label": "Assistir Junto",
+      "button2Label": "Crunchyroll"
+    },
+    "en": {
+      "details": "Watching: Solo Leveling ⚔️",
+      "state": "Season 1 | Episode 12 (Finale)",
+      "largeImageText": "Crunchyroll Premium",
+      "smallImageText": "Full HD Quality",
+      "button1Label": "Watch Together",
+      "button2Label": "Crunchyroll"
+    }
+  },
+  {
+    "name": "Disney+",
+    "clientId": "1511612772889264006",
+    "activityType": "3",
+    "details": "Maratonando: The Mandalorian 🚀",
+    "detailsUrl": "https://www.disneyplus.com",
+    "state": "Temporada 3 | Episódio 4",
+    "stateUrl": "https://www.disneyplus.com",
+    "largeImage": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png",
+    "largeImageText": "Disney+",
+    "smallImage": "https://i.imgur.com/Iv90wsz.png",
+    "smallImageText": "Qualidade 4K HDR",
+    "button1Label": "Assista Junto",
+    "button1Url": "https://www.disneyplus.com",
+    "button2Label": "Disney+ Website",
+    "button2Url": "https://www.disneyplus.com",
+    "pt": {
+      "details": "Maratonando: The Mandalorian 🚀",
+      "state": "Temporada 3 | Episódio 4",
+      "largeImageText": "Disney+",
+      "smallImageText": "Qualidade 4K HDR",
+      "button1Label": "Assista Junto",
+      "button2Label": "Disney+ Website"
+    },
+    "en": {
+      "details": "Binge-watching: The Mandalorian 🚀",
+      "state": "Season 3 | Episode 4",
+      "largeImageText": "Disney+",
+      "smallImageText": "4K HDR Quality",
+      "button1Label": "Watch Together",
+      "button2Label": "Disney+ Website"
+    }
+  },
+  {
+    "name": "Figma",
+    "clientId": "1511612772889264007",
+    "activityType": "0",
+    "details": "Editando: Solari Design System 🎨",
+    "detailsUrl": "https://www.figma.com",
+    "state": "Projeto: Protótipo v2.0",
+    "stateUrl": "https://www.figma.com",
+    "largeImage": "https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png",
+    "largeImageText": "Figma Desktop",
+    "smallImage": "https://i.imgur.com/Iv90wsz.png",
+    "smallImageText": "Modo Design Ativo",
+    "button1Label": "Abrir no Figma",
+    "button1Url": "https://www.figma.com",
+    "button2Label": "Figma Website",
+    "button2Url": "https://www.figma.com",
+    "pt": {
+      "details": "Editando: Solari Design System 🎨",
+      "state": "Projeto: Protótipo v2.0",
+      "largeImageText": "Figma Desktop",
+      "smallImageText": "Modo Design Ativo",
+      "button1Label": "Abrir no Figma",
+      "button2Label": "Figma Website"
+    },
+    "en": {
+      "details": "Editing: Solari Design System 🎨",
+      "state": "Project: Prototype v2.0",
+      "largeImageText": "Figma Desktop",
+      "smallImageText": "Design Mode Active",
+      "button1Label": "Open in Figma",
+      "button2Label": "Figma Website"
+    }
   }
 ]
