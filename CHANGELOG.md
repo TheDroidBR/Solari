@@ -1,4 +1,4 @@
-## [1.13.0] - 2026-05-31
+## [1.13.0] - Unreleased
 **UPDATE 1.13.0: PREMIUM PRESETS CATALOG, OVERRIDE RESOLUTION & PREVIEW INTEGRATION**
 
 ---
@@ -43,6 +43,21 @@
 *   **Instant Visual Feedback**: Guarantees that the live preview immediately renders the resolved Imgur image and automatically persists the new state.
 *   **Tab Indicator Language Sync**: Fixed a layout bug where the active tab's sliding indicator background did not resize to match the new tab button widths when the UI language changed. Added a `languageChanged` event listener to `tabs-fix.js` to automatically recalculate and re-align the active tab indicator's width and position after language updates.
 
+### 🛡️ Codebase Stabilization & Bugfixes (01-23)
+*   **Form Validation Barrier (Bug 20)**: Added a validation check on status update click in the manual RPC form. Invalid fields containing the `.fv-error` class now block sending corrupt status payloads to the main process and display a warning toast.
+*   **Asynchronous RPC Status Feedback (Bug 21)**: The status update button now disables on click and shows "Updating..." state, waiting for the main process response. The success toast ("Status updated!") or disconnected warnings are only shown when confirmation is received via the `activity-updated` IPC event.
+*   **Multi-language BD Manager Translations (Bug 22)**: Restored the missing `bdManagerDiscordClosed` translation key in English, Spanish, and German locales, and added missing `bdManager` keys in Spanish and German locales, ensuring a fully localized plugin store.
+*   **BetterDiscord Status Reference Check (Bug 14)**: Fixed a critical `ReferenceError` in `checkBDStatus()` where a variable was accessed before its declaration, restoring BD detection.
+*   **Microphone Passthrough Memory Leak (Bug 06)**: Fixed a memory leak in the soundboard noise slider listener by ensuring the `'input'` listener is only registered once.
+*   **Audio Overlapping & Stops (Bugs 07, 09)**: Allowed multiple soundboard sounds to overlap when enabled, and ensured deleted sound files stop playing immediately in the background.
+*   **Admin UIPI Browser Bypass (Bugs 03, 04)**: Bypassed Windows UIPI isolation when running Solari as Administrator by routing target links and installer check links to `explorer.exe` to safely invoke the default web browser.
+*   **Silent Update Checks (Bug 12)**: Fixed the auto-updater silent check flow to prevent automatically downloading large installers in the background without user confirmation.
+*   **Dynamic Process Detection (Bugs 10, 16)**: Replaced loose process name matching with exact column matching in the parsed tasklist CSV image column, preventing false process auto-detection positives. Stripped `\r` carriage returns from process titles.
+*   **BetterDiscord Repair Websocket Safety (Bug 15)**: Added standard error handlers (`ws.on('error', ...)`) to the plugin websocket server connections, preventing unhandled exceptions from crashing the app.
+*   **Soundboard File Safety (Bug 08)**: Appended unique numeric suffixes (e.g. `laser(1).mp3`) when importing audio files with duplicate names, preventing silent file overwrites.
+*   **Main Process i18n Fallback (Bug 23)**: Rewrote `t_main` translation parser to support empty strings and fallback dynamically to the English locale translation object when keys are missing.
+*   **Window Management Optimization (Bug 17)**: Replaced inline browser window creation with delegated calls to `WindowManager.createAutoDetectWindow()`, ensuring consistent size.
+*   **Other Stability Fixes (Bugs 02, 11, 13, 18, 19)**: Handled array boundaries dynamically for fallback preset index updates on deletions, registered transport error handlers on preset Client ID changes, persisted custom Spotify settings, and enabled automatic restoration from the `.bak` backup file when the main settings data gets corrupted.
 
 ### ⚙️ Unified Release Promotion
 *   **Version Bump**: Promoted the application version straight from `1.12.1` to `1.13.0` across the entire codebase (`package.json`, `package-lock.json`, `latest.yml`, and `CHANGELOG.md`).
