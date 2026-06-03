@@ -74,10 +74,21 @@ class SoundBoard {
     addSound(sourcePath, name = null, category = 'custom') {
         try {
             const ext = path.extname(sourcePath);
-            const soundName = name || path.basename(sourcePath, ext);
-            const filename = `${soundName}${ext}`;
+            const baseName = name || path.basename(sourcePath, ext);
             const targetDir = category === 'default' ? this.defaultSoundsDir : this.customSoundsDir;
-            const targetPath = path.join(targetDir, filename);
+            
+            let soundName = baseName;
+            let filename = `${soundName}${ext}`;
+            let targetPath = path.join(targetDir, filename);
+
+            // Avoid name collisions and overwriting files (Bug 08)
+            let counter = 1;
+            while (fs.existsSync(targetPath)) {
+                soundName = `${baseName}(${counter})`;
+                filename = `${soundName}${ext}`;
+                targetPath = path.join(targetDir, filename);
+                counter++;
+            }
 
             // Copy file
             fs.copyFileSync(sourcePath, targetPath);

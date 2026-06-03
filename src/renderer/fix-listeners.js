@@ -1,5 +1,5 @@
 const fs = require('fs');
-const path = 'c:/Users/Gabriel/Desktop/Itens/Antigravity/Solari APP/src/renderer/renderer.js';
+const path = require('path').join(__dirname, 'renderer.js');
 let code = fs.readFileSync(path, 'utf8');
 
 code = code.replace(/(\w+)\.addEventListener/g, (match, p1) => {

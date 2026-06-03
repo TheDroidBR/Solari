@@ -24,6 +24,7 @@ let updateReady = false;
 let lastError = null;
 let isFallbackAttempt = false;
 let updateCheckResolve = null;
+let isSilentCheck = false; // Flag to distinguish silent checks from splash checks (Bug 12)
 
 // Configure electron-updater defaults
 autoUpdater.autoDownload = false; // We control when to download
@@ -54,45 +55,56 @@ function sendProgress(percent, downloaded, total) {
 // ===== ELECTRON-UPDATER EVENT HANDLERS =====
 
 autoUpdater.on('checking-for-update', () => {
-    sendStatus('checking', 'Checking for updates...');
+    if (!isSilentCheck) {
+        sendStatus('checking', 'Checking for updates...');
+    }
 });
 
 autoUpdater.on('update-available', (info) => {
     console.log(`[Solari Updater] Update available: v${info.version}`);
-    sendStatus('downloading', `Downloading v${info.version}...`);
-    // Auto-download when update is found during splash flow
-    autoUpdater.downloadUpdate();
+    if (!isSilentCheck) {
+        sendStatus('downloading', `Downloading v${info.version}...`);
+        autoUpdater.downloadUpdate();
+    } else {
+        console.log('[Solari Updater] Silent check: Suppressing automatic download.');
+    }
 });
 
 autoUpdater.on('update-not-available', (info) => {
     console.log(`[Solari Updater] No update available. Current: v${info.version}`);
-    if (updateCheckResolve) {
+    if (!isSilentCheck && updateCheckResolve) {
         updateCheckResolve(false);
         updateCheckResolve = null;
     }
 });
 
 autoUpdater.on('download-progress', (progress) => {
-    sendProgress(
-        progress.percent,
-        progress.transferred,
-        progress.total
-    );
+    if (!isSilentCheck) {
+        sendProgress(
+            progress.percent,
+            progress.transferred,
+            progress.total
+        );
+    }
 });
 
 autoUpdater.on('update-downloaded', (info) => {
     console.log(`[Solari Updater] Update downloaded: v${info.version}`);
     updateReady = true;
-    sendStatus('installing', 'Installing update...');
-    if (updateCheckResolve) {
-        updateCheckResolve(true);
-        updateCheckResolve = null;
+    if (!isSilentCheck) {
+        sendStatus('installing', 'Installing update...');
+        if (updateCheckResolve) {
+            updateCheckResolve(true);
+            updateCheckResolve = null;
+        }
     }
 });
 
 autoUpdater.on('error', (error) => {
     lastError = error;
     console.error('[Solari Updater] Update Error:', error);
+
+    if (isSilentCheck) return; // Suppress handler in silent check
 
     // If primary (GitHub) failed, try fallback (GitLab)
     if (!isFallbackAttempt && CONSTANTS.UPDATE_URL_FALLBACK) {
@@ -147,6 +159,7 @@ function checkUpdateViaSplash() {
     }
 
     // Reset state for each check
+    isSilentCheck = false;
     isFallbackAttempt = false;
     lastError = null;
     updateReady = false;
@@ -184,6 +197,7 @@ function checkUpdateViaSplash() {
  * Does NOT download; just checks if an update exists.
  */
 async function checkUpdateSilent() {
+    isSilentCheck = true;
     const pkg = require('../../package.json');
     const currentVersion = pkg.version;
 

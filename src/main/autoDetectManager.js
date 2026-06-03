@@ -22,10 +22,10 @@ class AutoDetectManager {
                     return;
                 }
 
-                const lines = stdout.split('\n');
+                const lines = stdout.replace(/\r/g, '').split('\n');
                 const processes = lines.map(line => {
                     const parts = line.split('","');
-                    return parts[0] ? parts[0].replace(/"/g, '') : null;
+                    return parts[0] ? parts[0].replace(/"/g, '').trim() : null;
                 }).filter(Boolean);
 
                 resolve(processes);
@@ -49,12 +49,12 @@ class AutoDetectManager {
                 }
 
                 // Parse titles from tasklist /V output
-                const lines = stdout.trim().split('\n');
+                const lines = stdout.replace(/\r/g, '').split('\n');
                 const titles = lines.map(line => {
                     try {
                         const parts = line.split('","');
                         // In CSV format, title is the last column (index 8 for tasklist /V)
-                        const title = parts[parts.length - 1] ? parts[parts.length - 1].replace(/"/g, '') : '';
+                        const title = parts[parts.length - 1] ? parts[parts.length - 1].replace(/"/g, '').trim() : '';
                         return title;
                     } catch (e) { return null; }
                 }).filter(t => t && t.length > 3);

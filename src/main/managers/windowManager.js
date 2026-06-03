@@ -11,6 +11,7 @@
 const { BrowserWindow, shell } = require('electron');
 const path = require('path');
 const CONSTANTS = require('../constants');
+const { exec } = require('child_process');
 
 /** @type {BrowserWindow|null} */
 let mainWindow = null;
@@ -28,6 +29,25 @@ let ICON_PATH = '';
  */
 function init(iconPath) {
     ICON_PATH = iconPath;
+}
+
+/**
+ * Opens a URL externally in the default browser.
+ * Bypasses Windows UIPI restrictions under administrator by running explorer.exe.
+ * @param {string} url 
+ */
+function openExternalSafe(url) {
+    if (process.platform === 'win32') {
+        const safeUrl = url.replace(/"/g, '\\"');
+        exec(`explorer "${safeUrl}"`, (err) => {
+            if (err) {
+                console.error('[WindowManager] explorer open failed, falling back to shell:', err);
+                shell.openExternal(url);
+            }
+        });
+    } else {
+        shell.openExternal(url);
+    }
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -55,7 +75,8 @@ function createMainWindow({ onClose } = {}) {
             nodeIntegration: true,
             contextIsolation: false,
             backgroundThrottling: true,
-            spellcheck: false
+            spellcheck: false,
+            autoplayPolicy: 'no-user-gesture-required'
         }
     });
 
@@ -77,7 +98,7 @@ function createMainWindow({ onClose } = {}) {
         try {
             const protocol = new URL(url).protocol;
             if (CONSTANTS.SAFE_PROTOCOLS.includes(protocol)) {
-                shell.openExternal(url);
+                openExternalSafe(url);
             } else {
                 console.warn('[Solari Security] Blocked external link with unsafe protocol:', protocol);
             }
@@ -180,8 +201,35 @@ function createAutoDetectWindow() {
         backgroundColor: '#0f0c29',
         webPreferences: {
             nodeIntegration: true,
-            contextIsolation: false
+            contextIsolation: false,
+            autoplayPolicy: 'no-user-gesture-required'
         }
+    });
+
+    // Navigation security guard — block unsafe protocols
+    autoDetectWindow.webContents.on('will-navigate', (event, url) => {
+        try {
+            const protocol = new URL(url).protocol;
+            if (!CONSTANTS.SAFE_PROTOCOLS.includes(protocol)) {
+                console.warn('[Solari Security] Blocked navigation to unsafe protocol:', protocol);
+                event.preventDefault();
+            }
+        } catch {
+            event.preventDefault();
+        }
+    });
+
+    // Intercept new-window events — open externally only for safe protocols
+    autoDetectWindow.webContents.setWindowOpenHandler(({ url }) => {
+        try {
+            const protocol = new URL(url).protocol;
+            if (CONSTANTS.SAFE_PROTOCOLS.includes(protocol)) {
+                openExternalSafe(url);
+            } else {
+                console.warn('[Solari Security] Blocked external link with unsafe protocol:', protocol);
+            }
+        } catch { /* invalid URL */ }
+        return { action: 'deny' };
     });
 
     autoDetectWindow.loadFile(path.join(__dirname, '../../renderer/autodetect.html'));

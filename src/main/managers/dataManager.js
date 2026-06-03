@@ -67,6 +67,8 @@ function getDataPath() {
  * Migrates orphan auto-detect mappings automatically.
  */
 function loadData() {
+    let raw;
+    let data;
     try {
         if (!_fs.existsSync(_DATA_PATH)) {
             _autoDetectLanguage();
@@ -75,8 +77,28 @@ function loadData() {
         }
 
         console.log(`[DataManager] Loading data from: ${_DATA_PATH}`);
-        const raw = _fs.readFileSync(_DATA_PATH);
-        const data = JSON.parse(raw);
+        raw = _fs.readFileSync(_DATA_PATH);
+        data = JSON.parse(raw);
+    } catch (e) {
+        console.error('[DataManager] Failed to load data, attempting backup fallback:', e);
+        const bakPath = _DATA_PATH + '.bak';
+        if (_fs.existsSync(bakPath)) {
+            try {
+                console.log(`[DataManager] Loading data from backup: ${bakPath}`);
+                raw = _fs.readFileSync(bakPath);
+                data = JSON.parse(raw);
+            } catch (bakErr) {
+                console.error('[DataManager] Failed to load data from backup as well:', bakErr);
+                _dataLoadFailed = true;
+                return;
+            }
+        } else {
+            _dataLoadFailed = true;
+            return;
+        }
+    }
+
+    try {
         console.log(`[DataManager] Parsed. Presets: ${data.presets?.length || 0}, Mappings: ${data.autoDetectMappings?.length || 0}`);
 
         // Presence & Presets
@@ -105,6 +127,10 @@ function loadData() {
         if (data.clientId) _store.clientId = data.clientId;
         if (data.identities) _store.identities = data.identities;
         if (data.globalAppName) _store.globalAppName = data.globalAppName;
+
+        // Spotify settings (Bug 13)
+        if (data.spotifyClientId !== undefined) _store.spotifyClientId = data.spotifyClientId;
+        if (data.spotifyTokens) _store.spotifyTokens = data.spotifyTokens;
 
         // Migrate orphan mappings to stub presets
         _store.autoDetectMappings.forEach(mapping => {
@@ -208,7 +234,9 @@ function _buildPayload() {
         hwMonitorEnabled: _store.hwMonitorEnabled,
         hwMonitorSettings: _store.hwMonitorSettings,
         solariNotesSettings: _store.solariNotesSettings,
-        systemAFKSettings: _store.systemAFKSettings
+        systemAFKSettings: _store.systemAFKSettings,
+        spotifyClientId: _store.spotifyClientId,
+        spotifyTokens: _store.spotifyTokens
     };
 }
 

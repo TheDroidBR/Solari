@@ -241,18 +241,19 @@ let pluginWatcher = null; // Watcher for BetterDiscord plugins folder
 
 // ===== MAIN PROCESS I18N SYSTEM =====
 let currentLocaleData = {};
+let fallbackLocaleData = {};
 function loadLocale(lang = 'en') {
     try {
+        const enPath = path.join(__dirname, '..', 'locales', 'en.json');
+        if (fs.existsSync(enPath)) {
+            fallbackLocaleData = JSON.parse(fs.readFileSync(enPath, 'utf8'));
+        }
         const localePath = path.join(__dirname, '..', 'locales', `${lang}.json`);
         if (fs.existsSync(localePath)) {
             currentLocaleData = JSON.parse(fs.readFileSync(localePath, 'utf8'));
             if (CONSTANTS.DEBUG_MODE) console.log(`[i18n] Loaded Main locale: ${lang}`);
         } else {
-            // Fallback to English
-            const enPath = path.join(__dirname, '..', 'locales', 'en.json');
-            if (fs.existsSync(enPath)) {
-                currentLocaleData = JSON.parse(fs.readFileSync(enPath, 'utf8'));
-            }
+            currentLocaleData = fallbackLocaleData;
         }
     } catch (e) {
         console.error('[i18n] Failed to load locale:', e);
@@ -267,15 +268,26 @@ function loadLocale(lang = 'en') {
  */
 function t_main(key, defaultValue = '') {
     const keys = key.split('.');
-    let value = currentLocaleData;
-    for (const k of keys) {
-        if (value && value[k]) {
-            value = value[k];
-        } else {
-            return defaultValue || key;
+    
+    const getValue = (obj) => {
+        let value = obj;
+        for (const k of keys) {
+            if (value && value[k] !== undefined) {
+                value = value[k];
+            } else {
+                return undefined;
+            }
         }
-    }
-    return typeof value === 'string' ? value : (defaultValue || key);
+        return typeof value === 'string' ? value : undefined;
+    };
+
+    const currentVal = getValue(currentLocaleData);
+    if (currentVal !== undefined) return currentVal;
+
+    const fallbackVal = getValue(fallbackLocaleData);
+    if (fallbackVal !== undefined) return fallbackVal;
+
+    return defaultValue !== undefined ? defaultValue : key;
 }
 
 
@@ -1970,6 +1982,37 @@ async function switchRpcClient(newClientId) {
                 }, 10000);
             });
 
+            // Register transport close and error handlers (Bug 11)
+            if (newClient.transport) {
+                newClient.transport.on('close', () => {
+                    if (currentClientId !== newClientId) return;
+                    if (isSwitching) return;
+                    console.log('[Solari] Discord RPC connection closed after switch, reconnecting...');
+                    rpcConnected = false;
+                    currentActivity = {};
+                    if (mainWindow) {
+                        mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
+                    }
+                    setTimeout(() => {
+                        initializeDiscordRPC(currentClientId);
+                    }, 5000);
+                });
+
+                newClient.transport.on('error', (err) => {
+                    if (currentClientId !== newClientId) return;
+                    if (isSwitching) return;
+                    console.log('[Solari] Discord RPC transport error after switch:', err.message, '- reconnecting...');
+                    rpcConnected = false;
+                    currentActivity = {};
+                    if (mainWindow) {
+                        mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
+                    }
+                    setTimeout(() => {
+                        initializeDiscordRPC(currentClientId);
+                    }, 3000);
+                });
+            }
+
             // Apply pending activity if any - but VALIDATE it's for THIS Client ID
             if (pendingActivity) {
                 // RACE CONDITION FIX: Only apply if the pending activity is for this Client ID
@@ -3138,7 +3181,19 @@ ipcMain.on('update-preset', (event, { index, preset }) => {
         console.log(`[Solari] Preset updated at index ${index}: ${preset.name}`);
     }
 });
-ipcMain.on('delete-preset', (event, index) => { presets.splice(index, 1); saveData(); event.reply('presets-updated', presets); });
+ipcMain.on('delete-preset', (event, index) => {
+    presets.splice(index, 1);
+    
+    // Adjust fallbackPresetIndex dynamically (Bug 18)
+    if (fallbackPresetIndex === index) {
+        fallbackPresetIndex = -1; // Reset fallback
+    } else if (fallbackPresetIndex > index) {
+        fallbackPresetIndex--; // Shift down to align index
+    }
+    
+    saveData();
+    event.reply('presets-updated', presets);
+});
 ipcMain.on('get-data', (event) => {
     console.log(`[Solari DEBUG] Sending get-data reply. Presets: ${presets.length}, Mappings: ${autoDetectMappings.length}, Identities: ${identities.length}`);
     event.reply('data-loaded', {
@@ -3550,6 +3605,7 @@ function isSolariManagerEnabledInBD() {
 // Reusable logic for BetterDiscord Check (v1.8.2 — with pending-update detection)
 
 async function checkBDStatus() {
+    const smConnected = Array.from(wss.clients).some(c => c.isSolariManager && c.readyState === 1); // Move to top to avoid ReferenceError (Bug 14)
     try {
         const bdPath = path.join(app.getPath('appData'), 'BetterDiscord');
         const bdDataPath = path.join(bdPath, 'data');
@@ -3606,7 +3662,7 @@ async function checkBDStatus() {
         }
 
         const discordRunning = await isDiscordRunning();
-        const smConnected = Array.from(wss.clients).some(c => c.isSolariManager && c.readyState === 1);
+        // smConnected is already resolved at top (Bug 14)
 
         // Heuristic: asar exists, BD is injected in an older app-* dir but NOT in the newest one,
         // AND there are multiple app-* dirs → Discord downloaded an update but hasn't applied it yet.
@@ -4874,6 +4930,9 @@ function initializeWebSocketServer() {
 
             broadcastPluginList();
         });
+        ws.on('error', (err) => {
+            console.error('[Solari WSS] WebSocket client connection error:', err.message); // Handle connection errors (Bug 15)
+        });
     });
 }
 
@@ -4919,31 +4978,7 @@ ipcMain.handle('bd:get-plugins', async () => {
 
 
 function openAutoDetectSettings() {
-    if (autoDetectWindow) {
-        autoDetectWindow.focus();
-        return;
-    }
-
-    autoDetectWindow = new BrowserWindow({
-        width: 700,
-        height: 500,
-        parent: mainWindow,
-        modal: false,
-        resizable: false,
-        backgroundColor: '#0f0c29',
-        icon: ICON_PATH,
-        autoHideMenuBar: true,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        }
-    });
-
-    autoDetectWindow.loadFile(path.join(__dirname, '..', 'renderer', 'autodetect.html'));
-
-    autoDetectWindow.on('closed', () => {
-        autoDetectWindow = null;
-    });
+    autoDetectWindow = WindowManager.createAutoDetectWindow(); // Delegate window creation (Bug 17)
 }
 
 function startAutoDetection() {
@@ -5023,12 +5058,17 @@ function checkRunningProcesses(isFirstCheck = false) {
             // Success! Reset error count
             processCheckErrorCount = 0;
 
-            const runningProcesses = stdout.toLowerCase();
+            const lines = stdout.replace(/\r/g, '').split('\n');
+            const runningProcesses = lines.map(line => {
+                const parts = line.split('","');
+                return parts[0] ? parts[0].replace(/"/g, '').toLowerCase().trim() : '';
+            }).filter(Boolean); // Parse executable names correctly (Bug 16)
+
             let foundProcess = false;
 
             // Check each mapping
             for (const mapping of autoDetectMappings) {
-                const processName = mapping.processName.toLowerCase();
+                const processName = mapping.processName.toLowerCase().trim();
                 if (runningProcesses.includes(processName)) {
                     foundProcess = true;
                     // Process found! Check if it's already the current one
@@ -5305,7 +5345,19 @@ function loadPresetActivity(preset, isManual = false) {
         console.warn('[Solari] loadPresetActivity called with null/undefined preset — ignoring');
         return;
     }
-    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] Loading preset "${preset.name}" with Client ID: ${preset.clientId}`);
+
+    // Resolve Client ID from Identity (Bug 19)
+    let finalClientId = preset.clientId;
+    if (!finalClientId && preset.identityId && identities) {
+        const identity = identities.find(i => i.id === preset.identityId);
+        if (identity) finalClientId = identity.clientId;
+    }
+    if (!finalClientId && identities) {
+        const idName = identities.find(i => i.name && i.name.toLowerCase() === preset.name.toLowerCase());
+        if (idName) finalClientId = idName.clientId;
+    }
+
+    if (CONSTANTS.DEBUG_MODE) console.log(`[Solari] Loading preset "${preset.name}" with Client ID: ${finalClientId}`);
     // Build buttons array
     const buttons = [];
     if (preset.button1Label && preset.button1Url) {
@@ -5327,19 +5379,19 @@ function loadPresetActivity(preset, isManual = false) {
         smallImageText: preset.smallImageText || undefined,
         buttons: buttons.length > 0 ? buttons : undefined,
         instance: false,
-        clientId: preset.clientId // Include Client ID for auto-detect switching
+        clientId: finalClientId // Include Client ID for auto-detect switching
     };
 
     // If Manual Mode (Tray), update state listeners
     if (isManual) {
         presenceSources.manualPreset.active = true;
         presenceSources.manualPreset.data = activity;
-        presenceSources.manualPreset.clientId = preset.clientId;
+        presenceSources.manualPreset.clientId = finalClientId;
         presenceSources.manualPreset.presetName = preset.name;
         if (mainWindow) mainWindow.webContents.send('manual-mode-changed', true);
     }
 
-    setActivity(activity, preset.clientId); // Pass clientId explicitly 2nd arg
+    setActivity(activity, finalClientId); // Pass clientId explicitly 2nd arg
 }
 
 // Auto-detection IPC handlers
@@ -5633,6 +5685,10 @@ app.whenReady().then(async () => {
         set globalAppName(v) { globalAppName = v; },
         get rpcConnected() { return rpcConnected; },
         get isEnabled() { return isEnabled; },
+        get spotifyClientId() { return spotifyClientId; },
+        set spotifyClientId(v) { spotifyClientId = v; },
+        get spotifyTokens() { return spotifyTokens; },
+        set spotifyTokens(v) { spotifyTokens = v; },
     };
 
     DataManager.init(_sharedStore, { app, path, fs, CONSTANTS }, (data) => {

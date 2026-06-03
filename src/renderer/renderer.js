@@ -1989,84 +1989,123 @@ timestampRadios.forEach(radio => {
 
 // Update Status
 updateBtn?.addEventListener('click', async () => {
-    let imageUrl = largeImageInput.value || undefined;
-    let smallImageUrl = smallImageInput.value || undefined;
+    // Validate first
+    uiValidator.validateAll();
+    const hasErrors = document.querySelectorAll('.fv-error').length > 0;
+    if (hasErrors) {
+        showToast('⚠️', t('presence.validationError') || 'Please correct form errors.', 'warning');
+        return;
+    }
 
-    // If large image is an Imgur album/page URL, ask main process to resolve it
-    if (imageUrl && imageUrl.includes('imgur.com') && !imageUrl.startsWith('https://i.imgur.com/')) {
-        updateBtn.textContent = t('presence.fetchingImage');
-        try {
-            imageUrl = await ipcRenderer.invoke('resolve-imgur-url', imageUrl);
-            if (imageUrl) {
-                largeImageInput.value = imageUrl;
+    // Disable button to prevent double-clicks
+    updateBtn.disabled = true;
+    updateBtn.textContent = t('presence.updating') || 'Updating...';
+
+    try {
+        let imageUrl = largeImageInput.value || undefined;
+        let smallImageUrl = smallImageInput.value || undefined;
+
+        // If large image is an Imgur album/page URL, ask main process to resolve it
+        if (imageUrl && imageUrl.includes('imgur.com') && !imageUrl.startsWith('https://i.imgur.com/')) {
+            updateBtn.textContent = t('presence.fetchingImage');
+            try {
+                imageUrl = await ipcRenderer.invoke('resolve-imgur-url', imageUrl);
+                if (imageUrl) {
+                    largeImageInput.value = imageUrl;
+                }
+            } catch (err) {
+                console.error('[Solari] Failed to resolve large image URL:', err);
             }
-        } catch (err) {
-            console.error('[Solari] Failed to resolve large image URL:', err);
+            updateBtn.textContent = t('presence.updating') || 'Updating...';
         }
-    }
 
-    // If small image is an Imgur album/page URL, ask main process to resolve it
-    if (smallImageUrl && smallImageUrl.includes('imgur.com') && !smallImageUrl.startsWith('https://i.imgur.com/')) {
-        updateBtn.textContent = t('presence.fetchingSmallImage');
-        try {
-            smallImageUrl = await ipcRenderer.invoke('resolve-imgur-url', smallImageUrl);
-            if (smallImageUrl) {
-                smallImageInput.value = smallImageUrl;
+        // If small image is an Imgur album/page URL, ask main process to resolve it
+        if (smallImageUrl && smallImageUrl.includes('imgur.com') && !smallImageUrl.startsWith('https://i.imgur.com/')) {
+            updateBtn.textContent = t('presence.fetchingSmallImage');
+            try {
+                smallImageUrl = await ipcRenderer.invoke('resolve-imgur-url', smallImageUrl);
+                if (smallImageUrl) {
+                    smallImageInput.value = smallImageUrl;
+                }
+            } catch (err) {
+                console.error('[Solari] Failed to resolve small image URL:', err);
             }
-        } catch (err) {
-            console.error('[Solari] Failed to resolve small image URL:', err);
+            updateBtn.textContent = t('presence.updating') || 'Updating...';
         }
+
+        // Build buttons array
+        const buttons = [];
+        if (button1LabelInput.value && button1UrlInput.value) {
+            buttons.push({ label: button1LabelInput.value, url: button1UrlInput.value });
+        }
+        if (button2LabelInput.value && button2UrlInput.value) {
+            buttons.push({ label: button2LabelInput.value, url: button2UrlInput.value });
+        }
+
+        // Get party size values
+        const partyCurrent = parseInt(partyCurrentInput.value) || 0;
+        const partyMax = parseInt(partyMaxInput.value) || 0;
+
+        // Get timestamp mode
+        let timestampMode = 'normal';
+        timestampRadios.forEach(radio => {
+            if (radio.checked) timestampMode = radio.value;
+        });
+
+        // Get custom timestamp if selected
+        let customTimestamp = null;
+        if (timestampMode === 'custom' && customTimestampInput.value) {
+            customTimestamp = new Date(customTimestampInput.value).getTime();
+        }
+
+        const activity = {
+            type: parseInt(activityTypeSelect.value),
+            details: detailsInput.value || undefined,
+            detailsUrl: detailsUrlInput?.value || undefined,
+            state: stateInput.value || undefined,
+            stateUrl: stateUrlInput?.value || undefined,
+            largeImageKey: imageUrl,
+            largeImageText: largeImageTextInput.value || undefined,
+            smallImageKey: smallImageUrl,
+            smallImageText: smallImageTextInput.value || undefined,
+            buttons: buttons.length > 0 ? buttons : undefined,
+            partyCurrent: partyCurrent > 0 ? partyCurrent : undefined,
+            partyMax: partyMax > 0 ? partyMax : undefined,
+            timestampMode: timestampMode,
+            customTimestamp: customTimestamp,
+            useEndTimestamp: useEndTimestamp ? useEndTimestamp.checked : false,
+            clientId: document.getElementById('presetClientId')?.value || undefined,
+            instance: false
+        };
+        ipcRenderer.send('update-activity', activity);
+        uiContext.forceManualMode();
+    } catch (err) {
+        console.error('[Solari] Error updating presence:', err);
+        updateBtn.disabled = false;
+        updateBtn.textContent = t('presence.updateStatus') || 'Update Status';
+        showToast('❌', 'Error updating status', 'danger');
     }
+});
 
-    // Build buttons array
-    const buttons = [];
-    if (button1LabelInput.value && button1UrlInput.value) {
-        buttons.push({ label: button1LabelInput.value, url: button1UrlInput.value });
+// Listener for update-activity completion
+ipcRenderer.on('activity-updated', (event, success) => {
+    if (updateBtn) {
+        updateBtn.disabled = false;
+        if (success) {
+            if (!isRpcActuallyConnected) {
+                showToast('⚠️', t('presence.queuedNoConnection') || 'Status queued, but Discord is disconnected!', 'warning');
+            } else {
+                showToast('✅', t('presence.updated') || 'Status updated!', 'success');
+            }
+            updateBtn.textContent = t('presence.updated') || 'Updated!';
+        } else {
+            showToast('⚠️', t('presence.rpcDisabled') || 'Rich Presence is disabled in settings!', 'warning');
+            updateBtn.textContent = t('presence.updateStatus') || 'Update Status';
+        }
+        setTimeout(() => {
+            updateBtn.textContent = t('presence.updateStatus') || 'Update Status';
+        }, 2000);
     }
-    if (button2LabelInput.value && button2UrlInput.value) {
-        buttons.push({ label: button2LabelInput.value, url: button2UrlInput.value });
-    }
-
-    // Get party size values
-    const partyCurrent = parseInt(partyCurrentInput.value) || 0;
-    const partyMax = parseInt(partyMaxInput.value) || 0;
-
-    // Get timestamp mode
-    let timestampMode = 'normal';
-    timestampRadios.forEach(radio => {
-        if (radio.checked) timestampMode = radio.value;
-    });
-
-    // Get custom timestamp if selected
-    let customTimestamp = null;
-    if (timestampMode === 'custom' && customTimestampInput.value) {
-        customTimestamp = new Date(customTimestampInput.value).getTime();
-    }
-
-    const activity = {
-        type: parseInt(activityTypeSelect.value),
-        details: detailsInput.value || undefined,
-        detailsUrl: detailsUrlInput?.value || undefined,
-        state: stateInput.value || undefined,
-        stateUrl: stateUrlInput?.value || undefined,
-        largeImageKey: imageUrl,
-        largeImageText: largeImageTextInput.value || undefined,
-        smallImageKey: smallImageUrl,
-        smallImageText: smallImageTextInput.value || undefined,
-        buttons: buttons.length > 0 ? buttons : undefined,
-        partyCurrent: partyCurrent > 0 ? partyCurrent : undefined,
-        partyMax: partyMax > 0 ? partyMax : undefined,
-        timestampMode: timestampMode,
-        customTimestamp: customTimestamp,
-        useEndTimestamp: useEndTimestamp ? useEndTimestamp.checked : false,
-        clientId: document.getElementById('presetClientId')?.value || undefined,
-        instance: false
-    };
-    ipcRenderer.send('update-activity', activity);
-    uiContext.forceManualMode();
-    showToast('✅', t('presence.updated') || 'Status updated!', 'success');
-    updateBtn.textContent = t('presence.updated');
-    setTimeout(() => updateBtn.textContent = t('presence.updateStatus'), 2000);
 });
 
 // Auto-convert Imgur links on blur

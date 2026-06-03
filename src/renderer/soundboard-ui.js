@@ -69,6 +69,8 @@
     let currentAudioSource = null;
     let currentGainNode = null;
     let compressorNode = null; // Loudness Equalization (DynamicsCompressor)
+    let currentRnnoiseNode = null; // Active RNNoise node for mic passthrough (Bug 06)
+    const activePlayingSources = new Map(); // Track active overlapping/playing audio sources (Bug 07)
 
     // DOM Elements
     let elements = {};
@@ -315,26 +317,7 @@
                 micSource.connect(rnnoiseNode);
                 rnnoiseNode.connect(micGainNode);
                 micSource.rnnoiseNode = rnnoiseNode; // Store ref for cleanup
-
-                // Setup noise level slider handler
-                const noiseLevelSlider = document.getElementById('soundboard-noise-level');
-                const noiseLevelValue = document.getElementById('noise-level-value');
-                if (noiseLevelSlider) {
-                    // Send initial threshold
-                    const initialLevel = parseInt(noiseLevelSlider.value) / 100;
-                    rnnoiseNode.port.postMessage({ type: 'set-threshold', threshold: initialLevel });
-
-                    noiseLevelSlider.addEventListener('input', () => {
-                        const level = parseInt(noiseLevelSlider.value);
-                        if (noiseLevelValue) noiseLevelValue.textContent = level + '%';
-                        // Send to processor: 0% = less aggressive (0.3), 100% = aggressive (0.95)
-                        const threshold = 0.3 + (level / 100) * 0.65;
-                        rnnoiseNode.port.postMessage({ type: 'set-threshold', threshold: threshold });
-                    });
-
-                    // Update slider fill
-                    if (typeof updateSliderFill === 'function') updateSliderFill(noiseLevelSlider);
-                }
+                currentRnnoiseNode = rnnoiseNode; // Store reference globally (Bug 06)
             } else {
                 micSource.connect(micGainNode);
             }
@@ -362,6 +345,10 @@
 
         try {
             if (micSource) {
+                if (micSource.rnnoiseNode) {
+                    micSource.rnnoiseNode.disconnect();
+                    micSource.rnnoiseNode = null;
+                }
                 micSource.disconnect();
                 micSource = null;
             }
@@ -373,6 +360,7 @@
                 micStream.getTracks().forEach(track => track.stop());
                 micStream = null;
             }
+            currentRnnoiseNode = null; // Clean up reference (Bug 06)
             micPassthroughActive = false;
             console.log('[SoundBoard] Mic passthrough stopped');
         } catch (e) {
@@ -620,7 +608,7 @@
         }
 
         elements.soundboardGrid.innerHTML = filtered.map(sound => {
-            const isPlaying = currentlyPlaying === sound.id;
+            const isPlaying = activePlayingSources.has(String(sound.id));
             const colorStyle = sound.color ? `border: 2px solid ${sound.color} !important; border-image: none !important; box-shadow: 0 4px 15px ${sound.color}60, inset 0 0 20px ${sound.color}20 !important;` : '';
             const durationText = sound.duration ? formatDuration(sound.duration) : '';
 
@@ -690,8 +678,12 @@
                 return false;
             }
 
-            // Stop any currently playing sound
-            stopCurrentSound();
+            // Stop existing sound(s) if overlap is not allowed (Bug 07)
+            if (!settings.allowOverlap) {
+                stopAllSounds();
+            } else {
+                stopSound(soundId);
+            }
 
             // Get audio data directly from main process via IPC (bypasses HTTP server)
             console.log('[SoundBoard] Step 2: Loading audio via IPC for sound:', soundId);
@@ -713,8 +705,6 @@
             source.buffer = audioBuffer;
             source.loop = loop;
 
-
-
             gainNode.gain.value = volume * settings.globalVolume;
 
             // Connect nodes - route through masterGainNode for proper mixing
@@ -728,13 +718,20 @@
             // Track current source
             currentAudioSource = source;
             currentGainNode = gainNode;
+            activePlayingSources.set(String(soundId), { source, gainNode });
 
             // Handle end of playback
             source.onended = () => {
-                if (currentAudioSource === source) {
-                    currentlyPlaying = null;
-                    currentAudioSource = null;
-                    currentGainNode = null;
+                const active = activePlayingSources.get(String(soundId));
+                if (active && active.source === source) {
+                    activePlayingSources.delete(String(soundId));
+                    if (currentlyPlaying === soundId) {
+                        currentlyPlaying = null;
+                    }
+                    if (currentAudioSource === source) {
+                        currentAudioSource = null;
+                        currentGainNode = null;
+                    }
                     renderSounds();
 
                     // Queue auto-advance
@@ -751,25 +748,53 @@
         }
     }
 
-    // Stop currently playing sound
+    // Stop currently playing sound (legacy / fallback)
     function stopCurrentSound() {
         if (currentAudioSource) {
             try {
                 currentAudioSource.stop();
-                currentAudioSource.disconnect(); // Prevent memory leak
+                currentAudioSource.disconnect();
             } catch (e) {
-                // Already stopped/disconnected
+                // Already stopped
             }
             currentAudioSource = null;
         }
         if (currentGainNode) {
             try {
-                currentGainNode.disconnect(); // Cleanup gain node
+                currentGainNode.disconnect();
             } catch (e) {
                 // Already disconnected
             }
             currentGainNode = null;
         }
+    }
+
+    // Stop specific sound (Bug 07/09)
+    function stopSound(soundId) {
+        const active = activePlayingSources.get(String(soundId));
+        if (active) {
+            try {
+                active.source.stop();
+                active.source.disconnect();
+            } catch (e) {
+                // Already stopped
+            }
+            try {
+                active.gainNode.disconnect();
+            } catch (e) {
+                // Already disconnected
+            }
+            activePlayingSources.delete(String(soundId));
+        }
+    }
+
+    // Stop all sounds (Bug 07)
+    function stopAllSounds() {
+        for (const soundId of activePlayingSources.keys()) {
+            stopSound(soundId);
+        }
+        activePlayingSources.clear();
+        stopCurrentSound();
     }
 
     // ===== EXPOSED GLOBAL FUNCTIONS =====
@@ -814,12 +839,12 @@
         }
 
         try {
-            const wasPlaying = currentlyPlaying === soundId;
+            const wasPlaying = activePlayingSources.has(String(soundId));
 
             if (wasPlaying) {
                 // Stop the sound
-                stopCurrentSound();
-                currentlyPlaying = null;
+                stopSound(soundId);
+                if (currentlyPlaying === soundId) currentlyPlaying = null;
                 renderSounds();
                 safeShowToast('⏹️', 'Sound stopped', 'info');
                 return;
@@ -838,13 +863,15 @@
             const success = await playSoundToDevice(soundId, sound.volume || 1.0, sound.loop || false);
 
             if (!success) {
-                currentlyPlaying = null;
+                activePlayingSources.delete(String(soundId));
+                if (currentlyPlaying === soundId) currentlyPlaying = null;
                 renderSounds();
                 safeShowToast('❌', 'Error playing sound — check console (F12)', 'error');
             }
         } catch (e) {
             console.error('[SoundBoard] Play error:', e);
-            currentlyPlaying = null;
+            activePlayingSources.delete(String(soundId));
+            if (currentlyPlaying === soundId) currentlyPlaying = null;
             renderSounds();
             safeShowToast('❌', `Play error: ${e.message || e}`, 'error');
         }
@@ -852,7 +879,7 @@
 
     // Stop all sounds
     window.sbStopAll = function () {
-        stopCurrentSound();
+        stopAllSounds();
         currentlyPlaying = null;
         renderSounds();
         safeShowToast('⏹️', 'All sounds stopped', 'info');
@@ -959,6 +986,7 @@
         if (!confirm('Delete this sound?')) return;
 
         try {
+            stopSound(soundId); // Stop sound before deleting (Bug 09)
             await sbIpcRenderer.invoke('soundboard:delete-sound', soundId);
             sounds = sounds.filter(s => String(s.id) !== String(soundId));
             renderSounds();
@@ -1062,7 +1090,7 @@
         const sound = sounds.find(s => s.id === soundId);
         if (!sound) return;
 
-        const isPlaying = currentlyPlaying === soundId;
+        const isPlaying = activePlayingSources.has(String(soundId));
 
         contextMenuEl = document.createElement('div');
         contextMenuEl.className = 'sb-context-menu';
@@ -1202,6 +1230,24 @@
 
     // Setup event listeners
     function setupEventListeners() {
+        // Noise level slider (Bug 06)
+        const noiseLevelSlider = document.getElementById('soundboard-noise-level');
+        const noiseLevelValue = document.getElementById('noise-level-value');
+        if (noiseLevelSlider) {
+            updateSliderFill(noiseLevelSlider);
+
+            noiseLevelSlider.addEventListener('input', () => {
+                const level = parseInt(noiseLevelSlider.value);
+                if (noiseLevelValue) noiseLevelValue.textContent = level + '%';
+                updateSliderFill(noiseLevelSlider);
+
+                if (currentRnnoiseNode) {
+                    const threshold = 0.3 + (level / 100) * 0.65;
+                    currentRnnoiseNode.port.postMessage({ type: 'set-threshold', threshold: threshold });
+                }
+            });
+        }
+
         // Search
         if (elements.searchInput) {
             elements.searchInput.addEventListener('input', (e) => {
