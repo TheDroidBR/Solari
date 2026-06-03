@@ -1460,66 +1460,165 @@ html[data-theme="light"] h2::after {
 }
 
 .discord-preview-card {
-  background: #111214; /* Discord Official Dark Bg */
-  border-radius: 12px;
-  padding: 16px;
+  display: none; /* Decommissioned in favor of popout */
+}
+
+/* Discord Popout Overhaul Styling */
+.discord-profile-popout {
+  background: #111214;
+  border-radius: 16px;
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  font-family: 'GG Sans', 'Inter', sans-serif;
+  font-family: 'gg sans', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  position: relative;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+  text-align: left;
 }
 
-.discord-preview-header {
-  margin-bottom: 12px;
+.discord-profile-banner {
+  height: 60px;
+  width: 100%;
+  transition: background-color 0.3s ease;
+  background: var(--primary);
+  cursor: pointer;
 }
 
-.activity-type-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  color: #dbdee1;
-}
-
-.discord-preview-content {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.discord-preview-image {
+.discord-avatar-container {
+  position: relative;
+  margin-top: -30px;
+  margin-left: 16px;
   width: 72px;
   height: 72px;
-  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.discord-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 6px solid #111214;
+  overflow: hidden;
   background: #2b2d31;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.discord-avatar:hover {
+  transform: scale(1.05);
+}
+
+.discord-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.discord-status-badge {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 4px solid #111214;
+  z-index: 5;
+}
+
+.discord-status-badge.online {
+  background-color: #23a55a;
+}
+
+.discord-user-names {
+  padding: 0 16px;
+  margin-bottom: 12px;
+}
+
+.discord-display-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f2f3f5;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.discord-display-name:hover {
+  text-decoration: underline;
+}
+
+.discord-username {
+  font-size: 0.8rem;
+  color: #b5bac1;
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.discord-divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.08);
+  margin: 0 16px;
+  border: none;
+}
+
+.discord-activity-section {
+  padding: 16px;
+}
+
+.discord-activity-header {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #dbdee1;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.discord-preview-content {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.discord-preview-image {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  background: #2b2d31;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
   position: relative;
   flex-shrink: 0;
-  overflow: visible; /* To allow small image offset */
+  overflow: visible;
 }
 
 .discord-preview-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .discord-preview-small-image {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 24px;
-  height: 24px;
+  bottom: -3px;
+  right: -3px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #2b2d31;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
-  border: 4px solid #111214;
+  font-size: 0.65rem;
+  border: 3px solid #111214;
   z-index: 2;
 }
 
@@ -1536,8 +1635,8 @@ html[data-theme="light"] h2::after {
 }
 
 .discord-preview-name {
-  font-weight: 600;
-  font-size: 0.92rem;
+  font-weight: 700;
+  font-size: 0.88rem;
   color: #f2f3f5;
   margin-bottom: 2px;
   white-space: nowrap;
@@ -1547,7 +1646,7 @@ html[data-theme="light"] h2::after {
 
 .discord-preview-details,
 .discord-preview-state {
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   color: #b5bac1;
   margin-bottom: 1px;
   white-space: nowrap;
@@ -1565,34 +1664,59 @@ html[data-theme="light"] h2::after {
 .discord-preview-buttons {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 6px;
+  margin-top: 12px;
 }
 
 .discord-btn {
   background: #4e5058;
   border: none;
   color: #fff;
-  padding: 8px 16px;
-  border-radius: 3px;
-  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background 0.15s ease;
   text-align: center;
+  width: 100%;
 }
 
 .discord-btn:hover {
   background: #6d6f78;
 }
 
-/* Theme adjustments for preview */
-html[data-theme="light"] .discord-preview-card {
+/* Light Theme overrides */
+html[data-theme="light"] .discord-profile-popout {
   background: #f2f3f5;
   border-color: #e3e5e8;
 }
 
-html[data-theme="light"] .activity-type-label {
+html[data-theme="light"] .discord-avatar {
+  border-color: #f2f3f5;
+}
+
+html[data-theme="light"] .discord-status-badge {
+  border-color: #f2f3f5;
+}
+
+html[data-theme="light"] .discord-preview-small-image {
+  border-color: #f2f3f5;
+}
+
+html[data-theme="light"] .discord-divider {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+html[data-theme="light"] .discord-display-name {
+  color: #060607;
+}
+
+html[data-theme="light"] .discord-username {
+  color: #4f5660;
+}
+
+html[data-theme="light"] .discord-activity-header {
   color: #4f5660;
 }
 
@@ -8017,6 +8141,10 @@ input.fv-error {
   position: relative;
 }
 
+.discord-preview-small-image.preview-map-hoverable {
+  position: absolute !important;
+}
+
 .preview-map-hoverable::after {
   content: '↔';
   position: absolute;
@@ -8397,4 +8525,48 @@ input.fv-error {
   to { transform: rotate(360deg); }
 }
 
+/* Discord Profile Customize Modal Footer styling */
+.modal-buttons-profile {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#profileCustomResetBtn {
+  color: #ef4444;
+  font-size: 0.9em;
+  text-decoration: none;
+  border: 1px dashed rgba(239, 68, 68, 0.4);
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(239, 68, 68, 0.05);
+  display: block;
+  box-sizing: border-box;
+}
+
+#profileCustomResetBtn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.6);
+  transform: translateY(-1px);
+}
+
+.modal-buttons-profile .modal-actions-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.modal-buttons-profile .modal-actions-row button {
+  flex: 1 !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
 

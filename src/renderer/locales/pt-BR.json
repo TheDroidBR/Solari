@@ -360,7 +360,14 @@
         "playing": "JOGANDO",
         "listening": "OUVINDO",
         "watching": "ASSISTINDO",
-        "competing": "COMPETINDO EM"
+        "competing": "COMPETINDO EM",
+        "playingGame": "JOGANDO",
+        "customizeTitle": "Personalizar Perfil",
+        "displayNameLabel": "Nome de Exibição",
+        "usernameLabel": "Nome de Usuário",
+        "avatarUrlLabel": "URL do Avatar",
+        "bannerColorLabel": "Cor do Banner",
+        "resetProfile": "Restaurar Padrão"
     },
     "presets": {
         "title": "Presets",
@@ -682,6 +689,7 @@
         "public": "Presets Públicos"
     },
     "publicPresets": {
+        "subtitle": "Encontre presets completos pré-configurados e Client IDs prontos para uso no seu Rich Presence.",
         "searchPlaceholder": "🔍 Buscar presets públicos...",
         "applyBtn": "⚡ Ativar Status",
         "customizeBtn": "✏️ Customizar",
@@ -696,6 +704,18 @@
         "conflictDesc": "Já existe um preset local salvo com este mesmo Client ID ({clientId}). O que você gostaria de fazer?",
         "conflictOverwrite": "🔄 Sobrescrever o existente",
         "conflictCopy": "➕ Criar uma nova cópia mesmo assim",
-        "conflictCancel": "Cancelar"
+        "conflictCancel": "Cancelar",
+        "filterAll": "Todos",
+        "filterPlaying": "Jogando",
+        "filterWatching": "Assistindo",
+        "filterListening": "Ouvindo",
+        "filterCompeting": "Competindo",
+        "noPresetsFound": "Nenhum preset encontrado."
+    },
+    "extensionAd": {
+        "title": "Sincronização Automática Disponível!",
+        "desc": "Este preset é estático. Instale nossa Extensão oficial do Solari no navegador para sincronizar automaticamente seus vídeos e lives em tempo real!",
+        "button": "🧩 Obter Extensão",
+        "toastInfo": "Instale a extensão para sincronizar vídeos/lives automaticamente!"
     }
 }

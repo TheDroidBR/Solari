@@ -356,7 +356,14 @@
         "playing": "PLAYING",
         "listening": "LISTENING TO",
         "watching": "WATCHING",
-        "competing": "COMPETING IN"
+        "competing": "COMPETING IN",
+        "playingGame": "PLAYING A GAME",
+        "customizeTitle": "Customize Profile",
+        "displayNameLabel": "Display Name",
+        "usernameLabel": "Username",
+        "avatarUrlLabel": "Avatar Image URL",
+        "bannerColorLabel": "Profile Banner Color",
+        "resetProfile": "Reset Profile"
     },
     "presets": {
         "title": "Presets",
@@ -678,6 +685,7 @@
         "public": "Public Presets"
     },
     "publicPresets": {
+        "subtitle": "Find complete pre-configured presets and ready-to-use Client IDs for your Rich Presence.",
         "searchPlaceholder": "🔍 Search public presets...",
         "applyBtn": "⚡ Enable Status",
         "customizeBtn": "✏️ Customize",
@@ -692,6 +700,18 @@
         "conflictDesc": "A local preset with this same Client ID ({clientId}) already exists. What would you like to do?",
         "conflictOverwrite": "🔄 Overwrite the existing one",
         "conflictCopy": "➕ Create a new copy anyway",
-        "conflictCancel": "Cancel"
+        "conflictCancel": "Cancel",
+        "filterAll": "All",
+        "filterPlaying": "Playing",
+        "filterWatching": "Watching",
+        "filterListening": "Listening",
+        "filterCompeting": "Competing",
+        "noPresetsFound": "No presets found."
+    },
+    "extensionAd": {
+        "title": "Automatic Synchronization Available!",
+        "desc": "This preset is static. Install our official Solari Browser Extension to automatically sync your videos and streams in real time!",
+        "button": "🧩 Get Extension",
+        "toastInfo": "Install the extension to sync videos and streams automatically!"
     }
 }

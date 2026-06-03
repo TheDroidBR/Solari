@@ -1027,6 +1027,11 @@ ipcRenderer.on('data-loaded', async (event, data) => {
             statusText.style.color = '#f59e0b';
         }
     }
+    
+    // Initialize Extension Ad Banner
+    if (typeof initExtensionAd === 'function') {
+        initExtensionAd();
+    }
 });
 
 ipcRenderer.on('run-setup-wizard', () => {
@@ -1053,6 +1058,13 @@ ipcRenderer.on('rpc-status', (event, data) => {
 
     if (data.connected) {
         isRpcActuallyConnected = true;
+
+        if (data.user) {
+            localStorage.setItem('solari_detected_display_name', data.user.globalName);
+            localStorage.setItem('solari_detected_username', data.user.username);
+            localStorage.setItem('solari_detected_avatar', data.user.avatar);
+            updatePreview();
+        }
 
         // Header indicator
         if (statusIndicator && statusText && statusToggle && statusToggle.checked) {
@@ -1592,28 +1604,54 @@ function updatePreview() {
     const details = detailsInput.value;
     const state = stateInput.value;
 
-    // Different layouts for different activity types
-    // Playing (0): Header is "JOGANDO", then app name, then details, then state
-    // Watching (3): Header is "Assistindo [AppName]", then details, then state
-    // Listening (2): Header is "Ouvindo [AppName]", then details, then state
-    // Competing (5): Header is "Competindo [AppName]", then details, then state
+    // Load and apply customized user profile options
+    const displayNameEl = document.getElementById('previewUserDisplayName');
+    const usernameEl = document.getElementById('previewUserTag');
+    const avatarImgEl = document.getElementById('previewUserAvatarImg');
+    const bannerEl = document.getElementById('previewProfileBanner');
+
+    const savedDisplayName = localStorage.getItem('solari_preview_display_name') || 
+                              localStorage.getItem('solari_detected_display_name') || 
+                              'Gabriel';
+    const savedUsername = localStorage.getItem('solari_preview_username') || 
+                          localStorage.getItem('solari_detected_username') || 
+                          'solari_user';
+    const savedAvatar = localStorage.getItem('solari_preview_avatar') || 
+                        localStorage.getItem('solari_detected_avatar') || 
+                        'SolariPhotoTransparente.png';
+    const savedBannerColor = localStorage.getItem('solari_preview_banner_color') || '';
+
+    if (displayNameEl) displayNameEl.textContent = savedDisplayName;
+    if (usernameEl) usernameEl.textContent = savedUsername;
+    if (avatarImgEl) avatarImgEl.src = savedAvatar;
+    if (bannerEl) {
+        if (savedBannerColor) {
+            bannerEl.style.backgroundColor = savedBannerColor;
+        } else {
+            bannerEl.style.backgroundColor = 'var(--primary)';
+        }
+    }
 
     const isPlaying = activityType === '0';
 
     if (previewActivityType) {
+        const currentLang = getCurrentLang();
+        let headerText = '';
         if (isPlaying) {
-            // Playing: just show type
-            previewActivityType.textContent = t('preview.playing');
+            const playingGame = t('preview.playingGame');
+            headerText = playingGame !== 'preview.playingGame' ? playingGame : (currentLang === 'pt-BR' ? 'JOGANDO' : 'PLAYING A GAME');
+        } else if (activityType === '1' || activityType === '3') {
+            headerText = t('preview.watching');
+        } else if (activityType === '2') {
+            const listening = t('preview.listening');
+            const appName = discordAppName || 'Spotify';
+            headerText = `${listening} ${appName}`;
+        } else if (activityType === '5') {
+            headerText = t('preview.competing');
         } else {
-            // Other types: show "Type AppName" in header
-            const typeLabels = {
-                '2': t('preview.listening'),
-                '3': t('preview.watching'),
-                '5': t('preview.competing')
-            };
-            const label = typeLabels[activityType] || t('preview.playing');
-            previewActivityType.textContent = discordAppName ? `${label} ${discordAppName}` : label.toUpperCase();
+            headerText = t('preview.playing');
         }
+        previewActivityType.textContent = headerText.toUpperCase();
     }
 
     // Update highlighted slot (app name position)
@@ -1680,7 +1718,7 @@ function updatePreview() {
         }
         // Re-add small image element
         const smallImageDiv = document.createElement('div');
-        smallImageDiv.className = 'discord-preview-small-image';
+        smallImageDiv.className = 'discord-preview-small-image preview-map-hoverable';
         smallImageDiv.id = 'previewSmallImage';
 
         const smallUrl = smallImageInput.value;
@@ -1720,6 +1758,212 @@ function updatePreview() {
         } else {
             previewButtons.style.display = 'none';
         }
+    }
+
+    // Check if we should show/hide browser extension ad banner
+    if (typeof checkShowExtensionAd === 'function') {
+        checkShowExtensionAd();
+    }
+}
+
+// --- Browser Extension Advertisement Banner ---
+const STREAMING_CLIENT_IDS = [
+    '1461859944390332496', // YouTube
+    '1461860225765347472', // Twitch
+    '1461881250498482409'  // Netflix
+];
+
+function checkShowExtensionAd() {
+    const banner = document.getElementById('extensionAdBanner');
+    const select = document.getElementById('presetClientId');
+    if (!banner || !select) return;
+
+    const selectedValue = select.value;
+    let activeClientId = '';
+
+    if (selectedValue) {
+        const selectedIdentity = identities.find(i => i.id === selectedValue);
+        if (selectedIdentity) {
+            activeClientId = selectedIdentity.clientId;
+        }
+    }
+
+    const isStreamingPreset = STREAMING_CLIENT_IDS.includes(activeClientId);
+    const isDismissed = localStorage.getItem('solari_extension_ad_dismissed') === 'true';
+
+    if (isStreamingPreset && !isDismissed) {
+        banner.style.display = 'flex';
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
+function initExtensionAd() {
+    const banner = document.getElementById('extensionAdBanner');
+    const linkBtn = document.getElementById('extensionAdLinkBtn');
+    const dismissBtn = document.getElementById('extensionAdDismissBtn');
+
+    if (!banner) return;
+
+    if (linkBtn) {
+        linkBtn.replaceWith(linkBtn.cloneNode(true));
+        const newLinkBtn = document.getElementById('extensionAdLinkBtn');
+        newLinkBtn.addEventListener('click', () => {
+            ipcRenderer.send('open-external-url', 'https://chromewebstore.google.com/detail/ekhlmpampeikcibfdmokiibgdcfendgp');
+        });
+    }
+
+    if (dismissBtn) {
+        dismissBtn.replaceWith(dismissBtn.cloneNode(true));
+        const newDismissBtn = document.getElementById('extensionAdDismissBtn');
+        newDismissBtn.addEventListener('click', () => {
+            localStorage.setItem('solari_extension_ad_dismissed', 'true');
+            banner.style.display = 'none';
+        });
+    }
+
+    checkShowExtensionAd();
+}
+
+function initProfileCustomizer() {
+    const avatarContainer = document.querySelector('.discord-avatar-container');
+    const bannerEl = document.getElementById('previewProfileBanner');
+    const modal = document.getElementById('discordProfileModal');
+
+    if (!avatarContainer || !bannerEl || !modal) return;
+
+    // Inputs in modal
+    const inputDisplayName = document.getElementById('profileCustomDisplayName');
+    const inputUsername = document.getElementById('profileCustomUsername');
+    const inputAvatar = document.getElementById('profileCustomAvatar');
+    const inputBannerColor = document.getElementById('profileCustomBannerColor');
+    const inputBannerHex = document.getElementById('profileCustomBannerHex');
+
+    // Buttons in modal
+    const saveBtn = document.getElementById('profileCustomSaveBtn');
+    const cancelBtn = document.getElementById('profileCustomCancelBtn');
+    const resetBtn = document.getElementById('profileCustomResetBtn');
+
+    // Sync Color picker and Hex text input
+    if (inputBannerColor && inputBannerHex) {
+        inputBannerColor.addEventListener('input', () => {
+            inputBannerHex.value = inputBannerColor.value.toUpperCase();
+        });
+        inputBannerHex.addEventListener('input', () => {
+            let hex = inputBannerHex.value.trim();
+            if (hex && !hex.startsWith('#')) {
+                hex = '#' + hex;
+            }
+            if (/^#[0-9A-F]{6}$/i.test(hex)) {
+                inputBannerColor.value = hex;
+            }
+        });
+    }
+
+    // Show modal when clicking avatar, banner, or display name
+    const openModal = () => {
+        if (inputDisplayName) {
+            inputDisplayName.value = localStorage.getItem('solari_preview_display_name') || '';
+            inputDisplayName.placeholder = localStorage.getItem('solari_detected_display_name') || 'Gabriel';
+        }
+        if (inputUsername) {
+            inputUsername.value = localStorage.getItem('solari_preview_username') || '';
+            inputUsername.placeholder = localStorage.getItem('solari_detected_username') || 'solari_user';
+        }
+        if (inputAvatar) {
+            inputAvatar.value = localStorage.getItem('solari_preview_avatar') || '';
+            inputAvatar.placeholder = localStorage.getItem('solari_detected_avatar') || 'SolariPhotoTransparente.png';
+        }
+
+        const currentBanner = localStorage.getItem('solari_preview_banner_color') || '#F97316';
+        if (inputBannerColor) inputBannerColor.value = currentBanner;
+        if (inputBannerHex) inputBannerHex.value = currentBanner.toUpperCase();
+
+        modal.classList.add('active');
+    };
+
+    const avatarEl = document.getElementById('previewUserAvatar');
+    const handleTrigger = (e) => {
+        e.preventDefault();
+        openModal();
+    };
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openModal();
+        }
+    };
+
+    if (avatarEl) {
+        avatarEl.addEventListener('click', handleTrigger);
+        avatarEl.addEventListener('keydown', handleKeydown);
+    } else {
+        avatarContainer.addEventListener('click', handleTrigger);
+    }
+
+    if (bannerEl) {
+        bannerEl.addEventListener('click', handleTrigger);
+        bannerEl.addEventListener('keydown', handleKeydown);
+    }
+
+    const displayNameEl = document.getElementById('previewUserDisplayName');
+    if (displayNameEl) {
+        displayNameEl.addEventListener('click', handleTrigger);
+        displayNameEl.addEventListener('keydown', handleKeydown);
+    }
+
+    // Close modal
+    const closeModal = () => {
+        modal.classList.remove('active');
+    };
+
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    // Save settings
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            if (inputDisplayName) {
+                const val = inputDisplayName.value.trim();
+                if (val) localStorage.setItem('solari_preview_display_name', val);
+                else localStorage.removeItem('solari_preview_display_name');
+            }
+            if (inputUsername) {
+                const val = inputUsername.value.trim();
+                if (val) localStorage.setItem('solari_preview_username', val);
+                else localStorage.removeItem('solari_preview_username');
+            }
+            if (inputAvatar) {
+                const val = inputAvatar.value.trim();
+                if (val) localStorage.setItem('solari_preview_avatar', val);
+                else localStorage.removeItem('solari_preview_avatar');
+            }
+
+            if (inputBannerColor) {
+                let bannerColor = inputBannerColor.value;
+                localStorage.setItem('solari_preview_banner_color', bannerColor);
+            }
+
+            closeModal();
+            updatePreview();
+        });
+    }
+
+    // Reset to defaults
+    if (resetBtn) {
+        resetBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            localStorage.removeItem('solari_preview_display_name');
+            localStorage.removeItem('solari_preview_username');
+            localStorage.removeItem('solari_preview_avatar');
+            localStorage.removeItem('solari_preview_banner_color');
+            
+            closeModal();
+            updatePreview();
+        });
     }
 }
 
@@ -2152,6 +2396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     updateStatusDisplay(true);
+    initProfileCustomizer();
     renderAfkTiers(); // Render initial tiers (default or loaded)
     renderAfkDisabledPresets(); // Render selected presets that disable AFK
 
@@ -2286,12 +2531,10 @@ function updateUILanguage() {
 
     // Activity type options
     const activityOptions = document.querySelectorAll('#activityType option');
-    if (activityOptions.length >= 4) {
-        activityOptions[0].textContent = t('presence.playing');
-        activityOptions[1].textContent = t('presence.listening');
-        activityOptions[2].textContent = t('presence.watching');
-        activityOptions[3].textContent = t('presence.competing');
-    }
+    activityOptions.forEach(opt => {
+        const key = opt.getAttribute('data-i18n');
+        if (key) opt.textContent = t(key);
+    });
 
     // Status text in header - Use REAL RPC connection state, not just toggle state
     if (statusToggle.checked && isRpcActuallyConnected) {

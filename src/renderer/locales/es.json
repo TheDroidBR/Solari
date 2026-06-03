@@ -607,6 +607,7 @@
         "public": "Presets Públicos"
     },
     "publicPresets": {
+        "subtitle": "Encuentra presets completos preconfigurados y Client IDs listos para usar en tu Rich Presence.",
         "searchPlaceholder": "🔍 Buscar presets públicos...",
         "applyBtn": "⚡ Activar Estado",
         "customizeBtn": "✏️ Personalizar",
@@ -621,6 +622,18 @@
         "conflictDesc": "Ya existe un preset local guardado con este mismo Client ID ({clientId}). ¿Qué te gustaría hacer?",
         "conflictOverwrite": "🔄 Sobrescribir el existente",
         "conflictCopy": "➕ Crear una nueva copia de todos modos",
-        "conflictCancel": "Cancelar"
+        "conflictCancel": "Cancelar",
+        "filterAll": "Todos",
+        "filterPlaying": "Jugando",
+        "filterWatching": "Viendo",
+        "filterListening": "Escuchando",
+        "filterCompeting": "Compitiendo",
+        "noPresetsFound": "No se encontraron presets."
+    },
+    "extensionAd": {
+        "title": "¡Sincronización Automática Disponible!",
+        "desc": "Este preset es estático. ¡Instala nuestra extensión oficial del navegador Solari para sincronizar automáticamente tus videos y transmisiones en tiempo real!",
+        "button": "🧩 Obtener Extensión",
+        "toastInfo": "¡Instala la extensión para sincronizar videos y transmisiones automáticamente!"
     }
 }

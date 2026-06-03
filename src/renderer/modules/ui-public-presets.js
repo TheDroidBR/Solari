@@ -15,9 +15,8 @@
 
 const { t } = require('../i18n');
 
-// Primary raw URL for community presets catalog and mirror link
 const PRIMARY_URL = 'https://raw.githubusercontent.com/TheDroidBR/Solari/main/public-presets.json';
-const MIRROR_URL = 'https://gitlab.com/TheDroidBR/Solari/-/raw/main/public-presets.json';
+const MIRROR_URL = 'https://gitlab.com/TheDroidBR/solari/-/raw/main/public-presets.json';
 
 // Module state
 let cachedPresets = null;
@@ -45,6 +44,7 @@ function init(options = {}) {
     setupSubTabNavigation();
     setupCatalogSearch();
     setupRetryButton();
+    setupMainTabActiveListener();
 }
 
 /**
@@ -122,7 +122,7 @@ async function fetchPresetsCatalog(isSilent = false) {
 
         // Try GitHub Raw URL first
         try {
-            response = await fetch(`${PRIMARY_URL}?v=${Date.now()}`);
+            response = await fetch(`${PRIMARY_URL}?v=${Date.now()}`, { cache: 'no-store' });
             if (response.ok) {
                 data = await response.json();
             }
@@ -132,7 +132,7 @@ async function fetchPresetsCatalog(isSilent = false) {
 
         // If GitHub failed or returned non-ok, try GitLab mirror
         if (!data) {
-            response = await fetch(`${MIRROR_URL}?v=${Date.now()}`);
+            response = await fetch(`${MIRROR_URL}?v=${Date.now()}`, { cache: 'no-store' });
             if (response.ok) {
                 data = await response.json();
             }
@@ -176,10 +176,11 @@ async function fetchPresetsCatalog(isSilent = false) {
 function getActivityVerb(type) {
     const activityType = String(type);
     switch (activityType) {
-        case '2':
-            return t('preview.listening') || 'Ouvindo';
+        case '1':
         case '3':
             return t('preview.watching') || 'Assistindo';
+        case '2':
+            return t('preview.listening') || 'Ouvindo';
         case '5':
             return t('preview.competing') || 'Competindo em';
         default:
@@ -196,20 +197,43 @@ function renderPresetsGrid(presets) {
 
     gridEl.innerHTML = '';
 
-    // Filter based on search input query
+    // Filter based on search input query and selected category filter
     const query = searchQuery.trim().toLowerCase();
+    const filterEl = document.getElementById('public-presets-filter');
+    const filterValue = filterEl ? filterEl.value : 'all';
+
     const filtered = presets.filter(p => {
-        if (!query) return true;
-        const nameMatch = p.name && p.name.toLowerCase().includes(query);
-        const detailsMatch = p.details && p.details.toLowerCase().includes(query);
-        const stateMatch = p.state && p.state.toLowerCase().includes(query);
-        return nameMatch || detailsMatch || stateMatch;
+        // Search query matching
+        const matchesQuery = !query || (
+            (p.name && p.name.toLowerCase().includes(query)) ||
+            (p.details && p.details.toLowerCase().includes(query)) ||
+            (p.state && p.state.toLowerCase().includes(query))
+        );
+
+        if (!matchesQuery) return false;
+
+        // Activity type filtering (Twitch is activityType '1', streaming, which goes to watching category)
+        const actType = String(p.activityType || '0');
+        if (filterValue === 'all') return true;
+        if (filterValue === 'playing') {
+            return actType === '0' || (actType !== '1' && actType !== '2' && actType !== '3' && actType !== '5');
+        }
+        if (filterValue === 'watching') {
+            return actType === '3' || actType === '1';
+        }
+        if (filterValue === 'listening') {
+            return actType === '2';
+        }
+        if (filterValue === 'competing') {
+            return actType === '5';
+        }
+        return true;
     });
 
     if (filtered.length === 0) {
         gridEl.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);">
-                <span>🔍</span> No matching presets found.
+                <span>🔍</span> ${t('publicPresets.noPresetsFound') || 'No matching presets found.'}
             </div>
         `;
         return;
@@ -339,6 +363,12 @@ async function handleApplyPreset(preset) {
 
         dependencies.ipcRenderer.send('update-activity', payload);
 
+        // Reset extension ad banner dismissal for streaming presets
+        const STREAMING_CLIENT_IDS = ['1461859944390332496', '1461860225765347472', '1461881250498482409'];
+        if (STREAMING_CLIENT_IDS.includes(preset.clientId)) {
+            localStorage.removeItem('solari_extension_ad_dismissed');
+        }
+
         // 5. Update UI
         dependencies.updatePreviewAppNameFromDropdown();
         dependencies.updatePreview();
@@ -379,6 +409,12 @@ async function handleCustomizePreset(preset) {
 
         // 3. Fill form fields
         fillFormFields(preset, identityId);
+
+        // Reset extension ad banner dismissal for streaming presets
+        const STREAMING_CLIENT_IDS = ['1461859944390332496', '1461860225765347472', '1461881250498482409'];
+        if (STREAMING_CLIENT_IDS.includes(preset.clientId)) {
+            localStorage.removeItem('solari_extension_ad_dismissed');
+        }
 
         // 4. Sync Interactive Preview
         dependencies.updatePreviewAppNameFromDropdown();
@@ -635,19 +671,26 @@ function fillFormFields(preset, identityId) {
     if (inputBtn2Url) inputBtn2Url.value = preset.button2Url || '';
 }
 
-/**
- * Setups live search filtering listener.
- */
 function setupCatalogSearch() {
     const searchInput = document.getElementById('public-presets-search');
-    if (!searchInput) return;
+    const filterSelect = document.getElementById('public-presets-filter');
 
-    searchInput.addEventListener('input', (e) => {
-        searchQuery = e.target.value;
-        if (cachedPresets) {
-            renderPresetsGrid(cachedPresets);
-        }
-    });
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            if (cachedPresets) {
+                renderPresetsGrid(cachedPresets);
+            }
+        });
+    }
+
+    if (filterSelect) {
+        filterSelect.addEventListener('change', () => {
+            if (cachedPresets) {
+                renderPresetsGrid(cachedPresets);
+            }
+        });
+    }
 }
 
 /**
@@ -659,6 +702,18 @@ function setupRetryButton() {
 
     btn.addEventListener('click', () => {
         fetchPresetsCatalog(false);
+    });
+}
+
+/**
+ * Setups listener for main tab switches to reload the catalog if active.
+ */
+function setupMainTabActiveListener() {
+    document.addEventListener('rpc-tab-active', () => {
+        const publicContent = document.getElementById('rpc-public-presets-content');
+        if (publicContent && publicContent.style.display === 'block') {
+            loadCatalogCatalogHybrid();
+        }
     });
 }
 

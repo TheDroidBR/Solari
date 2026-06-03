@@ -600,6 +600,7 @@
         "public": "Öffentliche Presets"
     },
     "publicPresets": {
+        "subtitle": "Finden Sie vorgefertigte Presets und einsatzbereite Client-IDs für Ihre Rich Presence.",
         "searchPlaceholder": "🔍 Öffentliche Presets suchen...",
         "applyBtn": "⚡ Status aktivieren",
         "customizeBtn": "✏️ Anpassen",
@@ -614,6 +615,18 @@
         "conflictDesc": "Ein lokales Preset mit derselben Client-ID ({clientId}) existiert bereits. Was möchtest du tun?",
         "conflictOverwrite": "🔄 Existierendes überschreiben",
         "conflictCopy": "➕ Trotzdem eine neue Kopie erstellen",
-        "conflictCancel": "Abbrechen"
+        "conflictCancel": "Abbrechen",
+        "filterAll": "Alle",
+        "filterPlaying": "Spielen",
+        "filterWatching": "Zuschauen",
+        "filterListening": "Hören",
+        "filterCompeting": "Wetteifern",
+        "noPresetsFound": "Keine Presets gefunden."
+    },
+    "extensionAd": {
+        "title": "Automatische Synchronisierung Verfügbar!",
+        "desc": "Dieses Preset ist statisch. Installieren Sie unsere offizielle Solari Browser-Erweiterung, um Ihre Videos und Streams automatisch in Echtzeit zu synchronisieren!",
+        "button": "🧩 Erweiterung erhalten",
+        "toastInfo": "Installieren Sie die Erweiterung, um Videos und Streams automatisch zu synchronisieren!"
     }
 }

@@ -911,6 +911,19 @@
           <section class="rpc-config">
             <h2 data-i18n="presence.title">Configuração de Presença</h2>
 
+            <!-- Browser Extension Promotion Banner -->
+            <div id="extensionAdBanner" class="extension-ad-banner" style="display: none;" role="alert">
+              <span class="ad-banner-icon">🧩</span>
+              <div class="ad-banner-body">
+                <strong id="extensionAdTitle" data-i18n="extensionAd.title">Sincronização Automática Disponível!</strong>
+                <p id="extensionAdDesc" data-i18n="extensionAd.desc">Este preset é estático. Instale nossa Extensão oficial para sincronizar automaticamente seus vídeos e lives!</p>
+              </div>
+              <div class="ad-banner-actions">
+                <button id="extensionAdLinkBtn" class="btn btn-small" data-i18n="extensionAd.button">Obter Extensão</button>
+              </div>
+              <button id="extensionAdDismissBtn" class="ad-dismiss-btn" title="Dismiss">✕</button>
+            </div>
+
             <div class="form-group">
               <label for="activityType">
                 <span data-i18n="presence.activityType">Activity Type</span>
@@ -1121,28 +1134,57 @@
             <!-- Discord Preview -->
             <section class="discord-preview-section">
               <h2 data-i18n="preview.title">👁️ Preview do Discord</h2>
-              <div class="discord-preview-card">
-                <div class="discord-preview-header">
-                  <span class="activity-type-label" id="previewActivityType">JOGANDO</span>
+              
+              <!-- Popout de Perfil Estilo Discord -->
+              <div class="discord-profile-popout">
+                <!-- Banner de Perfil -->
+                <div class="discord-profile-banner" id="previewProfileBanner" style="background-color: var(--primary);" tabindex="0" role="button" aria-label="Customize Profile Banner" aria-haspopup="dialog"></div>
+                
+                <!-- Avatar e Status -->
+                <div class="discord-avatar-container">
+                  <div class="discord-avatar" id="previewUserAvatar" tabindex="0" role="button" aria-label="Customize Avatar" aria-haspopup="dialog">
+                    <img src="SolariPhotoTransparente.png" alt="User Avatar" id="previewUserAvatarImg">
+                  </div>
+                  <div class="discord-status-badge online" title="Online"></div>
                 </div>
-                <div class="discord-preview-content">
-                  <div class="discord-preview-image" id="previewLargeImage">
-                    <span>🎮</span>
-                    <div class="discord-preview-small-image" id="previewSmallImage" style="display: none;">
-                      <span>⭐</span>
+                
+                <!-- Dados do Usuário -->
+                <div class="discord-user-names">
+                  <div class="discord-display-name" id="previewUserDisplayName" tabindex="0" role="button" aria-label="Customize Display Name" aria-haspopup="dialog">Gabriel</div>
+                  <div class="discord-username" id="previewUserTag">solari_user</div>
+                </div>
+                
+                <!-- Divisor Clássico -->
+                <div class="discord-divider"></div>
+                
+                <!-- Bloco de Atividade Rich Presence -->
+                <div class="discord-activity-section">
+                  <h3 class="discord-activity-header" id="previewActivityType">JOGANDO</h3>
+                  
+                  <div class="discord-preview-content">
+                    <!-- Imagens do RPC (Large e Small) -->
+                    <div class="discord-preview-image" id="previewLargeImage">
+                      <span>🎮</span>
+                      <div class="discord-preview-small-image" id="previewSmallImage" style="display: none;">
+                        <span>⭐</span>
+                      </div>
+                    </div>
+                    
+                    <!-- Linhas de Texto do RPC -->
+                    <div class="discord-preview-info">
+                      <div class="discord-preview-name" id="previewAppName">Loading...</div>
+                      <div class="discord-preview-details" id="previewDetails"></div>
+                      <div class="discord-preview-state" id="previewState"></div>
+                      <div class="discord-preview-time" id="previewTime">00:00 <span
+                          data-i18n="preview.elapsed">decorrido</span></div>
                     </div>
                   </div>
-                  <div class="discord-preview-info">
-                    <div class="discord-preview-name" id="previewAppName">Loading...</div>
-                    <div class="discord-preview-details" id="previewDetails"></div>
-                    <div class="discord-preview-state" id="previewState"></div>
-                    <div class="discord-preview-time" id="previewTime">00:00 <span
-                        data-i18n="preview.elapsed">decorrido</span></div>
+                  
+                  <!-- Botões do RPC -->
+                  <div class="discord-preview-buttons" id="previewButtons" style="display: none;">
+                    <button class="discord-btn" id="previewBtn1">Botão 1</button>
+                    <button class="discord-btn" id="previewBtn2" style="display: none;">Botão 2</button>
                   </div>
-                </div>
-                <div class="discord-preview-buttons" id="previewButtons" style="display: none;">
-                  <button class="discord-btn" id="previewBtn1">Botão 1</button>
-                  <button class="discord-btn" id="previewBtn2" style="display: none;">Botão 2</button>
                 </div>
               </div>
             </section>
@@ -1206,15 +1248,24 @@
 
             <!-- Plugin Manager Removed from here -->
           </div>
-        </div>
 
       </div> <!-- end main-grid -->
     </div> <!-- end rpc-custom-presence-content -->
 
     <!-- Conteúdo: Presets Públicos -->
     <div id="rpc-public-presets-content" class="rpc-sub-tab-content" style="display: none;">
+      <p class="hint" data-i18n="publicPresets.subtitle" style="margin-top: 5px; margin-bottom: 20px; font-size: 0.9rem; line-height: 1.4; opacity: 0.85;">
+        Encontre presets completos pré-configurados e Client IDs prontos para uso no seu Rich Presence.
+      </p>
       <div class="public-presets-header" style="margin-bottom: 20px; display: flex; gap: 10px; align-items: center;">
         <input type="text" id="public-presets-search" class="form-control-premium" placeholder="🔍 Buscar presets públicos..." data-i18n-placeholder="publicPresets.searchPlaceholder" style="flex: 1; padding: 12px; font-size: 1rem;">
+        <select id="public-presets-filter" class="form-control-premium" style="width: auto; min-width: 160px; padding: 12px; font-size: 1rem; cursor: pointer; background-color: #181824; color: var(--text);">
+          <option value="all" data-i18n="publicPresets.filterAll">Todos</option>
+          <option value="playing" data-i18n="publicPresets.filterPlaying">Jogando</option>
+          <option value="watching" data-i18n="publicPresets.filterWatching">Assistindo</option>
+          <option value="listening" data-i18n="publicPresets.filterListening">Ouvindo</option>
+          <option value="competing" data-i18n="publicPresets.filterCompeting">Competindo</option>
+        </select>
       </div>
       <div id="public-presets-loading" class="public-presets-loading-state" style="text-align: center; padding: 40px; font-size: 1.2em; color: var(--text-muted);">
         <span class="spinner" style="display: inline-block; animation: spin 2s linear infinite; margin-right: 10px;">⏳</span>
@@ -1408,6 +1459,46 @@
       <div class="modal-buttons">
         <button id="modalCancelBtn" class="btn btn-secondary" data-i18n="modal.cancel">Cancelar</button>
         <button id="modalConfirmBtn" class="btn btn-primary" data-i18n="modal.confirm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Customização do Perfil do Discord (Live Preview) -->
+  <div id="discordProfileModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+      <h3 data-i18n="preview.customizeTitle">Personalizar Perfil</h3>
+      
+      <div style="margin-top: 15px; text-align: left;">
+        <div style="margin-bottom: 12px;">
+          <label for="profileCustomDisplayName" data-i18n="preview.displayNameLabel" style="display: block; margin-bottom: 5px; font-size: 0.9em; opacity: 0.9;">Nome de Exibição</label>
+          <input type="text" id="profileCustomDisplayName" placeholder="Gabriel" class="form-control-premium" style="width: 100%; box-sizing: border-box;">
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+          <label for="profileCustomUsername" data-i18n="preview.usernameLabel" style="display: block; margin-bottom: 5px; font-size: 0.9em; opacity: 0.9;">Nome de Usuário</label>
+          <input type="text" id="profileCustomUsername" placeholder="solari_user" class="form-control-premium" style="width: 100%; box-sizing: border-box;">
+        </div>
+        
+        <div style="margin-bottom: 12px;">
+          <label for="profileCustomAvatar" data-i18n="preview.avatarUrlLabel" style="display: block; margin-bottom: 5px; font-size: 0.9em; opacity: 0.9;">URL do Avatar</label>
+          <input type="text" id="profileCustomAvatar" placeholder="SolariPhotoTransparente.png" class="form-control-premium" style="width: 100%; box-sizing: border-box;">
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+          <label for="profileCustomBannerColor" data-i18n="preview.bannerColorLabel" style="display: block; margin-bottom: 5px; font-size: 0.9em; opacity: 0.9;">Cor do Banner</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="color" id="profileCustomBannerColor" value="#f97316" style="border: none; background: none; width: 40px; height: 40px; cursor: pointer; padding: 0;">
+            <input type="text" id="profileCustomBannerHex" placeholder="#f97316" aria-label="Hex color code" class="form-control-premium" style="flex: 1; box-sizing: border-box; text-transform: uppercase;">
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-buttons-profile">
+        <a href="#" id="profileCustomResetBtn" data-i18n="preview.resetProfile">Restaurar Padrão</a>
+        <div class="modal-actions-row">
+          <button id="profileCustomCancelBtn" class="btn btn-secondary" data-i18n="modal.cancel">Cancelar</button>
+          <button id="profileCustomSaveBtn" class="btn btn-primary" data-i18n="modal.confirm">Salvar</button>
+        </div>
       </div>
     </div>
   </div>

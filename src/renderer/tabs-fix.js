@@ -46,6 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 PluginsTabManager.init();
             }
         }
+
+        // Special handling for RPC tab active state
+        if (targetId === 'rpc-tab') {
+            document.dispatchEvent(new CustomEvent('rpc-tab-active'));
+        }
     }
 
     // Attach listeners (cloning to clear old handlers)
@@ -71,6 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', () => {
         const activeBtn = document.querySelector('.tab-btn.active');
         if (activeBtn) updateTabIndicator(activeBtn);
+    });
+
+    document.addEventListener('languageChanged', () => {
+        // Wait a small delay to let DOM text elements update and resize
+        setTimeout(() => {
+            const activeBtn = document.querySelector('.tab-btn.active');
+            if (activeBtn) updateTabIndicator(activeBtn);
+        }, 50);
     });
 
     console.log('[SafeTabs] Initialized with Indicator');

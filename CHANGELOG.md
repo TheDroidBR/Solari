@@ -1,11 +1,51 @@
 ## [1.13.0] - 2026-05-31
-**UPDATE 1.13.0: PRESETS OVERHAUL & BUGFIXES**
+**UPDATE 1.13.0: PREMIUM PRESETS CATALOG, OVERRIDE RESOLUTION & PREVIEW INTEGRATION**
 
 ---
 
-### 🔌 Plugins Telemetry & Robustness
-*   **Case-Insensitive Match**: Upgraded the telemetry plugin mapping system inside `index.js` to be case-insensitive, preventing active plugins from being dropped due to slight naming/casing variations.
-*   **Regex-Based Cleanup**: Implemented robust regular expression filters to strip `.plugin.js` and `detector` case-insensitively, correcting dynamic mapping discrepancies (e.g. for `SmartAFKDetector`).
+### 👁️ High-Fidelity Discord User Profile Popout Preview
+*   **Aesthetic Overhaul**: Redesigned the simple dark-gray preview card into a perfect replication of the modern Discord User Profile Popout. Features a profile banner, circular user avatar container, green Online status badge with precise cutouts, and premium typography.
+*   **Automatic Profile Synchronization**: Connected the IPC backend to automatically pull real-time user profile details (display name, username, and avatar URL from the Discord CDN) directly from the local Discord RPC client ready event. Uses an elegant priority-fallback logic (Custom Override > Auto-detected Profile > Solari Default).
+*   **Interactive Customization**: Enabled users to customize their display name, username/tag, avatar image URL, and profile banner color directly inside the preview. Changes are persisted locally across app restarts via `localStorage`. Empty fields automatically fall back to the live auto-detected Discord details.
+*   **Modal Layout & Reset Fix**: Redesigned the profile customizer modal's footer. Positioned the "Restore Default" button on its own row spanning the full width, and grouped "Cancel" and "Save" into a symmetrical 50/50 horizontal split below it to prevent overflow/clipping on narrow viewports. Added `e.preventDefault()` to the reset button's click event to prevent hash modifications.
+*   **Dynamic Translation-Aware Activity Verbs**: Dynamically formats the activity header verb based on the selected Rich Presence type (e.g., "JOGANDO" / "PLAYING A GAME", "ASSISTINDO" / "WATCHING", "OUVINDO SPOTIFY" / "LISTENING TO SPOTIFY", "COMPETINDO EM" / "COMPETING IN") with full multi-language localization. Portuguese (pt-BR) category header for playing a game was aligned to "JOGANDO" to eliminate visual redundancy.
+*   **Precise Bidirectionality Indicators**: Replaced nested mouse hover event handlers with a delegated event handler system using `.closest()`, ensuring 100% precise highlights when hovering preview elements. Hovering the nested small image now correctly highlights only the small image inputs, avoiding overlap highlights on the large image fields.
+*   **Resilient Focus Highlights**: Rewrote focus/blur input event handlers to resolve preview elements dynamically at event invocation time. This prevents stale DOM references on dynamically recreated nodes (like the small image div recreated on preview updates).
+*   **Absolute Positioning Safety**: Appended CSS rules to guarantee the small image maintains its absolute coordinates in the bottom-right corner when the hoverable class is active, resolving layout breakage.
+*   **Accessibility Enhancements**: Added keyboard interaction (tabindex, role="button", and Enter/Space keyboard event listeners) to all customizable preview components and input fields for WCAG accessibility compliance.
+
+### ✨ New Modular Public Presets Sub-Tab
+*   **Descriptive Subtitle & Subheading**: Added a localized subheading/subtitle to the Public Presets tab to explicitly clarify that the catalog contains both complete pre-configured presets and ready-to-use Discord Client IDs.
+*   **Architectural Decentralization**: Implemented the `src/renderer/modules/ui-public-presets.js` module to decouple and isolate the entire cloud-backed presets catalog UI. Drastically reduced main `renderer.js` complexity (cleaning up over 220 legacy lines of code).
+*   **Hybrid Loading Strategy**: Renders cached presets (`cachedPresets`) instantly for zero visual lag upon opening, while silently spawning a background fetch to retrieve the most up-to-date catalog from GitHub/GitLab raw endpoints.
+*   **Resilient Error Handling**: Displays a beautifully styled error state panel with a `"🔄 Retry Now"` button if the background fetch fails and no cache exists.
+*   **Reactive Search & Filter**: Integrated real-time query parsing to instantly search community presets by name, details, or state.
+*   **Activity Type Filtering**: Added a dropdown select filter next to the search bar allowing users to filter the public catalog by Discord RPC activity categories (Playing, Watching, Listening, Competing) with localized support and empty results state. Twitch (Streaming) was aligned to appear under the "Watching" category, and its card activity badge was updated to render "Watching" ("Assistindo") instead of "Playing" ("Jogando").
+*   **DOM Mismatch & Tab Isolation Fix**: Resolved a layout nesting bug caused by an orphaned `</div>` tag left behind from legacy cleanups, which closed `#rpc-tab` prematurely. This pushed the Public Presets container outside its isolated tab scope, making it erroneously render at the bottom of the Plugins view.
+
+
+### 🔌 Premium Quick Actions
+*   **⚡ Apply Status**: Automatically checks and dynamically registers a local App Profile (identity) matching the preset's `clientId` if it doesn't already exist. Dispatches the status payload instantly.
+*   **✏️ Customize**: Prefills all manual Rich Presence fields (Client ID, details/state, buttons, assets, and activity type) with one click, shifts focus to the details field, and redirects the user to the manual editor.
+
+### ⚠️ Conflict and Duplicity Safeguards
+*   **Premium Warning Modal**: Intercepts local saving to detect if the preset's Discord Client ID is already registered in the user's database. Displays an elegant glassmorphic modal with geometric borders and vibrant orange accent shadows.
+*   **Flexible Actions**: Choose between Overwriting the existing preset (reusing the local profile mapping), Creating a new copy anyway, or Canceling without changes.
+
+### 🎬 YouTube Presets Fix & Manual Mode Overrides
+*   **Unconditional Manual Mode Priority**: Resolved a critical issue where the YouTube preset remained stuck visually on the "Auto-Detect active" context bar. Manual status updates now force `presenceSources.manualPreset.active = true` unconditionally. This allows presets configured purely with images and buttons (where `details` and `state` strings are empty) to apply manual mode instead of falling back to continuous auto-detection.
+*   **IPC Channel Realignment**: Corrected frontend public preset handlers to use `.send()` instead of `.invoke()` for IPC events (`update-activity` and `toggle-activity`), perfectly matching the main process listeners.
+*   **Streaming Presets Browser Extension Promotion**: Integrated an intelligent promotional banner in the Custom Presence configuration form that dynamically displays when static streaming presets (YouTube, Twitch, or Netflix) are applied or customized, advising the user that these presets are static and recommending the official Solari Browser Extension for real-time automatic synchronization. The banner is dismissible (saved to `localStorage` per editing session) and intelligently re-enabled when the user selects a streaming preset from the public presets catalogue.
+*   **Sandbox-Proof Extension Download Link**: Updated the browser extension download link event listener in `autodetect.html` to route link clicks through the resilient main-process IPC channel listener (`open-external-url`). This bypasses COM/DCOM privilege isolation and browser launch issues when the app runs in Administrator mode and the default browser is closed.
+
+### 🎨 Real-Time Live Preview Syncing
+*   **Imgur Resolution Sync**: Fixed a visual bug in `handleImgurConversion` in `src/renderer/renderer.js` where resolved Imgur URLs did not update the interactive preview. The blur callback now programmatically dispatches native `'input'` and `'change'` events and calls `updatePreview()` and `debouncedSaveFormState()` directly.
+*   **Instant Visual Feedback**: Guarantees that the live preview immediately renders the resolved Imgur image and automatically persists the new state.
+*   **Tab Indicator Language Sync**: Fixed a layout bug where the active tab's sliding indicator background did not resize to match the new tab button widths when the UI language changed. Added a `languageChanged` event listener to `tabs-fix.js` to automatically recalculate and re-align the active tab indicator's width and position after language updates.
+
+
+### ⚙️ Unified Release Promotion
+*   **Version Bump**: Promoted the application version straight from `1.12.1` to `1.13.0` across the entire codebase (`package.json`, `package-lock.json`, `latest.yml`, and `CHANGELOG.md`).
 
 ---
 

@@ -79,6 +79,30 @@ let autoDetectWindow = null;
 let tray = null;
 let rpcClient;
 let rpcConnected = false; // Track if RPC is actually connected
+
+function getRpcStatusPayload(additionalFields = {}) {
+    const base = { connected: rpcConnected, ...additionalFields };
+    if (!rpcConnected || !rpcClient || !rpcClient.user) {
+        return base;
+    }
+    const discordUser = rpcClient.user;
+    let avatarUrl = 'SolariPhotoTransparente.png';
+    if (discordUser.avatar) {
+        const isAnimated = discordUser.avatar.startsWith('a_');
+        const ext = isAnimated ? 'gif' : 'png';
+        avatarUrl = `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.${ext}?size=256`;
+    }
+    return {
+        ...base,
+        user: {
+            id: discordUser.id,
+            username: discordUser.username,
+            globalName: discordUser.globalName || discordUser.global_name || discordUser.username,
+            avatar: avatarUrl
+        }
+    };
+}
+
 let wss;
 let isEnabled = true;
 let isQuitting = false;
@@ -1636,7 +1660,7 @@ function initializeDiscordRPC(targetClientId = null) {
                 isReconnecting = false; // Fix: Reset reconnection lock so health checks and Client ID switching work
                 connectionAttempts = 0;
                 if (mainWindow) {
-                    mainWindow.webContents.send('rpc-status', { connected: true });
+                    mainWindow.webContents.send('rpc-status', getRpcStatusPayload());
                 }
 
                 // Try to get app name from rpcClient or fetch from Discord API
@@ -1972,7 +1996,7 @@ async function switchRpcClient(newClientId) {
 
             // Notify UI of success
             if (mainWindow) {
-                mainWindow.webContents.send('rpc-status', { connected: true });
+                mainWindow.webContents.send('rpc-status', getRpcStatusPayload());
                 mainWindow.webContents.send('show-toast', {
                     messageKey: 'rpc.switched',
                     title: '✅',
@@ -5704,10 +5728,9 @@ app.whenReady().then(async () => {
         // Re-send current RPC status to catch any missed events during page load
         setTimeout(() => {
             if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('rpc-status', {
-                    connected: rpcConnected,
+                mainWindow.webContents.send('rpc-status', getRpcStatusPayload({
                     reconnecting: !rpcConnected
-                });
+                }));
             }
         }, 500);
 

@@ -1023,7 +1023,7 @@
         document.addEventListener('click', (e) => {
             if (e.target && e.target.id === 'getExtensionLink') {
                 e.preventDefault();
-                shell.openExternal(e.target.href);
+                ipcRenderer.send('open-external-url', e.target.href);
             }
         });
     </script>

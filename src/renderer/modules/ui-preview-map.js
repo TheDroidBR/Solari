@@ -44,61 +44,72 @@ function _highlight(els, on) {
 }
 
 function init() {
-    // Input focus → highlight preview
+    // 1. Input focus → highlight preview (dynamic element lookup to handle recreated DOM nodes)
     Object.entries(MAP).forEach(([inputId, previewIds]) => {
         const input = document.getElementById(inputId);
         if (!input) return;
 
-        const previewEls = previewIds.map(id => document.getElementById(id)).filter(Boolean);
-
-        input.addEventListener('focus', () => _highlight(previewEls, true));
-        input.addEventListener('blur',  () => _highlight(previewEls, false));
+        input.addEventListener('focus', () => {
+            const currentPreviewEls = previewIds.map(id => document.getElementById(id)).filter(Boolean);
+            _highlight(currentPreviewEls, true);
+        });
+        input.addEventListener('blur',  () => {
+            const currentPreviewEls = previewIds.map(id => document.getElementById(id)).filter(Boolean);
+            _highlight(currentPreviewEls, false);
+        });
     });
 
-    // Preview hover → highlight input(s)
-    // IMPORTANT: Handle small image first and stopPropagation so its parent
-    // (large image) does NOT also trigger when only the small image is hovered.
-    Object.entries(REVERSE_MAP).forEach(([previewId, inputIds]) => {
+    // Add .preview-map-hoverable class to all target preview elements
+    Object.keys(REVERSE_MAP).forEach(previewId => {
         const previewEl = document.getElementById(previewId);
-        if (!previewEl) return;
-
-        const inputs = inputIds.map(id => document.getElementById(id)).filter(Boolean);
-
-        previewEl.classList.add('preview-map-hoverable');
-
-        previewEl.addEventListener('mouseenter', (e) => {
-            // If this is previewLargeImage but the actual target is inside
-            // previewSmallImage, do nothing — smallImage handler takes over.
-            const smallImg = document.getElementById('previewSmallImage');
-            if (previewId === 'previewLargeImage' && smallImg && smallImg.contains(e.target)) {
-                return;
-            }
-            _highlight(inputs, true);
-        });
-
-        previewEl.addEventListener('mouseleave', (e) => {
-            // If this is previewLargeImage and we're moving INTO previewSmallImage,
-            // don't clear the large image highlight (we're still inside it).
-            const smallImg = document.getElementById('previewSmallImage');
-            if (previewId === 'previewLargeImage' && smallImg && smallImg.contains(e.relatedTarget)) {
-                _highlight(inputs, false); // clear large — small will take over
-                return;
-            }
-            _highlight(inputs, false);
-        });
-
-        // For the small image: stop bubbling so parent (large image) doesn't trigger
-        if (previewId === 'previewSmallImage') {
-            previewEl.addEventListener('mouseenter', (e) => {
-                e.stopPropagation();
-                _highlight(inputs, true);
-            });
-            previewEl.addEventListener('mouseleave', (e) => {
-                e.stopPropagation();
-                _highlight(inputs, false);
-            });
+        if (previewEl) {
+            previewEl.classList.add('preview-map-hoverable');
         }
     });
+
+    let activeHighlightedInputs = [];
+    const clearActiveHighlights = () => {
+        if (activeHighlightedInputs.length > 0) {
+            _highlight(activeHighlightedInputs, false);
+            activeHighlightedInputs = [];
+        }
+    };
+
+    // 2. Preview hover → highlight input(s) (Delegated event listener)
+    // We listen on the entire preview card wrapper (which contains all these elements)
+    const previewContainer = document.querySelector('.discord-profile-popout') || document.querySelector('.discord-preview-section');
+    if (previewContainer) {
+        previewContainer.addEventListener('mouseover', (e) => {
+            // Find the closest hoverable element matching one of the preview target IDs
+            const selector = Object.keys(REVERSE_MAP).map(id => `#${id}`).join(', ');
+            const hoveredEl = e.target.closest(selector);
+            
+            if (!hoveredEl) {
+                clearActiveHighlights();
+                return;
+            }
+
+            const previewId = hoveredEl.id;
+            const inputIds = REVERSE_MAP[previewId];
+            const currentInputs = inputIds ? inputIds.map(id => document.getElementById(id)).filter(Boolean) : [];
+            
+            // Compare if we are already highlighting these inputs to prevent thrashing
+            const isSame = activeHighlightedInputs.length === currentInputs.length && 
+                           activeHighlightedInputs.every((el, idx) => el === currentInputs[idx]);
+                           
+            if (!isSame) {
+                clearActiveHighlights();
+                if (currentInputs.length > 0) {
+                    _highlight(currentInputs, true);
+                    activeHighlightedInputs = currentInputs;
+                }
+            }
+        });
+
+        previewContainer.addEventListener('mouseleave', () => {
+            clearActiveHighlights();
+        });
+    }
 }
 
 module.exports = { init };
