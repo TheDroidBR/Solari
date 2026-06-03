@@ -16,7 +16,23 @@
     "button1Label": "Jogue Comigo!",
     "button1Url": "https://www.minecraft.net",
     "button2Label": "Website Oficial",
-    "button2Url": "https://www.minecraft.net"
+    "button2Url": "https://www.minecraft.net",
+    "pt": {
+      "details": "Explorando cavernas profundas",
+      "state": "Em busca de Diamantes 💎",
+      "largeImageText": "Minecraft Java Edition",
+      "smallImageText": "Modo Sobrevivência",
+      "button1Label": "Jogue Comigo!",
+      "button2Label": "Website Oficial"
+    },
+    "en": {
+      "details": "Exploring deep caves",
+      "state": "Searching for Diamonds 💎",
+      "largeImageText": "Minecraft Java Edition",
+      "smallImageText": "Survival Mode",
+      "button1Label": "Play with Me!",
+      "button2Label": "Official Website"
+    }
   },
   {
     "name": "Visual Studio Code",
@@ -33,7 +49,23 @@
     "button1Label": "Baixar VS Code",
     "button1Url": "https://code.visualstudio.com",
     "button2Label": "Solari RPC",
-    "button2Url": "https://github.com/TheDroidBR/Solari"
+    "button2Url": "https://github.com/TheDroidBR/Solari",
+    "pt": {
+      "details": "Editando: ui-public-presets.js",
+      "state": "Espaço de trabalho: Solari App",
+      "largeImageText": "VS Code v1.90",
+      "smallImageText": "Desenvolvimento Web",
+      "button1Label": "Baixar VS Code",
+      "button2Label": "Solari RPC"
+    },
+    "en": {
+      "details": "Editing: ui-public-presets.js",
+      "state": "Workspace: Solari App",
+      "largeImageText": "VS Code v1.90",
+      "smallImageText": "Web Development",
+      "button1Label": "Download VS Code",
+      "button2Label": "Solari RPC"
+    }
   },
   {
     "name": "Netflix",
@@ -50,7 +82,23 @@
     "button1Label": "Assista Junto!",
     "button1Url": "https://www.netflix.com",
     "button2Label": "Netflix Website",
-    "button2Url": "https://www.netflix.com"
+    "button2Url": "https://www.netflix.com",
+    "pt": {
+      "details": "Maratonando suas séries favoritas 🍿",
+      "state": "Modo Cinema Ativo",
+      "largeImageText": "Netflix Brasil",
+      "smallImageText": "Qualidade 4K Ultra HD",
+      "button1Label": "Assista Junto!",
+      "button2Label": "Netflix Website"
+    },
+    "en": {
+      "details": "Binge-watching favorite shows 🍿",
+      "state": "Cinema Mode Active",
+      "largeImageText": "Netflix World",
+      "smallImageText": "4K Ultra HD Quality",
+      "button1Label": "Watch Together!",
+      "button2Label": "Netflix Website"
+    }
   },
   {
     "name": "Twitch",
@@ -67,7 +115,23 @@
     "button1Label": "Abrir Twitch",
     "button1Url": "https://www.twitch.tv",
     "button2Label": "Solari RPC",
-    "button2Url": "https://github.com/TheDroidBR/Solari"
+    "button2Url": "https://github.com/TheDroidBR/Solari",
+    "pt": {
+      "details": "Assistindo a transmissões ao vivo 🎮",
+      "state": "Apoiando streamers da comunidade",
+      "largeImageText": "Twitch Live",
+      "smallImageText": "Qualidade 1080p60 Source",
+      "button1Label": "Abrir Twitch",
+      "button2Label": "Solari RPC"
+    },
+    "en": {
+      "details": "Watching live streams 🎮",
+      "state": "Supporting community streamers",
+      "largeImageText": "Twitch Live",
+      "smallImageText": "1080p60 Source Quality",
+      "button1Label": "Open Twitch",
+      "button2Label": "Solari RPC"
+    }
   },
   {
     "name": "YouTube",
@@ -84,7 +148,23 @@
     "button1Label": "Abrir YouTube",
     "button1Url": "https://www.youtube.com",
     "button2Label": "Canal Oficial",
-    "button2Url": "https://www.youtube.com"
+    "button2Url": "https://www.youtube.com",
+    "pt": {
+      "details": "Assistindo vídeos incríveis 🎬",
+      "state": "Playlist de Aprendizado Ativa",
+      "largeImageText": "YouTube Premium",
+      "smallImageText": "Resolução Full HD",
+      "button1Label": "Abrir YouTube",
+      "button2Label": "Canal Oficial"
+    },
+    "en": {
+      "details": "Watching amazing videos 🎬",
+      "state": "Learning Playlist Active",
+      "largeImageText": "YouTube Premium",
+      "smallImageText": "Full HD Resolution",
+      "button1Label": "Open YouTube",
+      "button2Label": "Official Channel"
+    }
   },
   {
     "name": "Spotify",
@@ -101,7 +181,23 @@
     "button1Label": "Ouvir no Spotify",
     "button1Url": "https://open.spotify.com",
     "button2Label": "Minha Playlist",
-    "button2Url": "https://open.spotify.com"
+    "button2Url": "https://open.spotify.com",
+    "pt": {
+      "details": "Ouvindo batidas relaxantes (Lo-Fi) 🎵",
+      "state": "Playlist: Foco Máximo",
+      "largeImageText": "Spotify Premium",
+      "smallImageText": "Modo Fone de Ouvido",
+      "button1Label": "Ouvir no Spotify",
+      "button2Label": "Minha Playlist"
+    },
+    "en": {
+      "details": "Listening to relaxing beats (Lo-Fi) 🎵",
+      "state": "Playlist: Maximum Focus",
+      "largeImageText": "Spotify Premium",
+      "smallImageText": "Headphones Mode",
+      "button1Label": "Listen on Spotify",
+      "button2Label": "My Playlist"
+    }
   },
   {
     "name": "Valorant",
@@ -120,7 +216,23 @@
     "button1Label": "Ver Estatísticas",
     "button1Url": "https://tracker.gg/valorant",
     "button2Label": "Jogue VALORANT",
-    "button2Url": "https://playvalorant.com"
+    "button2Url": "https://playvalorant.com",
+    "pt": {
+      "details": "Partida Competitiva (Ranked)",
+      "state": "Agente: Jett | Placar: 12 - 10 💥",
+      "largeImageText": "VALORANT",
+      "smallImageText": "Elo: Imortal III",
+      "button1Label": "Ver Estatísticas",
+      "button2Label": "Jogue VALORANT"
+    },
+    "en": {
+      "details": "Competitive Match (Ranked)",
+      "state": "Agent: Jett | Score: 12 - 10 💥",
+      "largeImageText": "VALORANT",
+      "smallImageText": "Rank: Immortal III",
+      "button1Label": "View Stats",
+      "button2Label": "Play VALORANT"
+    }
   },
   {
     "name": "Albion Online",
@@ -139,7 +251,23 @@
     "button1Label": "Jogar Albion",
     "button1Url": "https://albiononline.com",
     "button2Label": "Website Oficial",
-    "button2Url": "https://albiononline.com"
+    "button2Url": "https://albiononline.com",
+    "pt": {
+      "details": "Explorando as Terras Distantes ⚔️",
+      "state": "Modo Sandbox PVP Ativo",
+      "largeImageText": "Albion Online",
+      "smallImageText": "Guilda Ativa",
+      "button1Label": "Jogar Albion",
+      "button2Label": "Website Oficial"
+    },
+    "en": {
+      "details": "Exploring the Outlands ⚔️",
+      "state": "Sandbox PVP Mode Active",
+      "largeImageText": "Albion Online",
+      "smallImageText": "Active Guild",
+      "button1Label": "Play Albion",
+      "button2Label": "Official Website"
+    }
   },
   {
     "name": "Call of Duty: Warzone",
@@ -158,6 +286,22 @@
     "button1Label": "Website Oficial",
     "button1Url": "https://www.callofduty.com",
     "button2Label": "Solari RPC",
-    "button2Url": "https://github.com/TheDroidBR/Solari"
+    "button2Url": "https://github.com/TheDroidBR/Solari",
+    "pt": {
+      "details": "Partida Battle Royale em Urzikstan 🔫",
+      "state": "Buscando a Vitória no Warzone",
+      "largeImageText": "Warzone",
+      "smallImageText": "Esquadrão Ativo",
+      "button1Label": "Website Oficial",
+      "button2Label": "Solari RPC"
+    },
+    "en": {
+      "details": "Battle Royale Match in Urzikstan 🔫",
+      "state": "Chasing Warzone Victory",
+      "largeImageText": "Warzone",
+      "smallImageText": "Active Squad",
+      "button1Label": "Official Website",
+      "button2Label": "Solari RPC"
+    }
   }
 ]
