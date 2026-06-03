@@ -886,7 +886,11 @@ ipcRenderer.on('data-loaded', async (event, data) => {
     }
     // Restore last form state (checkpoint)
     if (data.lastFormState) {
-        if (data.lastFormState.activityType) activityTypeSelect.value = data.lastFormState.activityType;
+        if (data.lastFormState.activityType) {
+            let actType = data.lastFormState.activityType;
+            if (actType === "1" || actType === 1) actType = "3";
+            activityTypeSelect.value = actType;
+        }
         if (data.lastFormState.details) detailsInput.value = data.lastFormState.details;
         if (data.lastFormState.state) stateInput.value = data.lastFormState.state;
         if (data.lastFormState.largeImageKey) largeImageInput.value = data.lastFormState.largeImageKey;
@@ -1419,7 +1423,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadPreset(preset) {
-    activityTypeSelect.value = preset.type || "0";
+    let actType = preset.type || "0";
+    if (actType === "1" || actType === 1) actType = "3";
+    activityTypeSelect.value = actType;
     detailsInput.value = preset.details || '';
     if (detailsUrlInput) detailsUrlInput.value = preset.detailsUrl || '';
     stateInput.value = preset.state || '';

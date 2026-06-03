@@ -341,8 +341,10 @@ async function handleApplyPreset(preset) {
         fillFormFields(preset, identityId);
 
         // 4. Send RPC Update to main process
+        let actType = parseInt(preset.activityType || '0', 10);
+        if (actType === 1) actType = 3;
         const payload = {
-            activityType: parseInt(preset.activityType || '0', 10),
+            activityType: actType,
             details: preset.details || '',
             detailsUrl: preset.detailsUrl || '',
             state: preset.state || '',
@@ -652,7 +654,11 @@ function fillFormFields(preset, identityId) {
     const inputBtn2Label = document.getElementById('button2Label');
     const inputBtn2Url = document.getElementById('button2Url');
 
-    if (selectActivity) selectActivity.value = preset.activityType || '0';
+    if (selectActivity) {
+        let actType = preset.activityType || '0';
+        if (actType === '1' || actType === 1) actType = '3';
+        selectActivity.value = actType;
+    }
     if (inputDetails) inputDetails.value = preset.details || '';
     if (inputDetailsUrl) inputDetailsUrl.value = preset.detailsUrl || '';
     if (inputState) inputState.value = preset.state || '';
