@@ -13,7 +13,7 @@
 
 'use strict';
 
-const { t } = require('../i18n');
+const { t, getCurrentLang } = require('../i18n');
 
 const PRIMARY_URL = 'https://raw.githubusercontent.com/TheDroidBR/Solari/main/public-presets.json';
 const MIRROR_URL = 'https://gitlab.com/TheDroidBR/solari/-/raw/main/public-presets.json';
@@ -45,6 +45,19 @@ function init(options = {}) {
     setupCatalogSearch();
     setupRetryButton();
     setupMainTabActiveListener();
+    setupLanguageChangeListener();
+}
+
+/**
+ * Setups listener for language changes to re-render the presets catalog if active.
+ */
+function setupLanguageChangeListener() {
+    document.addEventListener('languageChanged', () => {
+        const publicContent = document.getElementById('rpc-public-presets-content');
+        if (publicContent && publicContent.style.display === 'block' && cachedPresets) {
+            renderPresetsGrid(cachedPresets);
+        }
+    });
 }
 
 /**
@@ -189,6 +202,28 @@ function getActivityVerb(type) {
 }
 
 /**
+ * Resolves the localized strings for a public preset based on the currently active application language.
+ *
+ * @param {Object} preset - The raw preset object from public-presets.json
+ * @returns {Object} A new preset object with resolved localized string properties
+ */
+function resolvePresetStrings(preset) {
+    const rawLang = getCurrentLang() || 'en';
+    const lang = rawLang.toLowerCase().startsWith('pt') ? 'pt' : 'en';
+    const localized = preset[lang] || preset['en'] || preset['pt'] || {};
+
+    return {
+        ...preset,
+        details: localized.details !== undefined ? localized.details : (preset.details || ''),
+        state: localized.state !== undefined ? localized.state : (preset.state || ''),
+        largeImageText: localized.largeImageText !== undefined ? localized.largeImageText : (preset.largeImageText || ''),
+        smallImageText: localized.smallImageText !== undefined ? localized.smallImageText : (preset.smallImageText || ''),
+        button1Label: localized.button1Label !== undefined ? localized.button1Label : (preset.button1Label || ''),
+        button2Label: localized.button2Label !== undefined ? localized.button2Label : (preset.button2Label || '')
+    };
+}
+
+/**
  * Renders the catalog cards onto the public presets grid.
  */
 function renderPresetsGrid(presets) {
@@ -197,12 +232,15 @@ function renderPresetsGrid(presets) {
 
     gridEl.innerHTML = '';
 
+    // Resolve translations for all presets dynamically
+    const resolvedPresets = presets.map(resolvePresetStrings);
+
     // Filter based on search input query and selected category filter
     const query = searchQuery.trim().toLowerCase();
     const filterEl = document.getElementById('public-presets-filter');
     const filterValue = filterEl ? filterEl.value : 'all';
 
-    const filtered = presets.filter(p => {
+    const filtered = resolvedPresets.filter(p => {
         // Search query matching
         const matchesQuery = !query || (
             (p.name && p.name.toLowerCase().includes(query)) ||
@@ -247,6 +285,9 @@ function renderPresetsGrid(presets) {
         const bannerImg = preset.largeImage || 'https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png';
         const activityVerb = getActivityVerb(preset.activityType || '0');
 
+        const labelLine1 = (getCurrentLang() || 'en').toLowerCase().startsWith('pt') ? 'Linha 1' : 'Line 1';
+        const labelLine2 = (getCurrentLang() || 'en').toLowerCase().startsWith('pt') ? 'Linha 2' : 'Line 2';
+
         card.innerHTML = `
             <div class="preset-card-banner">
                 <img src="${bannerImg}" alt="${preset.name}" onerror="this.src='https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png'">
@@ -255,10 +296,10 @@ function renderPresetsGrid(presets) {
             <div class="preset-card-body">
                 <h3 class="preset-card-title">${preset.name}</h3>
                 <p class="preset-card-details" title="${preset.details || ''}">
-                    <strong>Linha 1:</strong> ${preset.details || '—'}
+                    <strong>${labelLine1}:</strong> ${preset.details || '—'}
                 </p>
                 <p class="preset-card-state" title="${preset.state || ''}">
-                    <strong>Linha 2:</strong> ${preset.state || '—'}
+                    <strong>${labelLine2}:</strong> ${preset.state || '—'}
                 </p>
             </div>
             <div class="preset-card-actions">

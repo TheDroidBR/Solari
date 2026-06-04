@@ -25,7 +25,10 @@
     "rpcTitle": "Discord RPC",
     "rpcDesc": "Configurações globais para integração com o Discord.",
     "updatesTitle": "Atualizações e Info",
-    "updatesDesc": "Gerenciar atualizações automáticas e ver logs."
+    "updatesDesc": "Gerenciar atualizações automáticas e ver logs.",
+    "labelDefaultClientIds": "Client IDs Padrão",
+    "useDefaultClientIds": "Usar Client IDs de Fábrica",
+    "useDefaultClientIdsDesc": "Usa Client IDs padrão de fábrica para Netflix, Twitch, YouTube e Prime Video (Recomendado para usar com a extensão)."
   },
   "pluginStore": {
     "title": "Extensões Oficiais",

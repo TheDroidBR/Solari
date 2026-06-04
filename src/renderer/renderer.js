@@ -187,6 +187,8 @@ const settingsMinimizeToTray = document.getElementById('settings-minimizeToTray'
 const settingsShowEcoMode = document.getElementById('settings-showEcoMode');
 const settingsLanguage = document.getElementById('settings-language');
 const settingsClientIdBtn = document.getElementById('settings-clientIdBtn');
+const settingsUseDefaultClientIds = document.getElementById('settings-useDefaultClientIds');
+const identityUseDefaultClientIds = document.getElementById('identity-useDefaultClientIds');
 const settingsAutoCheckApp = document.getElementById('settings-autoCheckApp');
 const settingsAutoCheckPlugins = document.getElementById('settings-autoCheckPlugins');
 const settingsAdvancedTelemetry = document.getElementById('settings-advancedTelemetry');
@@ -585,6 +587,26 @@ if (settingsShowEcoMode) {
         updateEcoModeVisibility();
     });
 }
+function updateDefaultClientIdsToggles(checked) {
+    if (settingsUseDefaultClientIds) settingsUseDefaultClientIds.checked = checked;
+    if (identityUseDefaultClientIds) identityUseDefaultClientIds.checked = checked;
+    appSettings.useDefaultExtensionClientIds = checked;
+    renderIdentities();
+    populatePresetClientIdDropdown();
+}
+
+if (settingsUseDefaultClientIds) {
+    settingsUseDefaultClientIds.addEventListener('change', (e) => {
+        ipcRenderer.send('save-app-settings', { useDefaultExtensionClientIds: e.target.checked });
+        updateDefaultClientIdsToggles(e.target.checked);
+    });
+}
+if (identityUseDefaultClientIds) {
+    identityUseDefaultClientIds.addEventListener('change', (e) => {
+        ipcRenderer.send('save-app-settings', { useDefaultExtensionClientIds: e.target.checked });
+        updateDefaultClientIdsToggles(e.target.checked);
+    });
+}
 if (settingsLanguage) {
     settingsLanguage.addEventListener('change', (e) => {
         ipcRenderer.send('save-language', e.target.value);
@@ -786,6 +808,9 @@ function syncSettingsUI(loadedSettings) {
     if (settingsAutoCheckApp) settingsAutoCheckApp.checked = appSettings.autoCheckAppUpdates || false;
     if (settingsAutoCheckPlugins) settingsAutoCheckPlugins.checked = appSettings.autoCheckPluginUpdates || false;
     if (settingsAdvancedTelemetry) settingsAdvancedTelemetry.checked = appSettings.advancedTelemetry !== false;
+    if (settingsUseDefaultClientIds) settingsUseDefaultClientIds.checked = appSettings.useDefaultExtensionClientIds !== false;
+    if (identityUseDefaultClientIds) identityUseDefaultClientIds.checked = appSettings.useDefaultExtensionClientIds !== false;
+    renderIdentities();
 
     // Apply UI Dependencies
     updateStartMinimizedUI();
@@ -1297,7 +1322,7 @@ function renderPresets(presets) {
         div.addEventListener('click', async (e) => {
             if (e.target.classList.contains('preset-delete')) {
                 const presetName = e.target.dataset.name;
-                const confirmMsg = t('presets.deleteConfirmMessage') || `Are you sure you want to delete "${presetName}"?`;
+                const confirmMsg = (t('presets.deleteConfirmMessage') || 'Are you sure you want to delete "{name}"?').replace('{name}', presetName);
                 const confirmed = await showConfirmModal(t('presets.deleteConfirmTitle') || 'Delete Preset?', confirmMsg);
                 if (confirmed) {
                     ipcRenderer.send('delete-preset', parseInt(e.target.dataset.index));
@@ -1791,13 +1816,17 @@ function checkShowExtensionAd() {
         const selectedIdentity = identities.find(i => i.id === selectedValue);
         if (selectedIdentity) {
             activeClientId = selectedIdentity.clientId;
+        } else {
+            // It might be a factory client ID direct value
+            activeClientId = selectedValue;
         }
     }
 
     const isStreamingPreset = STREAMING_CLIENT_IDS.includes(activeClientId);
     const isDismissed = localStorage.getItem('solari_extension_ad_dismissed') === 'true';
+    const hasConnectedOnce = localStorage.getItem('solari_extension_connected_once') === 'true';
 
-    if (isStreamingPreset && !isDismissed) {
+    if (isStreamingPreset && !isDismissed && !hasConnectedOnce) {
         banner.style.display = 'flex';
     } else {
         banner.style.display = 'none';
@@ -1807,6 +1836,7 @@ function checkShowExtensionAd() {
 function initExtensionAd() {
     const banner = document.getElementById('extensionAdBanner');
     const linkBtn = document.getElementById('extensionAdLinkBtn');
+    const tutorialBtn = document.getElementById('extensionAdTutorialBtn');
     const dismissBtn = document.getElementById('extensionAdDismissBtn');
 
     if (!banner) return;
@@ -1816,6 +1846,14 @@ function initExtensionAd() {
         const newLinkBtn = document.getElementById('extensionAdLinkBtn');
         newLinkBtn.addEventListener('click', () => {
             ipcRenderer.send('open-external-url', 'https://chromewebstore.google.com/detail/ekhlmpampeikcibfdmokiibgdcfendgp');
+        });
+    }
+
+    if (tutorialBtn) {
+        tutorialBtn.replaceWith(tutorialBtn.cloneNode(true));
+        const newTutorialBtn = document.getElementById('extensionAdTutorialBtn');
+        newTutorialBtn.addEventListener('click', () => {
+            ipcRenderer.send('open-external-url', 'https://solarirpc.com/guides#plugins-ext-pt');
         });
     }
 
@@ -2469,6 +2507,7 @@ ipcRenderer.on('system-afk-update', (event, data) => {
 // Listen for global language changes
 document.addEventListener('languageChanged', (e) => {
     updateUILanguage();
+    populatePresetClientIdDropdown();
     updatePreview(); // Re-render preview to apply new text and restore dynamic app name
 });
 
@@ -2873,6 +2912,12 @@ ipcRenderer.on('show-toast', (event, data) => {
     // Support both direct message and translation key
     const message = data.messageKey ? t(data.messageKey) : data.message;
     showToast(data.title, message, data.type || 'info');
+});
+
+// Hide browser extension ad banner when the extension connects
+ipcRenderer.on('extension-connected-event', () => {
+    localStorage.setItem('solari_extension_connected_once', 'true');
+    checkShowExtensionAd();
 });
 
 // Show toast when preset is auto-loaded (game detected)
@@ -4880,21 +4925,45 @@ function renderIdentities() {
     const container = document.getElementById('identityList');
     if (!container) return;
 
-    if (identities.length === 0) {
-        container.innerHTML = '<p style="color: rgba(255,255,255,0.4); font-size: 0.85em;">Nenhum perfil cadastrado. Adicione abaixo.</p>';
-        return;
+    let html = '';
+    const useDefault = appSettings.useDefaultExtensionClientIds !== false;
+
+    if (useDefault) {
+        const defaultProfiles = [
+            { name: `YouTube (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461859944390332496' },
+            { name: `Twitch (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461860225765347472' },
+            { name: `Netflix (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461881250498482409' },
+            { name: `Prime Video (${t('app.themeDefault') || 'Padrão'})`, clientId: '1511842632240730112' }
+        ];
+
+        html += defaultProfiles.map(profile => `
+            <div class="identity-item default-identity" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(16,185,129,0.08); border: 1px dashed rgba(16,185,129,0.2); border-radius: 8px; margin-bottom: 6px;">
+                <span style="flex: 1; font-weight: 500; color: #10b981;">🛡️ ${profile.name}</span>
+                <span style="color: rgba(255,255,255,0.4); font-size: 0.8em; font-family: monospace;">${maskClientId(profile.clientId)}</span>
+                <div style="font-size: 0.75em; color: #10b981; padding: 2px 6px; background: rgba(16,185,129,0.1); border-radius: 4px; font-weight: bold;">Ativo</div>
+            </div>
+        `).join('');
     }
 
-    container.innerHTML = identities.map(identity => `
-        <div class="identity-item" data-id="${identity.id}" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 6px;">
-            <span style="flex: 1; font-weight: 500;">${identity.name}</span>
-            <span style="color: rgba(255,255,255,0.4); font-size: 0.8em; font-family: monospace;">${maskClientId(identity.clientId)}</span>
-            <div style="display: flex; gap: 5px;">
-                <button class="btn-icon edit-identity-btn" data-id="${identity.id}" title="${t('identities.edit') || 'Edit'}" style="color: #60a5fa;">✏️</button>
-                <button class="btn-icon delete-identity-btn" data-id="${identity.id}" title="${t('identities.remove') || 'Remove'}" style="color: #ef4444;">🗑️</button>
+    if (identities.length === 0) {
+        if (!useDefault) {
+            container.innerHTML = '<p style="color: rgba(255,255,255,0.4); font-size: 0.85em;">Nenhum perfil cadastrado. Adicione abaixo.</p>';
+            return;
+        }
+    } else {
+        html += identities.map(identity => `
+            <div class="identity-item" data-id="${identity.id}" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 6px;">
+                <span style="flex: 1; font-weight: 500;">${identity.name}</span>
+                <span style="color: rgba(255,255,255,0.4); font-size: 0.8em; font-family: monospace;">${maskClientId(identity.clientId)}</span>
+                <div style="display: flex; gap: 5px;">
+                    <button class="btn-icon edit-identity-btn" data-id="${identity.id}" title="${t('identities.edit') || 'Edit'}" style="color: #60a5fa;">✏️</button>
+                    <button class="btn-icon delete-identity-btn" data-id="${identity.id}" title="${t('identities.remove') || 'Remove'}" style="color: #ef4444;">🗑️</button>
+                </div>
             </div>
-        </div>
-    `).join('');
+        `).join('');
+    }
+
+    container.innerHTML = html;
 
     // Add delete handlers
     container.querySelectorAll('.delete-identity-btn').forEach(btn => {
@@ -4933,6 +5002,8 @@ function populatePresetClientIdDropdown() {
     const select = document.getElementById('presetClientId');
     if (!select) return;
 
+    const currentValue = select.value;
+
     // Keep the default option with proper translation
     const globalDefaultText = t('identities.globalDefault');
     const fallbackText = '🌐 Global Default';
@@ -4940,19 +5011,56 @@ function populatePresetClientIdDropdown() {
     const defaultOptionText = (globalDefaultText && !globalDefaultText.includes('identities.'))
         ? globalDefaultText
         : fallbackText;
+    
+    // Clear dropdown and start with Global Default option
     select.innerHTML = `<option value="">${defaultOptionText}</option>`;
 
-    identities.forEach(identity => {
-        const option = document.createElement('option');
-        option.value = identity.id;
-        option.textContent = `📱 ${identity.name}`;
-        select.appendChild(option);
-    });
+    const useDefault = appSettings.useDefaultExtensionClientIds !== false;
+
+    // Add Factory Client IDs group ONLY if enabled
+    if (useDefault) {
+        const defaultProfiles = [
+            { name: `YouTube (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461859944390332496' },
+            { name: `Twitch (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461860225765347472' },
+            { name: `Netflix (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461881250498482409' },
+            { name: `Prime Video (${t('app.themeDefault') || 'Padrão'})`, clientId: '1511842632240730112' }
+        ];
+
+        const factoryGroup = document.createElement('optgroup');
+        factoryGroup.label = `🛡️ ${t('identities.factoryClientIds') || 'Client IDs de Fábrica'}`;
+
+        defaultProfiles.forEach(profile => {
+            const option = document.createElement('option');
+            option.value = profile.clientId;
+            option.textContent = `🛡️ ${profile.name}`;
+            factoryGroup.appendChild(option);
+        });
+        select.appendChild(factoryGroup);
+    }
+
+    // Add Custom Profiles group (only if identities exist)
+    if (identities.length > 0) {
+        const customGroup = document.createElement('optgroup');
+        customGroup.label = `📱 ${t('identities.customProfiles') || 'Perfis Personalizados'}`;
+
+        identities.forEach(identity => {
+            const option = document.createElement('option');
+            option.value = identity.id;
+            option.textContent = `📱 ${identity.name}`;
+            customGroup.appendChild(option);
+        });
+        select.appendChild(customGroup);
+    }
+
+    // Restore selected value
+    if (currentValue) {
+        select.value = currentValue;
+    }
 
     // Add change listener to update preview when Client ID changes
-    select?.addEventListener('change', () => {
+    select.onchange = () => {
         updatePreviewAppNameFromDropdown();
-    });
+    };
 }
 
 // Update preview app name based on selected Client ID in dropdown
@@ -4968,7 +5076,18 @@ function updatePreviewAppNameFromDropdown() {
         if (selectedIdentity) {
             discordAppName = selectedIdentity.name;
         } else {
-            discordAppName = 'Discord App';
+            // Check if it's one of the factory Client IDs
+            const defaults = {
+                '1461859944390332496': 'YouTube',
+                '1461860225765347472': 'Twitch',
+                '1461881250498482409': 'Netflix',
+                '1511842632240730112': 'Prime Video'
+            };
+            if (defaults[selectedValue]) {
+                discordAppName = defaults[selectedValue];
+            } else {
+                discordAppName = 'Discord App';
+            }
         }
     } else {
         // Global default - restore the original app name from main process

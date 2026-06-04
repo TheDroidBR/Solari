@@ -79,6 +79,8 @@ let autoDetectWindow = null;
 let tray = null;
 let rpcClient;
 let rpcConnected = false; // Track if RPC is actually connected
+let extensionWsId = null;
+let extensionVersion = '0.0.0';
 
 function getRpcStatusPayload(additionalFields = {}) {
     const base = { connected: rpcConnected, ...additionalFields };
@@ -167,6 +169,20 @@ let processCheckErrorCount = 0;
 let processCheckBackoffUntil = 0;
 // Note: MAX_PROCESS_CHECK_ERRORS and BACKOFF_DURATION_MS are defined in constants.js
 
+const DEFAULT_EXTENSION_CLIENT_IDS = {
+    youtube: '1461859944390332496',
+    twitch: '1461860225765347472',
+    netflix: '1461881250498482409',
+    primevideo: '1511842632240730112'
+};
+
+const DEFAULT_EXTENSION_IMAGES = {
+    youtube: 'https://i.imgur.com/CwT4UbN.jpg',
+    twitch: 'https://i.imgur.com/zUzEsWO.gif',
+    netflix: 'https://i.imgur.com/hrk1OyC.gif',
+    primevideo: 'https://i.imgur.com/huFfYqk.gif'
+};
+
 let appSettings = {
     startWithWindows: false,
     startMinimized: false,
@@ -178,7 +194,9 @@ let appSettings = {
     autoCheckPluginUpdates: true,
     showEcoMode: true,
     bdAutoRepair: true, // Background Auto-Repair for BetterDiscord
-    advancedTelemetry: true // v1.11.1: Detailed telemetry toggle
+    advancedTelemetry: true, // v1.11.1: Detailed telemetry toggle
+    useDefaultExtensionClientIds: true,
+    extensionEverUsed: false
 };
 
 let connectedPlugins = new Map();
@@ -355,6 +373,12 @@ function startTracking() {
         telemetry = new TelemetryManager(TRACKER_URL, CONSTANTS.DEBUG_MODE);
         telemetry.setUserId(getTrackingUserId());
     }
+    
+    telemetry.setExtensionCheckers(
+        () => appSettings.extensionEverUsed || false,
+        () => extensionWsId !== null,
+        () => extensionVersion
+    );
     
     // v1.11.1: Set level based on user preference
     telemetry.setAdvancedEnabled(appSettings.advancedTelemetry);
@@ -559,7 +583,23 @@ ipcMain.handle('add-identity', (event, identity) => {
 
 ipcMain.handle('delete-identity', (event, identityId) => {
     identities = identities.filter(i => i.id !== identityId);
+    
+    // Unlink any preset associated with the deleted identity
+    let presetsChanged = false;
+    presets.forEach(p => {
+        if (p.clientId === identityId) {
+            p.clientId = '';
+            presetsChanged = true;
+        }
+    });
+    
     saveData();
+    
+    // Notify renderer if presets changed
+    if (presetsChanged && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('presets-updated', presets);
+    }
+    
     return { success: true, identities };
 });
 
@@ -610,6 +650,26 @@ ipcMain.on('save-app-settings', (event, newSettings) => {
         telemetry.setAdvancedEnabled(appSettings.advancedTelemetry);
     }
 
+    // Check if factory client IDs were disabled
+    if (newSettings.useDefaultExtensionClientIds === false) {
+        const factoryClientIds = [
+            '1461859944390332496', // YouTube
+            '1461860225765347472', // Twitch
+            '1461881250498482409', // Netflix
+            '1511842632240730112'  // Prime Video
+        ];
+        let presetsChanged = false;
+        presets.forEach(p => {
+            if (factoryClientIds.includes(p.clientId)) {
+                p.clientId = '';
+                presetsChanged = true;
+            }
+        });
+        if (presetsChanged && mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('presets-updated', presets);
+        }
+    }
+
     applyAppSettings(); // Re-register OS-level settings like auto-launch
     saveData();
     console.log('[Solari] Settings unified from frontend:', appSettings);
@@ -622,6 +682,26 @@ ipcMain.on('set-setting', (event, key, value) => {
     // v1.11.1: Update telemetry level immediately if this key changed
     if (key === 'advancedTelemetry' && telemetry) {
         telemetry.setAdvancedEnabled(value);
+    }
+
+    // Check if factory client IDs were disabled
+    if (key === 'useDefaultExtensionClientIds' && value === false) {
+        const factoryClientIds = [
+            '1461859944390332496', // YouTube
+            '1461860225765347472', // Twitch
+            '1461881250498482409', // Netflix
+            '1511842632240730112'  // Prime Video
+        ];
+        let presetsChanged = false;
+        presets.forEach(p => {
+            if (factoryClientIds.includes(p.clientId)) {
+                p.clientId = '';
+                presetsChanged = true;
+            }
+        });
+        if (presetsChanged && mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('presets-updated', presets);
+        }
     }
 
     applyAppSettings();
@@ -2532,6 +2612,8 @@ async function updatePresence() {
  * 5. Returns null (falls back to global)
  */
 function resolveClientIdForPlatform(platform, preset) {
+    const normalize = s => s ? s.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+
     if (CONSTANTS.DEBUG_MODE) {
         console.log(`[Solari Resolver] Starting resolution for platform: "${platform}"`);
         console.log(`[Solari Resolver] Preset: ${preset ? preset.name : 'null'}, preset.clientId: ${preset?.clientId || 'undefined'}`);
@@ -2555,9 +2637,9 @@ function resolveClientIdForPlatform(platform, preset) {
 
     // Priority 3: Identity matched by PLATFORM name (most important for extension)
     if (platform && identities && identities.length > 0) {
-        const platformLower = platform.toLowerCase();
+        const normPlatform = normalize(platform);
         const identityByPlatform = identities.find(i =>
-            i.name && i.name.toLowerCase() === platformLower
+            i.name && normalize(i.name) === normPlatform
         );
         if (identityByPlatform) {
             if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Resolver] ✅ RESOLVED via platform name match: ${identityByPlatform.id}`);
@@ -2567,13 +2649,24 @@ function resolveClientIdForPlatform(platform, preset) {
 
     // Priority 4: Identity matched by PRESET name
     if (preset && preset.name && identities && identities.length > 0) {
-        const presetLower = preset.name.toLowerCase();
+        const normPresetName = normalize(preset.name);
         const identityByPreset = identities.find(i =>
-            i.name && i.name.toLowerCase() === presetLower
+            i.name && normalize(i.name) === normPresetName
         );
         if (identityByPreset) {
             if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Resolver] ✅ RESOLVED via preset name match: ${identityByPreset.id}`);
             return identityByPreset.id;
+        }
+    }
+
+    // Priority 5: Default Client ID (if enabled in appSettings)
+    const useDefault = appSettings.useDefaultExtensionClientIds !== false;
+    if (useDefault && platform) {
+        const normPlatform = normalize(platform);
+        const defaultClientId = DEFAULT_EXTENSION_CLIENT_IDS[normPlatform];
+        if (defaultClientId) {
+            if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Resolver] ✅ RESOLVED via DEFAULT extension client ID for ${normPlatform}: ${defaultClientId}`);
+            return defaultClientId;
         }
     }
 
@@ -2663,8 +2756,10 @@ function handleBrowserMediaUpdate(message, ws) {
     if (CONSTANTS.DEBUG_MODE) console.log(`[Solari Extension] Received ${platform} update:`, JSON.stringify(data));
 
     // Find matching preset for assets/Client ID
-    const matchingPreset = presets.find(p => p.name.toLowerCase() === platform.toLowerCase()) ||
-        presets.find(p => p.name.toLowerCase().includes(platform.toLowerCase()));
+    const normalize = s => s ? s.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+    const normPlatform = normalize(platform);
+    const matchingPreset = presets.find(p => normalize(p.name) === normPlatform) ||
+        presets.find(p => normalize(p.name).includes(normPlatform) || normPlatform.includes(normalize(p.name)));
 
     if (CONSTANTS.DEBUG_MODE) {
         if (matchingPreset) {
@@ -2743,13 +2838,23 @@ function handleBrowserMediaUpdate(message, ws) {
         }
     }
 
+    let finalLargeImageKey = presetToUse.largeImageKey;
+    const isUsingDefaultClientIds = appSettings.useDefaultExtensionClientIds !== false;
+    if (isUsingDefaultClientIds && DEFAULT_EXTENSION_IMAGES[normPlatform]) {
+        if (!matchingPreset || !finalLargeImageKey || finalLargeImageKey === 'logo') {
+            finalLargeImageKey = DEFAULT_EXTENSION_IMAGES[normPlatform];
+        }
+    } else if (!finalLargeImageKey) {
+        finalLargeImageKey = 'logo';
+    }
+
     const activity = {
         type: activityType,
         details: finalDetails,
         detailsUrl: detailsUrl,
         state: activityState,
         stateUrl: stateUrl,
-        largeImageKey: presetToUse.largeImageKey || 'logo',
+        largeImageKey: finalLargeImageKey,
         // largeImageText intentionally omitted for extension (causes duplicate text in Discord)
         smallImageKey: data.state === 'paused' ? 'pause' : (presetToUse.smallImageKey || 'play'),
         smallImageText: data.state === 'paused' ? 'Paused' : undefined,
@@ -2782,7 +2887,8 @@ function handleBrowserMediaUpdate(message, ws) {
         ws.send(JSON.stringify({
             type: 'media_update_applied',
             platform,
-            preset: presetToUse.name
+            preset: presetToUse.name,
+            noClientId: !finalClientId
         }));
     }
 }
@@ -4637,7 +4743,8 @@ function initializeWebSocketServer() {
     wss = new WebSocket.Server({ host: CONSTANTS.WS_HOST, port: CONSTANTS.WS_PORT });
 
     // Track the browser extension's WebSocket for disconnect safety net
-    let extensionWsId = null;
+    extensionWsId = null;
+    extensionVersion = '0.0.0';
     let extensionDisconnectTimeout = null;
 
     wss.on('connection', (ws) => {
@@ -4664,7 +4771,18 @@ function initializeWebSocketServer() {
                         // Track browser extension connection for disconnect safety net
                         if (pluginName === 'Solari Extension') {
                             extensionWsId = wsId;
-                            console.log('[Solari WSS] Browser extension connected (wsId:', wsId, ')');
+                            extensionVersion = data.version || '0.0.0';
+                            console.log('[Solari WSS] Browser extension connected (wsId:', wsId, ', version:', extensionVersion, ')');
+
+                            if (!appSettings.extensionEverUsed) {
+                                appSettings.extensionEverUsed = true;
+                                saveData();
+                            }
+
+                            // Notify renderer
+                            if (mainWindow && !mainWindow.isDestroyed()) {
+                                mainWindow.webContents.send('extension-connected-event');
+                            }
 
                             // Cancel any pending disconnect clear (extension reconnected in time)
                             if (extensionDisconnectTimeout) {
@@ -4717,7 +4835,22 @@ function initializeWebSocketServer() {
                                     .map(p => {
                                         let name = p.name.replace(/\.plugin\.js$/i, '').replace(/detector$/i, '').trim();
                                         if (name.toLowerCase() === 'solarimanager') name = 'Manager';
-                                        return `${name}:${p.enabled ? '1' : '0'}`;
+                                        
+                                        let ver = p.version || '';
+                                        if (!ver) {
+                                            try {
+                                                const pluginsPath = getBDPluginsPath();
+                                                const filePath = path.join(pluginsPath, p.name);
+                                                if (fs.existsSync(filePath)) {
+                                                    const content = fs.readFileSync(filePath, 'utf8');
+                                                    const match = content.match(/@version\s+(\S+)/);
+                                                    if (match) ver = match[1];
+                                                }
+                                            } catch (e) {}
+                                        }
+                                        if (!ver) ver = '0.0.0';
+                                        
+                                        return `${name}:${p.enabled ? '1' : '0'}:${ver}`;
                                     });
                                 telemetry.setActivePlugins(pluginStates);
                             }

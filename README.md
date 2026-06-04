@@ -88,10 +88,12 @@ The code is fully transparent and available on GitHub under the GPL v2.0 license
 
 Solari features a **Hybrid Telemetry Model** designed with your privacy in mind:
 
-- **Basic Telemetry (Mandatory):** Collects minimal data to help us count active users.
+- **Basic Telemetry (Mandatory):** Collects minimal data to help us count active users, detect BetterDiscord installation health, and track extension usage history.
   - ✅ App version (e.g., "1.11.1")
   - ✅ Random ID (not tied to your identity)
-- **Advanced Telemetry (Optional):** Collects additional non-identifiable usage statistics to help us improve the app. You can opt-out at any time via the "Privacidade" tab in settings.
+  - ✅ BetterDiscord installation health status
+  - ✅ Extension ever used history
+- **Advanced Telemetry (Optional):** Collects additional non-identifiable usage information regarding the Solari ecosystem to help us improve the application. You can opt-out at any time via the "Privacidade" tab in settings.
 - ❌ **What we NEVER collect:** No IP addresses, Discord tokens, personal data, or file contents.
 
 This data is used solely for usage statistics and is automatically deleted after 90 seconds of inactivity. For more details, see our [Privacy Policy](https://solarirpc.com/privacy.html).
@@ -105,6 +107,8 @@ This data is used solely for usage statistics and is automatically deleted after
 2. Click on **"Run anyway"**.
 
 This happens only because we are an independent project. You can verify the entire source code here on GitHub.
+
+> ⚠️ **Important:** By downloading any application or component from the Solari ecosystem, you automatically agree to the terms described in our [Privacy Policy](https://solarirpc.com/privacy.html).
 
 ## 👨‍💻 Credits
 

@@ -94,7 +94,9 @@
         "privacyDesc": "Gerencie como o Solari coleta dados para melhoria.",
         "labelAdditionalTelemetry": "Telemetria Adicional",
         "additionalTelemetryTitle": "Ajudar o Desenvolvedor",
-        "additionalTelemetryDesc": "Coleta dados adicionais (como plugins do Solari ativos e status de instalação do driver do SoundBoard) para otimizar o aplicativo."
+        "additionalTelemetryDesc": "Coleta maiores informações de uso referentes ao ecossistema do Solari para otimizar o aplicativo.",
+        "useDefaultClientIds": "Usar Client IDs de Fábrica",
+        "useDefaultClientIdsDesc": "Usa Client IDs padrão de fábrica para Netflix, Twitch, YouTube e Prime Video (Recomendado para usar com a extensão)."
     },
     "pluginStore": {
         "title": "Plugins Oficiais",
@@ -406,7 +408,9 @@
         "fillNameAndId": "Preencha o nome e o Client ID",
         "invalidClientId": "Client ID inválido (deve ser numérico, 15-30 dígitos)",
         "updated": "Perfil atualizado!",
-        "added": "Perfil \"{name}\" adicionado!"
+        "added": "Perfil \"{name}\" adicionado!",
+        "factoryClientIds": "Client IDs de Fábrica",
+        "customProfiles": "Perfis Personalizados"
     },
     "soundboard": {
         "driverRequired": "Driver de Áudio Necessário",
@@ -720,6 +724,7 @@
         "title": "Sincronização Automática Disponível!",
         "desc": "Este preset é estático. Instale nossa Extensão oficial do Solari no navegador para sincronizar automaticamente seus vídeos e lives em tempo real!",
         "button": "🧩 Obter Extensão",
+        "tutorialButton": "📖 Como configurar",
         "toastInfo": "Instale a extensão para sincronizar vídeos/lives automaticamente!"
     }
 }

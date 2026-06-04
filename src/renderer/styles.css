@@ -384,6 +384,8 @@ h1 {
   display: inline-block;
   width: 44px;
   height: 24px;
+  flex-shrink: 0;
+  margin-left: 16px;
 }
 
 .switch input {
@@ -7085,6 +7087,8 @@ body.eco-mode .neon-btn {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .settings-row-desc {

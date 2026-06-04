@@ -222,6 +222,20 @@
                   style="width: 100%; border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 10px;">
                   🔑 <span data-i18n="menu.clientId">Client ID...</span>
                 </button>
+
+                <div class="settings-row" style="margin-top: 15px;">
+                  <div class="settings-row-label">
+                    <span data-i18n="settings.labelDefaultClientIds">Client IDs Padrão</span>
+                    <div>
+                      <span data-i18n="settings.useDefaultClientIds">Usar Client IDs de Fábrica</span>
+                      <span class="settings-row-desc" data-i18n="settings.useDefaultClientIdsDesc">Usa Client IDs padrão de fábrica para Netflix, Twitch, YouTube e Prime Video (Recomendado para usar com a extensão).</span>
+                    </div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="settings-useDefaultClientIds">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -920,6 +934,7 @@
               </div>
               <div class="ad-banner-actions">
                 <button id="extensionAdLinkBtn" class="btn btn-small" data-i18n="extensionAd.button">Obter Extensão</button>
+                <button id="extensionAdTutorialBtn" class="btn btn-small btn-ghost" data-i18n="extensionAd.tutorialButton">📖 Tutorial</button>
               </div>
               <button id="extensionAdDismissBtn" class="ad-dismiss-btn" title="Dismiss">✕</button>
             </div>
@@ -1222,6 +1237,17 @@
                 <a href="#" class="header-link" id="discordDevPortalLink">
                   <span>🔗</span> <span data-i18n="identities.getIds">Discord Developer Portal</span>
                 </a>
+              </div>
+
+              <div class="identity-toggle-row" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-weight: 500; font-size: 0.9em;" data-i18n="settings.useDefaultClientIds">Usar Client IDs de Fábrica</span>
+                  <span style="font-size: 0.75em; color: rgba(255,255,255,0.4);" data-i18n="settings.useDefaultClientIdsDesc">Usa Client IDs padrão de fábrica para Netflix, Twitch, YouTube e Prime Video (Recomendado para usar com a extensão).</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="identity-useDefaultClientIds">
+                  <span class="slider round"></span>
+                </label>
               </div>
 
               <div class="identity-list" id="identityList">

@@ -89,7 +89,9 @@
         "startMinimizedDesc": "Inicia directamente en la Bandeja del Sistema sin mostrar la ventana.",
         "minimizeToTrayDesc": "Cerrar la ventana mantiene Solari abierto en la bandeja.",
         "showEcoMode": "Mostrar Modo Eco",
-        "showEcoModeDesc": "Muestra la barra del Modo Eco en la parte superior."
+        "showEcoModeDesc": "Muestra la barra del Modo Eco en la parte superior.",
+        "useDefaultClientIds": "Usar Client IDs de Fábrica",
+        "useDefaultClientIdsDesc": "Usa los Client IDs de fábrica para Netflix, Twitch, YouTube y Prime Video (Recomendado para usar con la extensión)."
     },
     "pluginStore": {
         "title": "Plugins Oficiales",
@@ -358,7 +360,9 @@
         "fillNameAndId": "Completa el nombre y Client ID",
         "invalidClientId": "Client ID inválido (debe ser numérico, 15-30 dígitos)",
         "updated": "¡Perfil actualizado!",
-        "added": "¡Perfil \"{name}\" añadido!"
+        "added": "¡Perfil \"{name}\" añadido!",
+        "factoryClientIds": "Client IDs de Fábrica",
+        "customProfiles": "Perfiles Personalizados"
     },
     "soundboard": {
         "driverRequired": "Requiere Controlador de Audio",
@@ -672,6 +676,7 @@
         "title": "¡Sincronización Automática Disponible!",
         "desc": "Este preset es estático. ¡Instala nuestra extensión oficial del navegador Solari para sincronizar automáticamente tus videos y transmisiones en tiempo real!",
         "button": "🧩 Obtener Extensión",
+        "tutorialButton": "📖 Cómo configurar",
         "toastInfo": "¡Instala la extensión para sincronizar videos y transmisiones automáticamente!"
     }
 }

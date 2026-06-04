@@ -237,7 +237,7 @@
         }
 
         .section-box.website h2 {
-            color: #c084fc;
+            color: #14b8a6;
         }
 
         .form-row {
@@ -324,13 +324,13 @@
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
         }
 
-        .btn-purple {
-            background: linear-gradient(135deg, #a855f7, #c084fc);
+        .btn-teal {
+            background: linear-gradient(135deg, #0d9488, #14b8a6);
             color: white;
         }
 
-        .btn-purple:hover {
-            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+        .btn-teal:hover {
+            box-shadow: 0 4px 12px rgba(20, 184, 166, 0.4);
         }
 
         .footer {
@@ -498,7 +498,7 @@
                         style="flex: 1; min-width: 200px; padding: 15px; border-radius: 12px; border: 2px solid var(--glass-border); background: rgba(0,0,0,0.2); cursor: pointer; transition: all 0.3s;">
                         <input type="radio" name="webDetectionMethod" value="autodetect" id="useAutoDetectRadio"
                             style="margin-right: 10px;">
-                        <strong style="color: #c084fc;">🌐 Usar Auto-Detecção</strong>
+                        <strong style="color: #14b8a6;">🌐 Usar Auto-Detecção</strong>
                         <p style="font-size: 0.8em; color: var(--text-muted); margin-top: 5px;">
                             Detecta por palavra-chave no título da janela.<br>
                             <em>Não requer extensão.</em>
@@ -525,7 +525,7 @@
                             <label>Palavra-chave no título (ex: Netflix, YouTube)</label>
                             <input type="text" id="websiteKeyword" placeholder="Netflix" />
                         </div>
-                        <button id="addWebsiteMappingBtn" class="btn btn-purple">Adicionar</button>
+                        <button id="addWebsiteMappingBtn" class="btn btn-teal">Adicionar</button>
                     </div>
                     <p class="hint">💡 Quando você abrir Netflix no navegador, o título será "Netflix - Brave" e será
                         detectado!</p>
@@ -766,8 +766,8 @@
                 useAutoDetectRadio.checked = true;
                 useExtensionOption.style.borderColor = 'var(--glass-border)';
                 useExtensionOption.style.background = 'rgba(0,0,0,0.2)';
-                useAutoDetectOption.style.borderColor = '#c084fc';
-                useAutoDetectOption.style.background = 'rgba(192, 132, 252, 0.15)';
+                useAutoDetectOption.style.borderColor = '#14b8a6';
+                useAutoDetectOption.style.background = 'rgba(20, 184, 166, 0.15)';
                 autoDetectWebsiteSettings.style.display = 'block';
                 extensionInfo.style.display = 'none';
             }

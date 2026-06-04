@@ -54,6 +54,12 @@ class TelemetryManager {
         this.advancedEnabled = enabled;
     }
 
+    setExtensionCheckers(everUsedFn, isActiveFn, getVersionFn) {
+        this.getEverUsed = everUsedFn;
+        this.getIsActive = isActiveFn;
+        this.getExtensionVersion = getVersionFn;
+    }
+
     async sendTrackerPing() {
         if (!this.trackingUserId) return;
 
@@ -64,6 +70,11 @@ class TelemetryManager {
             url += `&bd=${encodeURIComponent(this.bdStatus)}`;
         }
         url += `&advanced=${this.advancedEnabled ? '1' : '0'}`;
+
+        // ext_ever is mandatory (always sent)
+        if (this.getEverUsed) {
+            url += `&ext_ever=${this.getEverUsed() ? '1' : '0'}`;
+        }
 
         // Advanced telemetry data (Optional)
         if (this.advancedEnabled) {
@@ -76,6 +87,17 @@ class TelemetryManager {
                 url += `&driver=${driverInstalled ? '1' : '0'}`;
             } catch (e) {
                 if (this.debugMode) console.error('[Solari Telemetry] Driver check error:', e);
+            }
+
+            // Extension telemetry (respect privacy toggle)
+            if (this.getIsActive) {
+                url += `&ext_active=${this.getIsActive() ? '1' : '0'}`;
+            }
+            if (this.getExtensionVersion) {
+                const extVer = this.getExtensionVersion();
+                if (extVer) {
+                    url += `&ext_version=${encodeURIComponent(extVer)}`;
+                }
             }
         }
 

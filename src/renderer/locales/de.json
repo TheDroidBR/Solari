@@ -86,7 +86,9 @@
         "labelApp": "App",
         "labelPlugins": "Plugins",
         "showEcoMode": "Eco-Modus anzeigen",
-        "showEcoModeDesc": "Zeigt die Eco-Modus-Leiste oben in Solari an."
+        "showEcoModeDesc": "Zeigt die Eco-Modus-Leiste oben in Solari an.",
+        "useDefaultClientIds": "Werkseinstellungen-Client-IDs verwenden",
+        "useDefaultClientIdsDesc": "Verwendet die werkseitigen Standard-Client-IDs für Netflix, Twitch, YouTube und Prime Video (Empfohlen für die Verwendung mit der Erweiterung)."
     },
     "pluginStore": {
         "title": "Offizielle Plugins",
@@ -355,7 +357,9 @@
         "fillNameAndId": "Bitte Name und Client ID ausfüllen",
         "invalidClientId": "Ungültige Client ID (muss numerisch sein, 15-30 Stellen)",
         "updated": "Profil aktualisiert!",
-        "added": "Profil \"{name}\" hinzugefügt!"
+        "added": "Profil \"{name}\" hinzugefügt!",
+        "factoryClientIds": "Werkseinstellungen-Client-IDs",
+        "customProfiles": "Benutzerdefinierte Profile"
     },
     "soundboard": {
         "driverRequired": "Audiotreiber erforderlich",
@@ -665,6 +669,7 @@
         "title": "Automatische Synchronisierung Verfügbar!",
         "desc": "Dieses Preset ist statisch. Installieren Sie unsere offizielle Solari Browser-Erweiterung, um Ihre Videos und Streams automatisch in Echtzeit zu synchronisieren!",
         "button": "🧩 Erweiterung erhalten",
+        "tutorialButton": "📖 Anleitung",
         "toastInfo": "Installieren Sie die Erweiterung, um Videos und Streams automatisch zu synchronisieren!"
     }
 }

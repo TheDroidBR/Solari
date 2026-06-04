@@ -94,7 +94,9 @@
         "privacyDesc": "Manage how Solari collects data for improvement.",
         "labelAdditionalTelemetry": "Additional Telemetry",
         "additionalTelemetryTitle": "Help the Developer",
-        "additionalTelemetryDesc": "Collects additional data (such as active Solari plugins and SoundBoard driver installation status) to help us optimize the application."
+        "additionalTelemetryDesc": "Collects greater usage information regarding the Solari ecosystem to help us optimize the application.",
+        "useDefaultClientIds": "Use Factory Client IDs",
+        "useDefaultClientIdsDesc": "Uses factory default Client IDs for Netflix, Twitch, YouTube, and Prime Video (Recommended for use with the extension)."
     },
     "pluginStore": {
         "title": "Official Plugins",
@@ -403,7 +405,9 @@
         "fillNameAndId": "Fill in the name and Client ID",
         "invalidClientId": "Invalid Client ID (must be numeric, 15-30 digits)",
         "updated": "Profile updated!",
-        "added": "Profile \"{name}\" added!"
+        "added": "Profile \"{name}\" added!",
+        "factoryClientIds": "Factory Client IDs",
+        "customProfiles": "Custom Profiles"
     },
     "soundboard": {
         "driverRequired": "Audio Driver Required",
@@ -717,6 +721,7 @@
         "title": "Automatic Synchronization Available!",
         "desc": "This preset is static. Install our official Solari Browser Extension to automatically sync your videos and streams in real time!",
         "button": "🧩 Get Extension",
+        "tutorialButton": "📖 How to set up",
         "toastInfo": "Install the extension to sync videos and streams automatically!"
     }
 }

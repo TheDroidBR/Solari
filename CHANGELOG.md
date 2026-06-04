@@ -1,63 +1,52 @@
-## [1.13.0] - Unreleased
+## [1.13.0] - 2026-06-04
 **UPDATE 1.13.0: PREMIUM PRESETS CATALOG, OVERRIDE RESOLUTION & PREVIEW INTEGRATION**
 
 ---
 
-### 👁️ High-Fidelity Discord User Profile Popout Preview
-*   **Aesthetic Overhaul**: Redesigned the simple dark-gray preview card into a perfect replication of the modern Discord User Profile Popout. Features a profile banner, circular user avatar container, green Online status badge with precise cutouts, and premium typography.
+### ✨ New Features
+*   **Modular Public Presets Catalog**: Decoupled and isolated the cloud-backed presets catalog UI into a dedicated module (`ui-public-presets.js`), reducing main renderer complexity. Includes localized subheadings and descriptive subtitles.
+*   **Hybrid Preset Loading & Search**: Cached preset instant rendering with background fetch fallback, search parsing, and category dropdown filtering.
+*   **Quick Actions & Apply**: Added one-click actions to automatically apply preset status (registering a local identity if needed) or customize status fields in the manual editor.
+*   **Conflict and Duplicity Safeguards**: Intercepts local saving to check if a preset's Discord Client ID is already registered in the database, showing a warning modal to Overwrite, Create Copy, or Cancel.
+*   **Streaming Presets Extension Promotion**: Added an glassmorphic banner advising users about static streaming presets and suggesting the browser extension, with dismissible state in `localStorage` and dynamic activation triggers.
+
+### 🔄 Reworks
+*   **High-Fidelity Discord User Profile Popout Preview**: Redesigned the simple dark-gray preview card into a perfect replication of the modern Discord User Profile Popout. Features a profile banner, circular user avatar container, green Online status badge with precise cutouts, and premium typography.
 *   **Automatic Profile Synchronization**: Connected the IPC backend to automatically pull real-time user profile details (display name, username, and avatar URL from the Discord CDN) directly from the local Discord RPC client ready event. Uses an elegant priority-fallback logic (Custom Override > Auto-detected Profile > Solari Default).
-*   **Interactive Customization**: Enabled users to customize their display name, username/tag, avatar image URL, and profile banner color directly inside the preview. Changes are persisted locally across app restarts via `localStorage`. Empty fields automatically fall back to the live auto-detected Discord details.
-*   **Modal Layout & Reset Fix**: Redesigned the profile customizer modal's footer. Positioned the "Restore Default" button on its own row spanning the full width, and grouped "Cancel" and "Save" into a symmetrical 50/50 horizontal split below it to prevent overflow/clipping on narrow viewports. Added `e.preventDefault()` to the reset button's click event to prevent hash modifications.
-*   **Dynamic Translation-Aware Activity Verbs**: Dynamically formats the activity header verb based on the selected Rich Presence type (e.g., "JOGANDO" / "PLAYING A GAME", "ASSISTINDO" / "WATCHING", "OUVINDO SPOTIFY" / "LISTENING TO SPOTIFY", "COMPETINDO EM" / "COMPETING IN") with full multi-language localization. Portuguese (pt-BR) category header for playing a game was aligned to "JOGANDO" to eliminate visual redundancy.
-*   **Precise Bidirectionality Indicators**: Replaced nested mouse hover event handlers with a delegated event handler system using `.closest()`, ensuring 100% precise highlights when hovering preview elements. Hovering the nested small image now correctly highlights only the small image inputs, avoiding overlap highlights on the large image fields.
+*   **Interactive Profile Customizer**: Custom profile editor modal with local storage persistence and full fallback to live details.
+*   **Precision Bidirectionality Indicators**: Replaced nested mouse hover event handlers with a delegated event handler system using `.closest()`, ensuring 100% precise highlights when hovering preview elements. Hovering the nested small image now correctly highlights only the small image inputs, avoiding overlap highlights on the large image fields.
 *   **Resilient Focus Highlights**: Rewrote focus/blur input event handlers to resolve preview elements dynamically at event invocation time. This prevents stale DOM references on dynamically recreated nodes (like the small image div recreated on preview updates).
 *   **Absolute Positioning Safety**: Appended CSS rules to guarantee the small image maintains its absolute coordinates in the bottom-right corner when the hoverable class is active, resolving layout breakage.
-*   **Accessibility Enhancements**: Added keyboard interaction (tabindex, role="button", and Enter/Space keyboard event listeners) to all customizable preview components and input fields for WCAG accessibility compliance.
+*   **Modal Layout & Reset Fix**: Redesigned the profile customizer modal's footer. Positioned the "Restore Default" button on its own row spanning the full width, and grouped "Cancel" and "Save" into a symmetrical 50/50 horizontal split below it to prevent overflow/clipping on narrow viewports. Added `e.preventDefault()` to the reset button's click event to prevent hash modifications.
+*   **Dynamic Translation-Aware Activity Verbs**: Dynamically formats the activity header verb based on the selected Rich Presence type (e.g., "JOGANDO" / "PLAYING A GAME", "ASSISTINDO" / "WATCHING", "OUVINDO SPOTIFY" / "LISTENING TO SPOTIFY", "COMPETINDO EM" / "COMPETING IN") with full multi-language localization. Portuguese (pt-BR) category header for playing a game was aligned to "JOGANDO" to eliminate visual redundancy.
 
-### ✨ New Modular Public Presets Sub-Tab
-*   **Descriptive Subtitle & Subheading**: Added a localized subheading/subtitle to the Public Presets tab to explicitly clarify that the catalog contains both complete pre-configured presets and ready-to-use Discord Client IDs.
-*   **Architectural Decentralization**: Implemented the `src/renderer/modules/ui-public-presets.js` module to decouple and isolate the entire cloud-backed presets catalog UI. Drastically reduced main `renderer.js` complexity (cleaning up over 220 legacy lines of code).
-*   **Hybrid Loading Strategy**: Renders cached presets (`cachedPresets`) instantly for zero visual lag upon opening, while silently spawning a background fetch to retrieve the most up-to-date catalog from GitHub/GitLab raw endpoints.
-*   **Resilient Error Handling**: Displays a beautifully styled error state panel with a `"🔄 Retry Now"` button if the background fetch fails and no cache exists.
-*   **Reactive Search & Filter**: Integrated real-time query parsing to instantly search community presets by name, details, or state.
-*   **Activity Type Filtering**: Added a dropdown select filter next to the search bar allowing users to filter the public catalog by Discord RPC activity categories (Playing, Watching, Listening, Competing) with localized support and empty results state. Twitch (Streaming) was aligned to appear under the "Watching" category, and its card activity badge was updated to render "Watching" ("Assistindo") instead of "Playing" ("Jogando").
-*   **DOM Mismatch & Tab Isolation Fix**: Resolved a layout nesting bug caused by an orphaned `</div>` tag left behind from legacy cleanups, which closed `#rpc-tab` prematurely. This pushed the Public Presets container outside its isolated tab scope, making it erroneously render at the bottom of the Plugins view.
-
-
-### 🔌 Premium Quick Actions
-*   **⚡ Apply Status**: Automatically checks and dynamically registers a local App Profile (identity) matching the preset's `clientId` if it doesn't already exist. Dispatches the status payload instantly.
-*   **✏️ Customize**: Prefills all manual Rich Presence fields (Client ID, details/state, buttons, assets, and activity type) with one click, shifts focus to the details field, and redirects the user to the manual editor.
-
-### ⚠️ Conflict and Duplicity Safeguards
-*   **Premium Warning Modal**: Intercepts local saving to detect if the preset's Discord Client ID is already registered in the user's database. Displays an elegant glassmorphic modal with geometric borders and vibrant orange accent shadows.
-*   **Flexible Actions**: Choose between Overwriting the existing preset (reusing the local profile mapping), Creating a new copy anyway, or Canceling without changes.
-
-### 🎬 YouTube Presets Fix & Manual Mode Overrides
-*   **Unconditional Manual Mode Priority**: Resolved a critical issue where the YouTube preset remained stuck visually on the "Auto-Detect active" context bar. Manual status updates now force `presenceSources.manualPreset.active = true` unconditionally. This allows presets configured purely with images and buttons (where `details` and `state` strings are empty) to apply manual mode instead of falling back to continuous auto-detection.
-*   **IPC Channel Realignment**: Corrected frontend public preset handlers to use `.send()` instead of `.invoke()` for IPC events (`update-activity` and `toggle-activity`), perfectly matching the main process listeners.
-*   **Streaming Presets Browser Extension Promotion**: Integrated an intelligent promotional banner in the Custom Presence configuration form that dynamically displays when static streaming presets (YouTube, Twitch, or Netflix) are applied or customized, advising the user that these presets are static and recommending the official Solari Browser Extension for real-time automatic synchronization. The banner is dismissible (saved to `localStorage` per editing session) and intelligently re-enabled when the user selects a streaming preset from the public presets catalogue.
-*   **Sandbox-Proof Extension Download Link**: Updated the browser extension download link event listener in `autodetect.html` to route link clicks through the resilient main-process IPC channel listener (`open-external-url`). This bypasses COM/DCOM privilege isolation and browser launch issues when the app runs in Administrator mode and the default browser is closed.
-
-### 🎨 Real-Time Live Preview Syncing
-*   **Imgur Resolution Sync**: Fixed a visual bug in `handleImgurConversion` in `src/renderer/renderer.js` where resolved Imgur URLs did not update the interactive preview. The blur callback now programmatically dispatches native `'input'` and `'change'` events and calls `updatePreview()` and `debouncedSaveFormState()` directly.
-*   **Instant Visual Feedback**: Guarantees that the live preview immediately renders the resolved Imgur image and automatically persists the new state.
-*   **Tab Indicator Language Sync**: Fixed a layout bug where the active tab's sliding indicator background did not resize to match the new tab button widths when the UI language changed. Added a `languageChanged` event listener to `tabs-fix.js` to automatically recalculate and re-align the active tab indicator's width and position after language updates.
-
-### 🛡️ Codebase Stabilization & Bugfixes (01-23)
-*   **Form Validation Barrier (Bug 20)**: Added a validation check on status update click in the manual RPC form. Invalid fields containing the `.fv-error` class now block sending corrupt status payloads to the main process and display a warning toast.
-*   **Asynchronous RPC Status Feedback (Bug 21)**: The status update button now disables on click and shows "Updating..." state, waiting for the main process response. The success toast ("Status updated!") or disconnected warnings are only shown when confirmation is received via the `activity-updated` IPC event.
-*   **Multi-language BD Manager Translations (Bug 22)**: Restored the missing `bdManagerDiscordClosed` translation key in English, Spanish, and German locales, and added missing `bdManager` keys in Spanish and German locales, ensuring a fully localized plugin store.
-*   **BetterDiscord Status Reference Check (Bug 14)**: Fixed a critical `ReferenceError` in `checkBDStatus()` where a variable was accessed before its declaration, restoring BD detection.
-*   **Microphone Passthrough Memory Leak (Bug 06)**: Fixed a memory leak in the soundboard noise slider listener by ensuring the `'input'` listener is only registered once.
-*   **Audio Overlapping & Stops (Bugs 07, 09)**: Allowed multiple soundboard sounds to overlap when enabled, and ensured deleted sound files stop playing immediately in the background.
-*   **Admin UIPI Browser Bypass (Bugs 03, 04)**: Bypassed Windows UIPI isolation when running Solari as Administrator by routing target links and installer check links to `explorer.exe` to safely invoke the default web browser.
-*   **Silent Update Checks (Bug 12)**: Fixed the auto-updater silent check flow to prevent automatically downloading large installers in the background without user confirmation.
-*   **Dynamic Process Detection (Bugs 10, 16)**: Replaced loose process name matching with exact column matching in the parsed tasklist CSV image column, preventing false process auto-detection positives. Stripped `\r` carriage returns from process titles.
-*   **BetterDiscord Repair Websocket Safety (Bug 15)**: Added standard error handlers (`ws.on('error', ...)`) to the plugin websocket server connections, preventing unhandled exceptions from crashing the app.
-*   **Soundboard File Safety (Bug 08)**: Appended unique numeric suffixes (e.g. `laser(1).mp3`) when importing audio files with duplicate names, preventing silent file overwrites.
+### ⚡ Improvements
+*   **Public Presets Multi-language Catalog Integration**: Enabled dynamic internationalization for the remote community presets catalog. The system resolves nested locale blocks (`pt` and `en`) from `public-presets.json` against the currently active application language, supports instant re-rendering upon runtime language changes, and saves localized metadata properties during local preset storage.
+*   **Language Sync for Tab Indicator**: Added tab indicator size recalculation upon language changes to avoid layout size discrepancies.
+*   **Accessibility Enhancements**: WCAG keyboard compliance (tabindex, role="button", and Enter/Space keyboard event listeners) to customizable preview components.
 *   **Main Process i18n Fallback (Bug 23)**: Rewrote `t_main` translation parser to support empty strings and fallback dynamically to the English locale translation object when keys are missing.
-*   **Window Management Optimization (Bug 17)**: Replaced inline browser window creation with delegated calls to `WindowManager.createAutoDetectWindow()`, ensuring consistent size.
-*   **Other Stability Fixes (Bugs 02, 11, 13, 18, 19)**: Handled array boundaries dynamically for fallback preset index updates on deletions, registered transport error handlers on preset Client ID changes, persisted custom Spotify settings, and enabled automatic restoration from the `.bak` backup file when the main settings data gets corrupted.
+*   **Window Management Optimization (Bug 17)**: Centralized Auto-Detect window properties and dimensions via `WindowManager`.
+*   **Relative Path Resolution (Bug 01)**: Use `__dirname` in `fix-listeners.js` to prevent ENOENT errors when executed in other paths.
+*   **Factory Client IDs Description**: Updated the description for factory default client IDs in both settings and app profiles UI to clearly recommend them for browser extension users, translating it correctly in English, Portuguese, Spanish, and German.
+*   **Smart Extension Banner**: Configured the extension ad banner to only appear if the Solari App has never connected to the browser extension, hiding it permanently once a connection is established.
+
+### 🐛 Bug Fixes
+*   **Preset Deletion Modal Name Fix**: Fixed the preset deletion confirmation modal where `{name}` was displayed as a raw placeholder instead of the actual preset name.
+*   **Form Validation Barrier (Bug 20)**: Added validation checks on update click; invalid fields containing `.fv-error` now block sending corrupt status payloads to the main process and display a warning toast.
+*   **Asynchronous RPC Status Feedback (Bug 21)**: Update button now disables and shows "Updating..." state, waiting for the main process response. The success toast or disconnected warnings are only shown when confirmation is received via IPC.
+*   **Multi-language BD Manager Translations (Bug 22)**: Restored the missing `bdManagerDiscordClosed` translation key and added missing `bdManager` keys in Spanish and German locales, ensuring a fully localized plugin store.
+*   **BetterDiscord Status Reference Check (Bug 14)**: Fixed a critical `ReferenceError` in `checkBDStatus()` where a variable was accessed before its declaration, restoring BD detection.
+*   **Microphone Noise Slider Memory Leak (Bug 06)**: Ensures noise slider listener is registered only once to prevent RAM leaks when activating/deactivating mic passthrough.
+*   **Audio Overlapping & Stops (Bugs 07, 09)**: Allowed multiple soundboard sounds to overlap when enabled, and ensure deleted sound files stop playing immediately in the background.
+*   **Admin UIPI Browser Bypass (Bugs 03, 04)**: Bypassed Windows UIPI isolation when running Solari as Administrator by routing target links and installer check links to `explorer.exe` to safely invoke the default web browser.
+*   **Silent Update Checks (Bug 12)**: Prevent updater background silent checks from auto-downloading large installers in the background without user confirmation.
+*   **Dynamic Process Detection (Bugs 10, 16)**: Column exact matching in CSV process tasklist parser and stripped Carriage Return `\r` from titles to prevent false process auto-detection positives.
+*   **BetterDiscord Repair Websocket Safety (Bug 15)**: Added connection error handlers to websocket server to prevent unhandled exceptions from crashing the app.
+*   **Soundboard File Safety (Bug 08)**: Appended unique numeric suffixes when importing sounds with duplicate names to prevent silent overrides.
+*   **Twitch Preset Activity Type Correction**: Corrected Twitch `activityType` to Watching and added frontend filter mappings to prevent empty activity dropdown states.
+*   **YouTube Preset Manual Mode Lock**: Force manual mode active when status updated to support presets with empty details/state strings.
+*   **Backup Recovery Fallback (Bug 02)**: Enabled automatic restoration from the `.bak` backup file when the main settings data gets corrupted.
+*   **Other Stability Fixes (Bugs 11, 13, 18, 19)**: Handled array boundaries dynamically for fallback preset index updates on deletions, registered transport error handlers on preset Client ID changes, persisted custom Spotify settings, and resolved linked identities on manual preset loads.
 
 ### ⚙️ Unified Release Promotion
 *   **Version Bump**: Promoted the application version straight from `1.12.1` to `1.13.0` across the entire codebase (`package.json`, `package-lock.json`, `latest.yml`, and `CHANGELOG.md`).
