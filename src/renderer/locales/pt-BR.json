@@ -701,7 +701,7 @@
         "searchPlaceholder": "🔍 Buscar presets públicos...",
         "applyBtn": "⚡ Ativar Status",
         "customizeBtn": "✏️ Customizar",
-        "saveLocalBtn": "💾 Salvar Local",
+        "saveLocalBtn": "💾 Salvar",
         "errorTitle": "Não foi possível carregar o catálogo",
         "errorDesc": "Verifique sua conexão com a Internet e tente novamente.",
         "retryBtn": "🔄 Tentar Novamente",

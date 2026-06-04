@@ -653,7 +653,7 @@
         "searchPlaceholder": "🔍 Buscar presets públicos...",
         "applyBtn": "⚡ Activar Estado",
         "customizeBtn": "✏️ Personalizar",
-        "saveLocalBtn": "💾 Guardar Local",
+        "saveLocalBtn": "💾 Guardar",
         "errorTitle": "No se pudo cargar el catálogo",
         "errorDesc": "Verifica tu conexión a Internet e inténtalo de nuevo.",
         "retryBtn": "🔄 Reintentar",

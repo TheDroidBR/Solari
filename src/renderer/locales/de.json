@@ -646,7 +646,7 @@
         "searchPlaceholder": "🔍 Öffentliche Presets suchen...",
         "applyBtn": "⚡ Status aktivieren",
         "customizeBtn": "✏️ Anpassen",
-        "saveLocalBtn": "💾 Lokal speichern",
+        "saveLocalBtn": "💾 Speichern",
         "errorTitle": "Katalog konnte nicht geladen werden",
         "errorDesc": "Überprüfe deine Internetverbindung und versuche es erneut.",
         "retryBtn": "🔄 Wiederholen",

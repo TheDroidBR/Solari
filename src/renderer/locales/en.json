@@ -698,7 +698,7 @@
         "searchPlaceholder": "🔍 Search public presets...",
         "applyBtn": "⚡ Enable Status",
         "customizeBtn": "✏️ Customize",
-        "saveLocalBtn": "💾 Save Local",
+        "saveLocalBtn": "💾 Save",
         "errorTitle": "Could not load catalogue",
         "errorDesc": "Check your Internet connection and try again.",
         "retryBtn": "🔄 Retry",

@@ -305,7 +305,7 @@ function renderPresetsGrid(presets) {
             <div class="preset-card-actions">
                 <button class="preset-btn-apply" data-index="${index}">${t('publicPresets.applyBtn') || '⚡ Ativar Status'}</button>
                 <button class="preset-btn-customize" data-index="${index}">${t('publicPresets.customizeBtn') || '✏️ Customizar'}</button>
-                <button class="preset-btn-save" data-index="${index}">${t('publicPresets.saveLocalBtn') || '💾 Salvar Local'}</button>
+                <button class="preset-btn-save" data-index="${index}">${t('publicPresets.saveLocalBtn') || '💾 Salvar'}</button>
             </div>
         `;
 
