@@ -96,7 +96,7 @@ Solari features a **Hybrid Telemetry Model** designed with your privacy in mind:
 - **Advanced Telemetry (Optional):** Collects additional non-identifiable usage information regarding the Solari ecosystem to help us improve the application. You can opt-out at any time via the "Privacidade" tab in settings.
 - ❌ **What we NEVER collect:** No IP addresses, Discord tokens, personal data, or file contents.
 
-This data is used solely for usage statistics and is automatically deleted after 90 seconds of inactivity. For more details, see our [Privacy Policy](https://solarirpc.com/privacy.html).
+This data is used solely for usage statistics. For more details, see our [Privacy Policy](https://solarirpc.com/privacy.html).
 
 ## 🔒 Security & Trust (SmartScreen)
 
