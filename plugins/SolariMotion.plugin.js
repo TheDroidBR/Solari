@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description The most advanced animation system for Discord — 22 UI categories, 28 animation types, Stagger system, Global Intensity, visual Cubic-Bézier editor, Live DOM Preview. Powered by Solari.
- * @version 1.0.1
+ * @version 1.0.2
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMotion.plugin.js
@@ -15,101 +15,101 @@ module.exports = class SolariMotion {
     // CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════
 
-    static VERSION        = '1.0.1';
+    static VERSION = '1.0.2';
     static CONFIG_VERSION = 2;
-    static ID             = 'SolariMotion';
+    static ID = 'SolariMotion';
 
     // Categories that support item-level stagger (observer-driven lists)
     static STAGGER_CATS = new Set(['messages', 'reactions', 'dmList', 'searchResults', 'memberList']);
 
     static EASING_MAP = {
-        smooth:         'cubic-bezier(0.4, 0, 0.2, 1)',
-        snappy:         'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-        bounce:         'cubic-bezier(0.34, 1.56, 0.64, 1)',
-        elastic:        'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-        'ease-out':     'ease-out',
-        'ease-in-out':  'ease-in-out',
-        'ease-in':      'ease-in',
-        ease:           'ease',
-        linear:         'linear',
-        custom:         null, // resolved via cat.customEasing
+        smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        snappy: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        bounce: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        elastic: 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        'ease-out': 'ease-out',
+        'ease-in-out': 'ease-in-out',
+        'ease-in': 'ease-in',
+        ease: 'ease',
+        linear: 'linear',
+        custom: null, // resolved via cat.customEasing
     };
 
     static EASING_LABELS = {
-        smooth:         'Smooth (Material)',
-        snappy:         'Snappy',
-        bounce:         'Bouncy',
-        elastic:        'Elastic',
-        'ease-out':     'Ease Out',
-        'ease-in-out':  'Ease In-Out',
-        'ease-in':      'Ease In',
-        ease:           'Ease',
-        linear:         'Linear',
-        custom:         'Custom Curve ✏️',
+        smooth: 'Smooth (Material)',
+        snappy: 'Snappy',
+        bounce: 'Bouncy',
+        elastic: 'Elastic',
+        'ease-out': 'Ease Out',
+        'ease-in-out': 'Ease In-Out',
+        'ease-in': 'Ease In',
+        ease: 'Ease',
+        linear: 'Linear',
+        custom: 'Custom Curve ✏️',
     };
 
     static ANIMATION_LABELS = {
-        none:           'None',
-        fade:           'Fade',
-        glide:          'Glide ✨',
-        rise:           'Rise',
-        float:          'Float',
-        'slide-up':     'Slide Up',
-        'slide-down':   'Slide Down',
-        'slide-left':   'Slide Left',
-        'slide-right':  'Slide Right',
-        scale:          'Scale In',
-        'scale-up':     'Scale Down',
-        pop:            'Pop',
-        spring:         'Spring 🌱',
-        bounce:         'Bounce 🎾',
-        elastic:        'Elastic',
-        'zoom-bounce':  'Zoom Bounce',
-        snap:           'Snap',
-        'blur-in':      'Blur In',
-        'flip-x':       'Flip X',
-        'flip-y':       'Flip Y',
-        'rotate-in':    'Rotate In',
-        swing:          'Swing',
-        'wipe-right':   'Wipe →',
-        'wipe-up':      'Wipe ↑',
-        'clip-circle':  'Circle Reveal',
-        morph:          'Morph',
-        gravity:        'Gravity',
-        pendulum:       'Pendulum',
+        none: 'None',
+        fade: 'Fade',
+        glide: 'Glide ✨',
+        rise: 'Rise',
+        float: 'Float',
+        'slide-up': 'Slide Up',
+        'slide-down': 'Slide Down',
+        'slide-left': 'Slide Left',
+        'slide-right': 'Slide Right',
+        scale: 'Scale In',
+        'scale-up': 'Scale Down',
+        pop: 'Pop',
+        spring: 'Spring 🌱',
+        bounce: 'Bounce 🎾',
+        elastic: 'Elastic',
+        'zoom-bounce': 'Zoom Bounce',
+        snap: 'Snap',
+        'blur-in': 'Blur In',
+        'flip-x': 'Flip X',
+        'flip-y': 'Flip Y',
+        'rotate-in': 'Rotate In',
+        swing: 'Swing',
+        'wipe-right': 'Wipe →',
+        'wipe-up': 'Wipe ↑',
+        'clip-circle': 'Circle Reveal',
+        morph: 'Morph',
+        gravity: 'Gravity',
+        pendulum: 'Pendulum',
     };
 
     static CATEGORY_GROUPS = {
-        all:        null,
+        all: null,
         navigation: ['channelSwitch', 'serverSwitch', 'settings'],
-        overlays:   ['contextMenu', 'tooltips', 'modals', 'userPopout', 'emojiPicker', 'autoComplete', 'imageViewer', 'callOverlay'],
-        content:    ['messages', 'reactions', 'uploadPreview'],
-        server:     ['memberList', 'voiceIndicator', 'dmList', 'serverFolders', 'threadPanel', 'searchResults', 'inbox', 'appDirectory'],
+        overlays: ['contextMenu', 'tooltips', 'modals', 'userPopout', 'emojiPicker', 'autoComplete', 'imageViewer', 'callOverlay'],
+        content: ['messages', 'reactions', 'uploadPreview'],
+        server: ['memberList', 'voiceIndicator', 'dmList', 'serverFolders', 'threadPanel', 'searchResults', 'inbox', 'appDirectory'],
     };
 
     static CATEGORY_META = {
-        channelSwitch:  { label: 'Channel Switch',    icon: '#️⃣',  desc: 'Navigating between channels and DMs.',       group: 'navigation' },
-        serverSwitch:   { label: 'Server Switch',     icon: '🌐',  desc: 'Switching between servers.',                group: 'navigation' },
-        settings:       { label: 'Settings Panels',   icon: '⚙️',  desc: 'Opening or switching settings pages.',      group: 'navigation' },
-        contextMenu:    { label: 'Context Menus',     icon: '📋',  desc: 'Right-click context menus.',                group: 'overlays'   },
-        tooltips:       { label: 'Tooltips',          icon: '💡',  desc: 'Hover tooltips across the UI.',             group: 'overlays'   },
-        modals:         { label: 'Modals & Pop-ups',  icon: '🔲',  desc: 'Dialog boxes and pop-up windows.',          group: 'overlays'   },
-        userPopout:     { label: 'User Popout',       icon: '👤',  desc: 'Profile cards when clicking an avatar.',    group: 'overlays'   },
-        emojiPicker:    { label: 'Emoji Picker',      icon: '😄',  desc: 'Emoji, sticker, and GIF picker.',           group: 'overlays'   },
-        autoComplete:   { label: 'Autocomplete',      icon: '⌨️',  desc: '@mention, #channel, :emoji: suggestions.', group: 'overlays'   },
-        imageViewer:    { label: 'Image Viewer',      icon: '🖼️',  desc: 'Lightbox when opening images.',             group: 'overlays'   },
-        callOverlay:    { label: 'Call Overlay',      icon: '📞',  desc: 'Controls and UI during voice/video calls.', group: 'overlays'   },
-        messages:       { label: 'New Messages',      icon: '✉️',  desc: 'Each new message appearing in chat.',       group: 'content'    },
-        reactions:      { label: 'Reactions',         icon: '❤️',  desc: 'Emoji reactions appearing on messages.',    group: 'content'    },
-        uploadPreview:  { label: 'Upload Preview',    icon: '📎',  desc: 'File/image preview before sending.',        group: 'content'    },
-        memberList:     { label: 'Member List',       icon: '👥',  desc: 'The server member list panel.',             group: 'server'     },
-        voiceIndicator: { label: 'Voice Indicators',  icon: '🎙️', desc: 'Speaking indicators in voice channels.',    group: 'server'     },
-        dmList:         { label: 'DM List',           icon: '📩',  desc: 'Direct message conversations in sidebar.',  group: 'server'     },
-        serverFolders:  { label: 'Server Folders',    icon: '📁',  desc: 'Expand/collapse server folder groups.',     group: 'server'     },
-        threadPanel:    { label: 'Thread Panel',      icon: '🧵',  desc: 'Thread sidebar opening and closing.',       group: 'server'     },
-        searchResults:  { label: 'Search Results',    icon: '🔍',  desc: 'Search result items appearing.',            group: 'server'     },
-        inbox:          { label: 'Inbox',             icon: '📬',  desc: 'Mentions and notification panel.',          group: 'server'     },
-        appDirectory:   { label: 'App Directory',     icon: '🔧',  desc: 'App directory and browse channels panel.',  group: 'server'     },
+        channelSwitch: { label: 'Channel Switch', icon: '#️⃣', desc: 'Navigating between channels and DMs.', group: 'navigation' },
+        serverSwitch: { label: 'Server Switch', icon: '🌐', desc: 'Switching between servers.', group: 'navigation' },
+        settings: { label: 'Settings Panels', icon: '⚙️', desc: 'Opening or switching settings pages.', group: 'navigation' },
+        contextMenu: { label: 'Context Menus', icon: '📋', desc: 'Right-click context menus.', group: 'overlays' },
+        tooltips: { label: 'Tooltips', icon: '💡', desc: 'Hover tooltips across the UI.', group: 'overlays' },
+        modals: { label: 'Modals & Pop-ups', icon: '🔲', desc: 'Dialog boxes and pop-up windows.', group: 'overlays' },
+        userPopout: { label: 'User Popout', icon: '👤', desc: 'Profile cards when clicking an avatar.', group: 'overlays' },
+        emojiPicker: { label: 'Emoji Picker', icon: '😄', desc: 'Emoji, sticker, and GIF picker.', group: 'overlays' },
+        autoComplete: { label: 'Autocomplete', icon: '⌨️', desc: '@mention, #channel, :emoji: suggestions.', group: 'overlays' },
+        imageViewer: { label: 'Image Viewer', icon: '🖼️', desc: 'Lightbox when opening images.', group: 'overlays' },
+        callOverlay: { label: 'Call Overlay', icon: '📞', desc: 'Controls and UI during voice/video calls.', group: 'overlays' },
+        messages: { label: 'New Messages', icon: '✉️', desc: 'Each new message appearing in chat.', group: 'content' },
+        reactions: { label: 'Reactions', icon: '❤️', desc: 'Emoji reactions appearing on messages.', group: 'content' },
+        uploadPreview: { label: 'Upload Preview', icon: '📎', desc: 'File/image preview before sending.', group: 'content' },
+        memberList: { label: 'Member List', icon: '👥', desc: 'The server member list panel.', group: 'server' },
+        voiceIndicator: { label: 'Voice Indicators', icon: '🎙️', desc: 'Speaking indicators in voice channels.', group: 'server' },
+        dmList: { label: 'DM List', icon: '📩', desc: 'Direct message conversations in sidebar.', group: 'server' },
+        serverFolders: { label: 'Server Folders', icon: '📁', desc: 'Expand/collapse server folder groups.', group: 'server' },
+        threadPanel: { label: 'Thread Panel', icon: '🧵', desc: 'Thread sidebar opening and closing.', group: 'server' },
+        searchResults: { label: 'Search Results', icon: '🔍', desc: 'Search result items appearing.', group: 'server' },
+        inbox: { label: 'Inbox', icon: '📬', desc: 'Mentions and notification panel.', group: 'server' },
+        appDirectory: { label: 'App Directory', icon: '🔧', desc: 'App directory and browse channels panel.', group: 'server' },
     };
 
     static STRINGS = {
@@ -160,7 +160,7 @@ module.exports = class SolariMotion {
             chip_overlays: "🔲 Overlays",
             chip_content: "💬 Content",
             chip_server: "🌐 Server",
-            
+
             // Category meta translations (Labels & descriptions)
             cat_channelSwitch_label: "Channel Switch",
             cat_channelSwitch_desc: "Navigating between channels and DMs.",
@@ -474,334 +474,334 @@ module.exports = class SolariMotion {
 
     static PRESETS = {
         fluid: {
-            channelSwitch:  SolariMotion._c('glide',        250, 'smooth'),
-            serverSwitch:   SolariMotion._c('scale',        230, 'smooth'),
-            settings:       SolariMotion._c('fade',         200, 'smooth'),
-            contextMenu:    SolariMotion._c('scale',        160, 'smooth'),
-            tooltips:       SolariMotion._c('fade',         130, 'ease-out'),
-            modals:         SolariMotion._c('spring',       260, 'smooth'),
-            userPopout:     SolariMotion._c('spring',       220, 'bounce'),
-            emojiPicker:    SolariMotion._c('spring',       220, 'bounce'),
-            autoComplete:   SolariMotion._c('glide',        140, 'smooth'),
-            imageViewer:    SolariMotion._c('zoom-bounce',  280, 'bounce'),
-            callOverlay:    SolariMotion._c('glide',        200, 'smooth'),
-            messages:       SolariMotion._c('glide',        200, 'smooth', true, 40),
-            reactions:      SolariMotion._c('bounce',       260, 'bounce', true, 50),
-            uploadPreview:  SolariMotion._c('glide',        200, 'smooth'),
-            memberList:     SolariMotion._c('slide-right',  220, 'smooth'),
-            voiceIndicator: SolariMotion._c('scale',        160, 'smooth'),
-            dmList:         SolariMotion._c('slide-right',  180, 'smooth', true, 30),
-            serverFolders:  SolariMotion._c('spring',       220, 'bounce'),
-            threadPanel:    SolariMotion._c('slide-left',   220, 'smooth'),
-            searchResults:  SolariMotion._c('glide',        160, 'smooth', true, 35),
-            inbox:          SolariMotion._c('spring',       230, 'bounce'),
-            appDirectory:   SolariMotion._c('scale',        200, 'smooth'),
+            channelSwitch: SolariMotion._c('glide', 250, 'smooth'),
+            serverSwitch: SolariMotion._c('scale', 230, 'smooth'),
+            settings: SolariMotion._c('fade', 200, 'smooth'),
+            contextMenu: SolariMotion._c('scale', 160, 'smooth'),
+            tooltips: SolariMotion._c('fade', 130, 'ease-out'),
+            modals: SolariMotion._c('spring', 260, 'smooth'),
+            userPopout: SolariMotion._c('spring', 220, 'bounce'),
+            emojiPicker: SolariMotion._c('spring', 220, 'bounce'),
+            autoComplete: SolariMotion._c('glide', 140, 'smooth'),
+            imageViewer: SolariMotion._c('zoom-bounce', 280, 'bounce'),
+            callOverlay: SolariMotion._c('glide', 200, 'smooth'),
+            messages: SolariMotion._c('glide', 200, 'smooth', true, 40),
+            reactions: SolariMotion._c('bounce', 260, 'bounce', true, 50),
+            uploadPreview: SolariMotion._c('glide', 200, 'smooth'),
+            memberList: SolariMotion._c('slide-right', 220, 'smooth'),
+            voiceIndicator: SolariMotion._c('scale', 160, 'smooth'),
+            dmList: SolariMotion._c('slide-right', 180, 'smooth', true, 30),
+            serverFolders: SolariMotion._c('spring', 220, 'bounce'),
+            threadPanel: SolariMotion._c('slide-left', 220, 'smooth'),
+            searchResults: SolariMotion._c('glide', 160, 'smooth', true, 35),
+            inbox: SolariMotion._c('spring', 230, 'bounce'),
+            appDirectory: SolariMotion._c('scale', 200, 'smooth'),
         },
         snappy: {
-            channelSwitch:  SolariMotion._c('slide-up',    120, 'snappy'),
-            serverSwitch:   SolariMotion._c('fade',        100, 'snappy'),
-            settings:       SolariMotion._c('fade',        100, 'ease-out'),
-            contextMenu:    SolariMotion._c('scale',       100, 'snappy'),
-            tooltips:       SolariMotion._c('fade',         80, 'ease-out'),
-            modals:         SolariMotion._c('scale',       130, 'snappy'),
-            userPopout:     SolariMotion._c('scale',       120, 'snappy'),
-            emojiPicker:    SolariMotion._c('scale',       120, 'snappy'),
-            autoComplete:   SolariMotion._c('scale',        90, 'snappy'),
-            imageViewer:    SolariMotion._c('scale',       140, 'snappy'),
-            callOverlay:    SolariMotion._c('fade',        110, 'snappy'),
-            messages:       SolariMotion._c('slide-up',    100, 'snappy'),
-            reactions:      SolariMotion._c('snap',        140, 'snappy', true, 20),
-            uploadPreview:  SolariMotion._c('slide-up',    110, 'snappy'),
-            memberList:     SolariMotion._c('fade',        110, 'snappy'),
-            voiceIndicator: SolariMotion._c('scale',       100, 'snappy'),
-            dmList:         SolariMotion._c('fade',        100, 'snappy'),
-            serverFolders:  SolariMotion._c('scale',       120, 'snappy'),
-            threadPanel:    SolariMotion._c('slide-left',  120, 'snappy'),
-            searchResults:  SolariMotion._c('fade',        100, 'snappy', true, 15),
-            inbox:          SolariMotion._c('scale',       120, 'snappy'),
-            appDirectory:   SolariMotion._c('fade',        100, 'snappy'),
+            channelSwitch: SolariMotion._c('slide-up', 120, 'snappy'),
+            serverSwitch: SolariMotion._c('fade', 100, 'snappy'),
+            settings: SolariMotion._c('fade', 100, 'ease-out'),
+            contextMenu: SolariMotion._c('scale', 100, 'snappy'),
+            tooltips: SolariMotion._c('fade', 80, 'ease-out'),
+            modals: SolariMotion._c('scale', 130, 'snappy'),
+            userPopout: SolariMotion._c('scale', 120, 'snappy'),
+            emojiPicker: SolariMotion._c('scale', 120, 'snappy'),
+            autoComplete: SolariMotion._c('scale', 90, 'snappy'),
+            imageViewer: SolariMotion._c('scale', 140, 'snappy'),
+            callOverlay: SolariMotion._c('fade', 110, 'snappy'),
+            messages: SolariMotion._c('slide-up', 100, 'snappy'),
+            reactions: SolariMotion._c('snap', 140, 'snappy', true, 20),
+            uploadPreview: SolariMotion._c('slide-up', 110, 'snappy'),
+            memberList: SolariMotion._c('fade', 110, 'snappy'),
+            voiceIndicator: SolariMotion._c('scale', 100, 'snappy'),
+            dmList: SolariMotion._c('fade', 100, 'snappy'),
+            serverFolders: SolariMotion._c('scale', 120, 'snappy'),
+            threadPanel: SolariMotion._c('slide-left', 120, 'snappy'),
+            searchResults: SolariMotion._c('fade', 100, 'snappy', true, 15),
+            inbox: SolariMotion._c('scale', 120, 'snappy'),
+            appDirectory: SolariMotion._c('fade', 100, 'snappy'),
         },
         bounce: {
-            channelSwitch:  SolariMotion._c('bounce',      360, 'bounce'),
-            serverSwitch:   SolariMotion._c('zoom-bounce', 360, 'bounce'),
-            settings:       SolariMotion._c('spring',      280, 'bounce'),
-            contextMenu:    SolariMotion._c('zoom-bounce', 260, 'bounce'),
-            tooltips:       SolariMotion._c('bounce',      200, 'bounce'),
-            modals:         SolariMotion._c('elastic',     390, 'bounce'),
-            userPopout:     SolariMotion._c('elastic',     320, 'elastic'),
-            emojiPicker:    SolariMotion._c('elastic',     320, 'elastic'),
-            autoComplete:   SolariMotion._c('zoom-bounce', 200, 'bounce'),
-            imageViewer:    SolariMotion._c('elastic',     380, 'elastic'),
-            callOverlay:    SolariMotion._c('spring',      280, 'bounce'),
-            messages:       SolariMotion._c('bounce',      300, 'bounce', true, 50),
-            reactions:      SolariMotion._c('elastic',     360, 'elastic', true, 60),
-            uploadPreview:  SolariMotion._c('bounce',      300, 'bounce'),
-            memberList:     SolariMotion._c('spring',      290, 'bounce'),
-            voiceIndicator: SolariMotion._c('bounce',      250, 'bounce'),
-            dmList:         SolariMotion._c('spring',      280, 'bounce', true, 40),
-            serverFolders:  SolariMotion._c('elastic',     300, 'elastic'),
-            threadPanel:    SolariMotion._c('spring',      280, 'bounce'),
-            searchResults:  SolariMotion._c('bounce',      260, 'bounce', true, 45),
-            inbox:          SolariMotion._c('elastic',     320, 'elastic'),
-            appDirectory:   SolariMotion._c('zoom-bounce', 280, 'bounce'),
+            channelSwitch: SolariMotion._c('bounce', 360, 'bounce'),
+            serverSwitch: SolariMotion._c('zoom-bounce', 360, 'bounce'),
+            settings: SolariMotion._c('spring', 280, 'bounce'),
+            contextMenu: SolariMotion._c('zoom-bounce', 260, 'bounce'),
+            tooltips: SolariMotion._c('bounce', 200, 'bounce'),
+            modals: SolariMotion._c('elastic', 390, 'bounce'),
+            userPopout: SolariMotion._c('elastic', 320, 'elastic'),
+            emojiPicker: SolariMotion._c('elastic', 320, 'elastic'),
+            autoComplete: SolariMotion._c('zoom-bounce', 200, 'bounce'),
+            imageViewer: SolariMotion._c('elastic', 380, 'elastic'),
+            callOverlay: SolariMotion._c('spring', 280, 'bounce'),
+            messages: SolariMotion._c('bounce', 300, 'bounce', true, 50),
+            reactions: SolariMotion._c('elastic', 360, 'elastic', true, 60),
+            uploadPreview: SolariMotion._c('bounce', 300, 'bounce'),
+            memberList: SolariMotion._c('spring', 290, 'bounce'),
+            voiceIndicator: SolariMotion._c('bounce', 250, 'bounce'),
+            dmList: SolariMotion._c('spring', 280, 'bounce', true, 40),
+            serverFolders: SolariMotion._c('elastic', 300, 'elastic'),
+            threadPanel: SolariMotion._c('spring', 280, 'bounce'),
+            searchResults: SolariMotion._c('bounce', 260, 'bounce', true, 45),
+            inbox: SolariMotion._c('elastic', 320, 'elastic'),
+            appDirectory: SolariMotion._c('zoom-bounce', 280, 'bounce'),
         },
         minimal: {
-            channelSwitch:  SolariMotion._c('fade', 100, 'ease-out'),
-            serverSwitch:   SolariMotion._c('fade', 100, 'ease-out'),
-            settings:       SolariMotion._c('fade',  80, 'ease-out'),
-            contextMenu:    SolariMotion._c('fade',  80, 'ease-out'),
-            tooltips:       SolariMotion._c('fade',  60, 'ease-out'),
-            modals:         SolariMotion._c('fade', 100, 'ease-out'),
-            userPopout:     SolariMotion._c('fade',  90, 'ease-out'),
-            emojiPicker:    SolariMotion._c('fade',  90, 'ease-out'),
-            autoComplete:   SolariMotion._c('fade',  60, 'ease-out'),
-            imageViewer:    SolariMotion._c('fade', 100, 'ease-out'),
-            callOverlay:    SolariMotion._c('fade',  80, 'ease-out'),
-            messages:       SolariMotion._c('fade',  80, 'ease-out'),
-            reactions:      SolariMotion._c('fade',  80, 'ease-out'),
-            uploadPreview:  SolariMotion._c('fade',  80, 'ease-out'),
-            memberList:     SolariMotion._c('fade',  80, 'ease-out'),
-            voiceIndicator: SolariMotion._c('fade',  80, 'ease-out'),
-            dmList:         SolariMotion._c('fade',  80, 'ease-out'),
-            serverFolders:  SolariMotion._c('fade',  80, 'ease-out'),
-            threadPanel:    SolariMotion._c('fade',  80, 'ease-out'),
-            searchResults:  SolariMotion._c('fade',  80, 'ease-out'),
-            inbox:          SolariMotion._c('fade',  90, 'ease-out'),
-            appDirectory:   SolariMotion._c('fade',  80, 'ease-out'),
+            channelSwitch: SolariMotion._c('fade', 100, 'ease-out'),
+            serverSwitch: SolariMotion._c('fade', 100, 'ease-out'),
+            settings: SolariMotion._c('fade', 80, 'ease-out'),
+            contextMenu: SolariMotion._c('fade', 80, 'ease-out'),
+            tooltips: SolariMotion._c('fade', 60, 'ease-out'),
+            modals: SolariMotion._c('fade', 100, 'ease-out'),
+            userPopout: SolariMotion._c('fade', 90, 'ease-out'),
+            emojiPicker: SolariMotion._c('fade', 90, 'ease-out'),
+            autoComplete: SolariMotion._c('fade', 60, 'ease-out'),
+            imageViewer: SolariMotion._c('fade', 100, 'ease-out'),
+            callOverlay: SolariMotion._c('fade', 80, 'ease-out'),
+            messages: SolariMotion._c('fade', 80, 'ease-out'),
+            reactions: SolariMotion._c('fade', 80, 'ease-out'),
+            uploadPreview: SolariMotion._c('fade', 80, 'ease-out'),
+            memberList: SolariMotion._c('fade', 80, 'ease-out'),
+            voiceIndicator: SolariMotion._c('fade', 80, 'ease-out'),
+            dmList: SolariMotion._c('fade', 80, 'ease-out'),
+            serverFolders: SolariMotion._c('fade', 80, 'ease-out'),
+            threadPanel: SolariMotion._c('fade', 80, 'ease-out'),
+            searchResults: SolariMotion._c('fade', 80, 'ease-out'),
+            inbox: SolariMotion._c('fade', 90, 'ease-out'),
+            appDirectory: SolariMotion._c('fade', 80, 'ease-out'),
         },
 
         // ── Cinematic — slow wipe reveals, film-like transitions ──
         cinematic: {
-            channelSwitch:  SolariMotion._c('wipe-right',  480, 'smooth'),
-            serverSwitch:   SolariMotion._c('wipe-up',     440, 'smooth'),
-            settings:       SolariMotion._c('wipe-right',  380, 'smooth'),
-            contextMenu:    SolariMotion._c('wipe-up',     260, 'smooth'),
-            tooltips:       SolariMotion._c('fade',         160, 'smooth'),
-            modals:         SolariMotion._c('wipe-up',     400, 'smooth'),
-            userPopout:     SolariMotion._c('wipe-right',  320, 'smooth'),
-            emojiPicker:    SolariMotion._c('wipe-up',     300, 'smooth'),
-            autoComplete:   SolariMotion._c('wipe-up',     200, 'smooth'),
-            imageViewer:    SolariMotion._c('clip-circle', 500, 'smooth'),
-            callOverlay:    SolariMotion._c('wipe-up',     380, 'smooth'),
-            messages:       SolariMotion._c('wipe-right',  350, 'smooth', true, 60),
-            reactions:      SolariMotion._c('fade',         220, 'smooth', true, 40),
-            uploadPreview:  SolariMotion._c('wipe-up',     340, 'smooth'),
-            memberList:     SolariMotion._c('wipe-right',  380, 'smooth'),
-            voiceIndicator: SolariMotion._c('fade',         200, 'smooth'),
-            dmList:         SolariMotion._c('wipe-right',  320, 'smooth', true, 50),
-            serverFolders:  SolariMotion._c('wipe-up',     300, 'smooth'),
-            threadPanel:    SolariMotion._c('wipe-right',  360, 'smooth'),
-            searchResults:  SolariMotion._c('wipe-up',     280, 'smooth', true, 55),
-            inbox:          SolariMotion._c('wipe-right',  360, 'smooth'),
-            appDirectory:   SolariMotion._c('clip-circle', 400, 'smooth'),
+            channelSwitch: SolariMotion._c('wipe-right', 480, 'smooth'),
+            serverSwitch: SolariMotion._c('wipe-up', 440, 'smooth'),
+            settings: SolariMotion._c('wipe-right', 380, 'smooth'),
+            contextMenu: SolariMotion._c('wipe-up', 260, 'smooth'),
+            tooltips: SolariMotion._c('fade', 160, 'smooth'),
+            modals: SolariMotion._c('wipe-up', 400, 'smooth'),
+            userPopout: SolariMotion._c('wipe-right', 320, 'smooth'),
+            emojiPicker: SolariMotion._c('wipe-up', 300, 'smooth'),
+            autoComplete: SolariMotion._c('wipe-up', 200, 'smooth'),
+            imageViewer: SolariMotion._c('clip-circle', 500, 'smooth'),
+            callOverlay: SolariMotion._c('wipe-up', 380, 'smooth'),
+            messages: SolariMotion._c('wipe-right', 350, 'smooth', true, 60),
+            reactions: SolariMotion._c('fade', 220, 'smooth', true, 40),
+            uploadPreview: SolariMotion._c('wipe-up', 340, 'smooth'),
+            memberList: SolariMotion._c('wipe-right', 380, 'smooth'),
+            voiceIndicator: SolariMotion._c('fade', 200, 'smooth'),
+            dmList: SolariMotion._c('wipe-right', 320, 'smooth', true, 50),
+            serverFolders: SolariMotion._c('wipe-up', 300, 'smooth'),
+            threadPanel: SolariMotion._c('wipe-right', 360, 'smooth'),
+            searchResults: SolariMotion._c('wipe-up', 280, 'smooth', true, 55),
+            inbox: SolariMotion._c('wipe-right', 360, 'smooth'),
+            appDirectory: SolariMotion._c('clip-circle', 400, 'smooth'),
         },
 
         // ── Jelly — exaggerated elastic wobble, playful and fun ──
         jelly: {
-            channelSwitch:  SolariMotion._c('elastic',     500, 'elastic'),
-            serverSwitch:   SolariMotion._c('zoom-bounce', 480, 'elastic'),
-            settings:       SolariMotion._c('elastic',     420, 'elastic'),
-            contextMenu:    SolariMotion._c('pop',         340, 'elastic'),
-            tooltips:       SolariMotion._c('pop',         260, 'elastic'),
-            modals:         SolariMotion._c('elastic',     540, 'elastic'),
-            userPopout:     SolariMotion._c('elastic',     460, 'elastic'),
-            emojiPicker:    SolariMotion._c('pop',         400, 'elastic'),
-            autoComplete:   SolariMotion._c('pop',         300, 'elastic'),
-            imageViewer:    SolariMotion._c('zoom-bounce', 540, 'elastic'),
-            callOverlay:    SolariMotion._c('elastic',     440, 'elastic'),
-            messages:       SolariMotion._c('pop',         380, 'elastic', true, 70),
-            reactions:      SolariMotion._c('elastic',     420, 'elastic', true, 80),
-            uploadPreview:  SolariMotion._c('pop',         380, 'elastic'),
-            memberList:     SolariMotion._c('elastic',     440, 'elastic', true, 45),
-            voiceIndicator: SolariMotion._c('pop',         300, 'elastic'),
-            dmList:         SolariMotion._c('pop',         380, 'elastic', true, 55),
-            serverFolders:  SolariMotion._c('elastic',     400, 'elastic'),
-            threadPanel:    SolariMotion._c('elastic',     420, 'elastic'),
-            searchResults:  SolariMotion._c('pop',         340, 'elastic', true, 60),
-            inbox:          SolariMotion._c('elastic',     460, 'elastic'),
-            appDirectory:   SolariMotion._c('zoom-bounce', 440, 'elastic'),
+            channelSwitch: SolariMotion._c('elastic', 500, 'elastic'),
+            serverSwitch: SolariMotion._c('zoom-bounce', 480, 'elastic'),
+            settings: SolariMotion._c('elastic', 420, 'elastic'),
+            contextMenu: SolariMotion._c('pop', 340, 'elastic'),
+            tooltips: SolariMotion._c('pop', 260, 'elastic'),
+            modals: SolariMotion._c('elastic', 540, 'elastic'),
+            userPopout: SolariMotion._c('elastic', 460, 'elastic'),
+            emojiPicker: SolariMotion._c('pop', 400, 'elastic'),
+            autoComplete: SolariMotion._c('pop', 300, 'elastic'),
+            imageViewer: SolariMotion._c('zoom-bounce', 540, 'elastic'),
+            callOverlay: SolariMotion._c('elastic', 440, 'elastic'),
+            messages: SolariMotion._c('pop', 380, 'elastic', true, 70),
+            reactions: SolariMotion._c('elastic', 420, 'elastic', true, 80),
+            uploadPreview: SolariMotion._c('pop', 380, 'elastic'),
+            memberList: SolariMotion._c('elastic', 440, 'elastic', true, 45),
+            voiceIndicator: SolariMotion._c('pop', 300, 'elastic'),
+            dmList: SolariMotion._c('pop', 380, 'elastic', true, 55),
+            serverFolders: SolariMotion._c('elastic', 400, 'elastic'),
+            threadPanel: SolariMotion._c('elastic', 420, 'elastic'),
+            searchResults: SolariMotion._c('pop', 340, 'elastic', true, 60),
+            inbox: SolariMotion._c('elastic', 460, 'elastic'),
+            appDirectory: SolariMotion._c('zoom-bounce', 440, 'elastic'),
         },
 
         // ── Gravity — elements fall/drop into place, weighted feel ──
         gravity: {
-            channelSwitch:  SolariMotion._c('gravity',    320, 'ease-in-out'),
-            serverSwitch:   SolariMotion._c('gravity',    300, 'ease-in-out'),
-            settings:       SolariMotion._c('gravity',    260, 'ease-in-out'),
-            contextMenu:    SolariMotion._c('gravity',    200, 'ease-in-out'),
-            tooltips:       SolariMotion._c('gravity',    160, 'ease-in-out'),
-            modals:         SolariMotion._c('gravity',    340, 'ease-in-out'),
-            userPopout:     SolariMotion._c('gravity',    280, 'ease-in-out'),
-            emojiPicker:    SolariMotion._c('gravity',    260, 'ease-in-out'),
-            autoComplete:   SolariMotion._c('gravity',    180, 'ease-in-out'),
-            imageViewer:    SolariMotion._c('gravity',    360, 'ease-in-out'),
-            callOverlay:    SolariMotion._c('gravity',    280, 'ease-in-out'),
-            messages:       SolariMotion._c('gravity',    260, 'ease-in-out', true, 45),
-            reactions:      SolariMotion._c('pop',        240, 'ease-in-out', true, 35),
-            uploadPreview:  SolariMotion._c('gravity',    260, 'ease-in-out'),
-            memberList:     SolariMotion._c('gravity',    280, 'ease-in-out', true, 30),
-            voiceIndicator: SolariMotion._c('gravity',    200, 'ease-in-out'),
-            dmList:         SolariMotion._c('gravity',    240, 'ease-in-out', true, 25),
-            serverFolders:  SolariMotion._c('gravity',    240, 'ease-in-out'),
-            threadPanel:    SolariMotion._c('gravity',    260, 'ease-in-out'),
-            searchResults:  SolariMotion._c('gravity',    220, 'ease-in-out', true, 30),
-            inbox:          SolariMotion._c('gravity',    280, 'ease-in-out'),
-            appDirectory:   SolariMotion._c('gravity',    260, 'ease-in-out'),
+            channelSwitch: SolariMotion._c('gravity', 320, 'ease-in-out'),
+            serverSwitch: SolariMotion._c('gravity', 300, 'ease-in-out'),
+            settings: SolariMotion._c('gravity', 260, 'ease-in-out'),
+            contextMenu: SolariMotion._c('gravity', 200, 'ease-in-out'),
+            tooltips: SolariMotion._c('gravity', 160, 'ease-in-out'),
+            modals: SolariMotion._c('gravity', 340, 'ease-in-out'),
+            userPopout: SolariMotion._c('gravity', 280, 'ease-in-out'),
+            emojiPicker: SolariMotion._c('gravity', 260, 'ease-in-out'),
+            autoComplete: SolariMotion._c('gravity', 180, 'ease-in-out'),
+            imageViewer: SolariMotion._c('gravity', 360, 'ease-in-out'),
+            callOverlay: SolariMotion._c('gravity', 280, 'ease-in-out'),
+            messages: SolariMotion._c('gravity', 260, 'ease-in-out', true, 45),
+            reactions: SolariMotion._c('pop', 240, 'ease-in-out', true, 35),
+            uploadPreview: SolariMotion._c('gravity', 260, 'ease-in-out'),
+            memberList: SolariMotion._c('gravity', 280, 'ease-in-out', true, 30),
+            voiceIndicator: SolariMotion._c('gravity', 200, 'ease-in-out'),
+            dmList: SolariMotion._c('gravity', 240, 'ease-in-out', true, 25),
+            serverFolders: SolariMotion._c('gravity', 240, 'ease-in-out'),
+            threadPanel: SolariMotion._c('gravity', 260, 'ease-in-out'),
+            searchResults: SolariMotion._c('gravity', 220, 'ease-in-out', true, 30),
+            inbox: SolariMotion._c('gravity', 280, 'ease-in-out'),
+            appDirectory: SolariMotion._c('gravity', 260, 'ease-in-out'),
         },
 
         // ── Glass — morph + blur, sophisticated and soft ──
         glass: {
-            channelSwitch:  SolariMotion._c('morph',     340, 'smooth'),
-            serverSwitch:   SolariMotion._c('morph',     320, 'smooth'),
-            settings:       SolariMotion._c('blur-in',   280, 'smooth'),
-            contextMenu:    SolariMotion._c('morph',     220, 'smooth'),
-            tooltips:       SolariMotion._c('blur-in',   160, 'smooth'),
-            modals:         SolariMotion._c('morph',     360, 'smooth'),
-            userPopout:     SolariMotion._c('morph',     300, 'smooth'),
-            emojiPicker:    SolariMotion._c('blur-in',   280, 'smooth'),
-            autoComplete:   SolariMotion._c('blur-in',   180, 'smooth'),
-            imageViewer:    SolariMotion._c('morph',     400, 'smooth'),
-            callOverlay:    SolariMotion._c('blur-in',   280, 'smooth'),
-            messages:       SolariMotion._c('morph',     280, 'smooth', true, 40),
-            reactions:      SolariMotion._c('blur-in',   220, 'smooth', true, 30),
-            uploadPreview:  SolariMotion._c('morph',     280, 'smooth'),
-            memberList:     SolariMotion._c('blur-in',   300, 'smooth', true, 25),
-            voiceIndicator: SolariMotion._c('blur-in',   200, 'smooth'),
-            dmList:         SolariMotion._c('morph',     260, 'smooth', true, 30),
-            serverFolders:  SolariMotion._c('morph',     280, 'smooth'),
-            threadPanel:    SolariMotion._c('blur-in',   280, 'smooth'),
-            searchResults:  SolariMotion._c('morph',     240, 'smooth', true, 35),
-            inbox:          SolariMotion._c('morph',     300, 'smooth'),
-            appDirectory:   SolariMotion._c('morph',     280, 'smooth'),
+            channelSwitch: SolariMotion._c('morph', 340, 'smooth'),
+            serverSwitch: SolariMotion._c('morph', 320, 'smooth'),
+            settings: SolariMotion._c('blur-in', 280, 'smooth'),
+            contextMenu: SolariMotion._c('morph', 220, 'smooth'),
+            tooltips: SolariMotion._c('blur-in', 160, 'smooth'),
+            modals: SolariMotion._c('morph', 360, 'smooth'),
+            userPopout: SolariMotion._c('morph', 300, 'smooth'),
+            emojiPicker: SolariMotion._c('blur-in', 280, 'smooth'),
+            autoComplete: SolariMotion._c('blur-in', 180, 'smooth'),
+            imageViewer: SolariMotion._c('morph', 400, 'smooth'),
+            callOverlay: SolariMotion._c('blur-in', 280, 'smooth'),
+            messages: SolariMotion._c('morph', 280, 'smooth', true, 40),
+            reactions: SolariMotion._c('blur-in', 220, 'smooth', true, 30),
+            uploadPreview: SolariMotion._c('morph', 280, 'smooth'),
+            memberList: SolariMotion._c('blur-in', 300, 'smooth', true, 25),
+            voiceIndicator: SolariMotion._c('blur-in', 200, 'smooth'),
+            dmList: SolariMotion._c('morph', 260, 'smooth', true, 30),
+            serverFolders: SolariMotion._c('morph', 280, 'smooth'),
+            threadPanel: SolariMotion._c('blur-in', 280, 'smooth'),
+            searchResults: SolariMotion._c('morph', 240, 'smooth', true, 35),
+            inbox: SolariMotion._c('morph', 300, 'smooth'),
+            appDirectory: SolariMotion._c('morph', 280, 'smooth'),
         },
 
         // ── Retro — flip and rotate, vintage computer UI vibe ──
         retro: {
-            channelSwitch:  SolariMotion._c('flip-x',    300, 'snappy'),
-            serverSwitch:   SolariMotion._c('flip-y',    280, 'snappy'),
-            settings:       SolariMotion._c('rotate-in', 260, 'snappy'),
-            contextMenu:    SolariMotion._c('flip-x',    200, 'snappy'),
-            tooltips:       SolariMotion._c('rotate-in', 150, 'snappy'),
-            modals:         SolariMotion._c('flip-y',    320, 'snappy'),
-            userPopout:     SolariMotion._c('flip-x',    260, 'snappy'),
-            emojiPicker:    SolariMotion._c('rotate-in', 240, 'snappy'),
-            autoComplete:   SolariMotion._c('flip-y',    180, 'snappy'),
-            imageViewer:    SolariMotion._c('flip-x',    340, 'snappy'),
-            callOverlay:    SolariMotion._c('rotate-in', 260, 'snappy'),
-            messages:       SolariMotion._c('slide-up',  220, 'snappy', true, 30),
-            reactions:      SolariMotion._c('rotate-in', 200, 'snappy', true, 25),
-            uploadPreview:  SolariMotion._c('flip-y',    260, 'snappy'),
-            memberList:     SolariMotion._c('slide-right',240, 'snappy', true, 20),
+            channelSwitch: SolariMotion._c('flip-x', 300, 'snappy'),
+            serverSwitch: SolariMotion._c('flip-y', 280, 'snappy'),
+            settings: SolariMotion._c('rotate-in', 260, 'snappy'),
+            contextMenu: SolariMotion._c('flip-x', 200, 'snappy'),
+            tooltips: SolariMotion._c('rotate-in', 150, 'snappy'),
+            modals: SolariMotion._c('flip-y', 320, 'snappy'),
+            userPopout: SolariMotion._c('flip-x', 260, 'snappy'),
+            emojiPicker: SolariMotion._c('rotate-in', 240, 'snappy'),
+            autoComplete: SolariMotion._c('flip-y', 180, 'snappy'),
+            imageViewer: SolariMotion._c('flip-x', 340, 'snappy'),
+            callOverlay: SolariMotion._c('rotate-in', 260, 'snappy'),
+            messages: SolariMotion._c('slide-up', 220, 'snappy', true, 30),
+            reactions: SolariMotion._c('rotate-in', 200, 'snappy', true, 25),
+            uploadPreview: SolariMotion._c('flip-y', 260, 'snappy'),
+            memberList: SolariMotion._c('slide-right', 240, 'snappy', true, 20),
             voiceIndicator: SolariMotion._c('rotate-in', 180, 'snappy'),
-            dmList:         SolariMotion._c('slide-right',200, 'snappy', true, 20),
-            serverFolders:  SolariMotion._c('flip-y',    240, 'snappy'),
-            threadPanel:    SolariMotion._c('flip-x',    260, 'snappy'),
-            searchResults:  SolariMotion._c('slide-up',  200, 'snappy', true, 20),
-            inbox:          SolariMotion._c('rotate-in', 260, 'snappy'),
-            appDirectory:   SolariMotion._c('flip-y',    260, 'snappy'),
+            dmList: SolariMotion._c('slide-right', 200, 'snappy', true, 20),
+            serverFolders: SolariMotion._c('flip-y', 240, 'snappy'),
+            threadPanel: SolariMotion._c('flip-x', 260, 'snappy'),
+            searchResults: SolariMotion._c('slide-up', 200, 'snappy', true, 20),
+            inbox: SolariMotion._c('rotate-in', 260, 'snappy'),
+            appDirectory: SolariMotion._c('flip-y', 260, 'snappy'),
         },
 
         // ── Zen — ultra-slow floats, meditative and breathable ──
         zen: {
-            channelSwitch:  SolariMotion._c('float',     600, 'smooth'),
-            serverSwitch:   SolariMotion._c('float',     560, 'smooth'),
-            settings:       SolariMotion._c('float',     480, 'smooth'),
-            contextMenu:    SolariMotion._c('float',     360, 'smooth'),
-            tooltips:       SolariMotion._c('fade',       280, 'smooth'),
-            modals:         SolariMotion._c('float',     640, 'smooth'),
-            userPopout:     SolariMotion._c('float',     520, 'smooth'),
-            emojiPicker:    SolariMotion._c('float',     480, 'smooth'),
-            autoComplete:   SolariMotion._c('float',     320, 'smooth'),
-            imageViewer:    SolariMotion._c('float',     680, 'smooth'),
-            callOverlay:    SolariMotion._c('float',     540, 'smooth'),
-            messages:       SolariMotion._c('float',     480, 'smooth', true, 80),
-            reactions:      SolariMotion._c('float',     420, 'smooth', true, 70),
-            uploadPreview:  SolariMotion._c('float',     480, 'smooth'),
-            memberList:     SolariMotion._c('float',     520, 'smooth', true, 60),
-            voiceIndicator: SolariMotion._c('fade',       360, 'smooth'),
-            dmList:         SolariMotion._c('float',     480, 'smooth', true, 70),
-            serverFolders:  SolariMotion._c('float',     500, 'smooth'),
-            threadPanel:    SolariMotion._c('float',     520, 'smooth'),
-            searchResults:  SolariMotion._c('float',     440, 'smooth', true, 75),
-            inbox:          SolariMotion._c('float',     540, 'smooth'),
-            appDirectory:   SolariMotion._c('float',     520, 'smooth'),
+            channelSwitch: SolariMotion._c('float', 600, 'smooth'),
+            serverSwitch: SolariMotion._c('float', 560, 'smooth'),
+            settings: SolariMotion._c('float', 480, 'smooth'),
+            contextMenu: SolariMotion._c('float', 360, 'smooth'),
+            tooltips: SolariMotion._c('fade', 280, 'smooth'),
+            modals: SolariMotion._c('float', 640, 'smooth'),
+            userPopout: SolariMotion._c('float', 520, 'smooth'),
+            emojiPicker: SolariMotion._c('float', 480, 'smooth'),
+            autoComplete: SolariMotion._c('float', 320, 'smooth'),
+            imageViewer: SolariMotion._c('float', 680, 'smooth'),
+            callOverlay: SolariMotion._c('float', 540, 'smooth'),
+            messages: SolariMotion._c('float', 480, 'smooth', true, 80),
+            reactions: SolariMotion._c('float', 420, 'smooth', true, 70),
+            uploadPreview: SolariMotion._c('float', 480, 'smooth'),
+            memberList: SolariMotion._c('float', 520, 'smooth', true, 60),
+            voiceIndicator: SolariMotion._c('fade', 360, 'smooth'),
+            dmList: SolariMotion._c('float', 480, 'smooth', true, 70),
+            serverFolders: SolariMotion._c('float', 500, 'smooth'),
+            threadPanel: SolariMotion._c('float', 520, 'smooth'),
+            searchResults: SolariMotion._c('float', 440, 'smooth', true, 75),
+            inbox: SolariMotion._c('float', 540, 'smooth'),
+            appDirectory: SolariMotion._c('float', 520, 'smooth'),
         },
 
         // ── Sharp — instant crisp slides, zero wobble, no nonsense ──
         sharp: {
-            channelSwitch:  SolariMotion._c('slide-up',    90, 'snappy'),
-            serverSwitch:   SolariMotion._c('slide-right', 80, 'snappy'),
-            settings:       SolariMotion._c('slide-up',    70, 'snappy'),
-            contextMenu:    SolariMotion._c('scale',        70, 'snappy'),
-            tooltips:       SolariMotion._c('scale',        50, 'snappy'),
-            modals:         SolariMotion._c('slide-up',    100, 'snappy'),
-            userPopout:     SolariMotion._c('scale',        80, 'snappy'),
-            emojiPicker:    SolariMotion._c('slide-up',    80, 'snappy'),
-            autoComplete:   SolariMotion._c('slide-up',    60, 'snappy'),
-            imageViewer:    SolariMotion._c('scale',       110, 'snappy'),
-            callOverlay:    SolariMotion._c('slide-up',    80, 'snappy'),
-            messages:       SolariMotion._c('slide-up',    70, 'snappy'),
-            reactions:      SolariMotion._c('scale',        70, 'snappy'),
-            uploadPreview:  SolariMotion._c('slide-up',    70, 'snappy'),
-            memberList:     SolariMotion._c('slide-right',  80, 'snappy'),
-            voiceIndicator: SolariMotion._c('scale',        60, 'snappy'),
-            dmList:         SolariMotion._c('slide-right',  70, 'snappy'),
-            serverFolders:  SolariMotion._c('scale',        80, 'snappy'),
-            threadPanel:    SolariMotion._c('slide-left',   80, 'snappy'),
-            searchResults:  SolariMotion._c('slide-up',    70, 'snappy'),
-            inbox:          SolariMotion._c('slide-up',    80, 'snappy'),
-            appDirectory:   SolariMotion._c('scale',        80, 'snappy'),
+            channelSwitch: SolariMotion._c('slide-up', 90, 'snappy'),
+            serverSwitch: SolariMotion._c('slide-right', 80, 'snappy'),
+            settings: SolariMotion._c('slide-up', 70, 'snappy'),
+            contextMenu: SolariMotion._c('scale', 70, 'snappy'),
+            tooltips: SolariMotion._c('scale', 50, 'snappy'),
+            modals: SolariMotion._c('slide-up', 100, 'snappy'),
+            userPopout: SolariMotion._c('scale', 80, 'snappy'),
+            emojiPicker: SolariMotion._c('slide-up', 80, 'snappy'),
+            autoComplete: SolariMotion._c('slide-up', 60, 'snappy'),
+            imageViewer: SolariMotion._c('scale', 110, 'snappy'),
+            callOverlay: SolariMotion._c('slide-up', 80, 'snappy'),
+            messages: SolariMotion._c('slide-up', 70, 'snappy'),
+            reactions: SolariMotion._c('scale', 70, 'snappy'),
+            uploadPreview: SolariMotion._c('slide-up', 70, 'snappy'),
+            memberList: SolariMotion._c('slide-right', 80, 'snappy'),
+            voiceIndicator: SolariMotion._c('scale', 60, 'snappy'),
+            dmList: SolariMotion._c('slide-right', 70, 'snappy'),
+            serverFolders: SolariMotion._c('scale', 80, 'snappy'),
+            threadPanel: SolariMotion._c('slide-left', 80, 'snappy'),
+            searchResults: SolariMotion._c('slide-up', 70, 'snappy'),
+            inbox: SolariMotion._c('slide-up', 80, 'snappy'),
+            appDirectory: SolariMotion._c('scale', 80, 'snappy'),
         },
 
         // ── Cascade — stagger-heavy, everything enters in sequence ──
         cascade: {
-            channelSwitch:  SolariMotion._c('glide',       280, 'smooth', true, 50),
-            serverSwitch:   SolariMotion._c('glide',       260, 'smooth', true, 45),
-            settings:       SolariMotion._c('glide',       220, 'smooth', true, 40),
-            contextMenu:    SolariMotion._c('glide',       180, 'smooth', true, 30),
-            tooltips:       SolariMotion._c('fade',         140, 'smooth'),
-            modals:         SolariMotion._c('spring',      300, 'smooth', true, 55),
-            userPopout:     SolariMotion._c('glide',       240, 'smooth', true, 40),
-            emojiPicker:    SolariMotion._c('glide',       220, 'smooth', true, 35),
-            autoComplete:   SolariMotion._c('glide',       160, 'smooth', true, 25),
-            imageViewer:    SolariMotion._c('spring',      300, 'smooth'),
-            callOverlay:    SolariMotion._c('glide',       240, 'smooth', true, 40),
-            messages:       SolariMotion._c('glide',       240, 'smooth', true, 55),
-            reactions:      SolariMotion._c('spring',      280, 'bounce', true, 65),
-            uploadPreview:  SolariMotion._c('glide',       220, 'smooth'),
-            memberList:     SolariMotion._c('glide',       260, 'smooth', true, 40),
-            voiceIndicator: SolariMotion._c('glide',       180, 'smooth', true, 30),
-            dmList:         SolariMotion._c('glide',       240, 'smooth', true, 45),
-            serverFolders:  SolariMotion._c('spring',      260, 'bounce', true, 35),
-            threadPanel:    SolariMotion._c('glide',       240, 'smooth', true, 40),
-            searchResults:  SolariMotion._c('glide',       200, 'smooth', true, 50),
-            inbox:          SolariMotion._c('spring',      260, 'smooth', true, 45),
-            appDirectory:   SolariMotion._c('glide',       240, 'smooth'),
+            channelSwitch: SolariMotion._c('glide', 280, 'smooth', true, 50),
+            serverSwitch: SolariMotion._c('glide', 260, 'smooth', true, 45),
+            settings: SolariMotion._c('glide', 220, 'smooth', true, 40),
+            contextMenu: SolariMotion._c('glide', 180, 'smooth', true, 30),
+            tooltips: SolariMotion._c('fade', 140, 'smooth'),
+            modals: SolariMotion._c('spring', 300, 'smooth', true, 55),
+            userPopout: SolariMotion._c('glide', 240, 'smooth', true, 40),
+            emojiPicker: SolariMotion._c('glide', 220, 'smooth', true, 35),
+            autoComplete: SolariMotion._c('glide', 160, 'smooth', true, 25),
+            imageViewer: SolariMotion._c('spring', 300, 'smooth'),
+            callOverlay: SolariMotion._c('glide', 240, 'smooth', true, 40),
+            messages: SolariMotion._c('glide', 240, 'smooth', true, 55),
+            reactions: SolariMotion._c('spring', 280, 'bounce', true, 65),
+            uploadPreview: SolariMotion._c('glide', 220, 'smooth'),
+            memberList: SolariMotion._c('glide', 260, 'smooth', true, 40),
+            voiceIndicator: SolariMotion._c('glide', 180, 'smooth', true, 30),
+            dmList: SolariMotion._c('glide', 240, 'smooth', true, 45),
+            serverFolders: SolariMotion._c('spring', 260, 'bounce', true, 35),
+            threadPanel: SolariMotion._c('glide', 240, 'smooth', true, 40),
+            searchResults: SolariMotion._c('glide', 200, 'smooth', true, 50),
+            inbox: SolariMotion._c('spring', 260, 'smooth', true, 45),
+            appDirectory: SolariMotion._c('glide', 240, 'smooth'),
         },
 
         // ── Pendulum — swinging, organic movement ──
         pendulum: {
-            channelSwitch:  SolariMotion._c('pendulum',   600, 'smooth'),
-            serverSwitch:   SolariMotion._c('swing',      520, 'smooth'),
-            settings:       SolariMotion._c('swing',      460, 'smooth'),
-            contextMenu:    SolariMotion._c('pendulum',   360, 'smooth'),
-            tooltips:       SolariMotion._c('swing',      260, 'smooth'),
-            modals:         SolariMotion._c('pendulum',   640, 'smooth'),
-            userPopout:     SolariMotion._c('swing',      500, 'smooth'),
-            emojiPicker:    SolariMotion._c('pendulum',   480, 'smooth'),
-            autoComplete:   SolariMotion._c('swing',      300, 'smooth'),
-            imageViewer:    SolariMotion._c('swing',      560, 'smooth'),
-            callOverlay:    SolariMotion._c('pendulum',   500, 'smooth'),
-            messages:       SolariMotion._c('glide',      220, 'smooth', true, 40),
-            reactions:      SolariMotion._c('bounce',     280, 'bounce', true, 50),
-            uploadPreview:  SolariMotion._c('swing',      420, 'smooth'),
-            memberList:     SolariMotion._c('glide',      240, 'smooth', true, 25),
-            voiceIndicator: SolariMotion._c('pendulum',   400, 'smooth'),
-            dmList:         SolariMotion._c('swing',      360, 'smooth', true, 30),
-            serverFolders:  SolariMotion._c('pendulum',   440, 'smooth'),
-            threadPanel:    SolariMotion._c('swing',      460, 'smooth'),
-            searchResults:  SolariMotion._c('glide',      200, 'smooth', true, 30),
-            inbox:          SolariMotion._c('pendulum',   500, 'smooth'),
-            appDirectory:   SolariMotion._c('swing',      460, 'smooth'),
+            channelSwitch: SolariMotion._c('pendulum', 600, 'smooth'),
+            serverSwitch: SolariMotion._c('swing', 520, 'smooth'),
+            settings: SolariMotion._c('swing', 460, 'smooth'),
+            contextMenu: SolariMotion._c('pendulum', 360, 'smooth'),
+            tooltips: SolariMotion._c('swing', 260, 'smooth'),
+            modals: SolariMotion._c('pendulum', 640, 'smooth'),
+            userPopout: SolariMotion._c('swing', 500, 'smooth'),
+            emojiPicker: SolariMotion._c('pendulum', 480, 'smooth'),
+            autoComplete: SolariMotion._c('swing', 300, 'smooth'),
+            imageViewer: SolariMotion._c('swing', 560, 'smooth'),
+            callOverlay: SolariMotion._c('pendulum', 500, 'smooth'),
+            messages: SolariMotion._c('glide', 220, 'smooth', true, 40),
+            reactions: SolariMotion._c('bounce', 280, 'bounce', true, 50),
+            uploadPreview: SolariMotion._c('swing', 420, 'smooth'),
+            memberList: SolariMotion._c('glide', 240, 'smooth', true, 25),
+            voiceIndicator: SolariMotion._c('pendulum', 400, 'smooth'),
+            dmList: SolariMotion._c('swing', 360, 'smooth', true, 30),
+            serverFolders: SolariMotion._c('pendulum', 440, 'smooth'),
+            threadPanel: SolariMotion._c('swing', 460, 'smooth'),
+            searchResults: SolariMotion._c('glide', 200, 'smooth', true, 30),
+            inbox: SolariMotion._c('pendulum', 500, 'smooth'),
+            appDirectory: SolariMotion._c('swing', 460, 'smooth'),
         },
     };
 
@@ -810,26 +810,26 @@ module.exports = class SolariMotion {
     // ═══════════════════════════════════════════════════════════════════════
 
     constructor(meta) {
-        this.meta           = meta;
-        this._rootObs       = null;
-        this._staggerMap    = new Map();
-        this._fps           = 60;
-        this._fpsRAF        = null;
-        this._stats         = { totalAnimated: 0 };
-        this._statsEl       = null;
-        this.staticStyleId  = `${SolariMotion.ID}-S`;
+        this.meta = meta;
+        this._rootObs = null;
+        this._staggerMap = new Map();
+        this._fps = 60;
+        this._fpsRAF = null;
+        this._stats = { totalAnimated: 0 };
+        this._statsEl = null;
+        this.staticStyleId = `${SolariMotion.ID}-S`;
         this.dynamicStyleId = `${SolariMotion.ID}-D`;
-        this._debouncedCSS  = this._debounce(() => this._injectDynamicCSS(), 60);
+        this._debouncedCSS = this._debounce(() => this._injectDynamicCSS(), 60);
 
         this.config = {
-            configVersion:        SolariMotion.CONFIG_VERSION,
-            globalPreset:         'fluid',
-            intensity:            100,
-            performanceMode:      false,
-            fpsProtection:        true,
+            configVersion: SolariMotion.CONFIG_VERSION,
+            globalPreset: 'fluid',
+            intensity: 100,
+            performanceMode: false,
+            fpsProtection: true,
             respectReducedMotion: true,
-            language:             'en',
-            categories:           JSON.parse(JSON.stringify(SolariMotion.PRESETS.fluid)),
+            language: 'en',
+            categories: JSON.parse(JSON.stringify(SolariMotion.PRESETS.fluid)),
         };
     }
 
@@ -853,18 +853,156 @@ module.exports = class SolariMotion {
     }
 
     saveConfig() {
-        try { BdApi.Data.save(SolariMotion.ID, 'config', this.config); }
+        try {
+            BdApi.Data.save(SolariMotion.ID, 'config', this.config);
+
+            // Save configuration file for Solari App (schema + settings)
+            const fs = require('fs');
+            const path = require('path');
+            const appData = process.env.APPDATA || (process.platform === 'darwin' ? process.env.HOME + '/Library/Application Support' : process.env.HOME + '/.config');
+            const cfgPath = path.join(appData, 'BetterDiscord', 'plugins', 'SolariMotion.config.json');
+
+            const payload = {
+                settings: this.config,
+                schema: this.getSettingsSchema()
+            };
+            fs.writeFileSync(cfgPath, JSON.stringify(payload, null, 4), 'utf8');
+        }
         catch (e) { console.error('[SolariMotion] Save error:', e); }
+    }
+
+    getSettingsSchema() {
+        return [
+            { type: 'custom_header', title: 'Solari Motion', icon: '✨', version: 'v1.0.2' },
+            {
+                type: 'select',
+                key: 'globalPreset',
+                label: 'Preset Global',
+                options: [
+                    { value: 'fluid', label: 'Fluid', hint: 'Transições suaves baseadas em curvas cubic-bezier' },
+                    { value: 'snappy', label: 'Snappy', hint: 'Transições rápidas e responsivas' },
+                    { value: 'bounce', label: 'Bouncy', hint: 'Animações divertidas com efeito elástico/bounce' },
+                    { value: 'minimal', label: 'Minimal', hint: 'Transições simples de fade (baixo consumo de hardware)' },
+                    { value: 'off', label: 'Desativado', hint: 'Desativa completamente todas as animações' }
+                ]
+            },
+            {
+                type: 'slider',
+                key: 'intensity',
+                label: 'Intensidade Global das Animações (%)',
+                min: 0,
+                max: 200,
+                step: 10,
+                suffix: '%',
+                defaultValue: 100
+            },
+            {
+                type: 'toggle',
+                key: 'performanceMode',
+                label: 'Modo de Performance',
+                description: 'Aplica otimizações agressivas e simplifica a renderização para computadores mais lentos.'
+            },
+            {
+                type: 'toggle',
+                key: 'fpsProtection',
+                label: 'Proteção de FPS',
+                description: 'Pausa as animações se a taxa de quadros (FPS) do Discord cair abaixo de 30 FPS.'
+            },
+            {
+                type: 'toggle',
+                key: 'respectReducedMotion',
+                label: 'Respeitar Reduced Motion',
+                description: 'Desativa as animações se a configuração do sistema operacional solicitar redução de movimento.'
+            }
+        ];
+    }
+
+    _setupFileWatcher() {
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const appData = process.env.APPDATA || (process.platform === 'darwin' ? process.env.HOME + '/Library/Application Support' : process.env.HOME + '/.config');
+            const cfgPath = path.join(appData, 'BetterDiscord', 'plugins', 'SolariMotion.config.json');
+
+            this._stopFileWatcher();
+
+            if (fs.existsSync(cfgPath)) {
+                this._fileWatcher = fs.watch(cfgPath, (eventType) => {
+                    if (eventType === 'change') {
+                        if (this._isWritingConfig) return;
+                        setTimeout(() => {
+                            try {
+                                if (this._isWritingConfig) return;
+                                if (!fs.existsSync(cfgPath)) return;
+                                const raw = fs.readFileSync(cfgPath, 'utf8');
+                                if (!raw) return;
+                                const data = JSON.parse(raw);
+                                if (data && data.settings) {
+                                    const oldPreset = this.config.globalPreset;
+                                    const presetChanged = data.settings.globalPreset && data.settings.globalPreset !== oldPreset;
+
+                                    // Merge settings and apply
+                                    this.config = { ...this.config, ...data.settings };
+
+                                    if (presetChanged) {
+                                        this.config.categories = this._clonePreset(data.settings.globalPreset);
+                                    }
+
+                                    document.documentElement.style.setProperty('--sm-int', this.config.intensity / 100);
+                                    this._debouncedCSS(); // Re-inject dynamic CSS
+                                    if (this.config.fpsProtection) {
+                                        this._startFPSMonitor();
+                                    } else {
+                                        this._stopFPSMonitor();
+                                    }
+
+                                    // Persist changes to BetterDiscord internal storage
+                                    BdApi.Data.save(SolariMotion.ID, 'config', this.config);
+
+                                    // Update the configuration file with the full settings & schema
+                                    this._isWritingConfig = true;
+                                    try {
+                                        const payload = {
+                                            settings: this.config,
+                                            schema: this.getSettingsSchema()
+                                        };
+                                        fs.writeFileSync(cfgPath, JSON.stringify(payload, null, 4), 'utf8');
+                                    } catch (e) {
+                                        console.error('[SolariMotion] Error saving config from watcher:', e);
+                                    }
+                                    setTimeout(() => {
+                                        this._isWritingConfig = false;
+                                    }, 100);
+                                }
+                            } catch (err) {
+                                // Ignore transient read errors during write lock
+                            }
+                        }, 50);
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('[SolariMotion] Failed to setup config file watcher:', e);
+        }
+    }
+
+    _stopFileWatcher() {
+        if (this._fileWatcher) {
+            try {
+                this._fileWatcher.close();
+            } catch (e) { }
+            this._fileWatcher = null;
+        }
     }
 
     _migrateConfig(saved) {
         const v = saved.configVersion ?? 1;
         if (v < 2) {
-            saved.intensity        ??= 100;
-            saved.fpsProtection    ??= true;
-            saved.configVersion      = 2;
+            saved.intensity ??= 100;
+            saved.fpsProtection ??= true;
+            saved.configVersion = 2;
             for (const cat of Object.values(saved.categories ?? {})) {
-                cat.stagger      ??= { enabled: false, delay: 35, maxItems: 8 };
+                cat.stagger ??= { enabled: false, delay: 35, maxItems: 8 };
                 cat.customEasing ??= 'cubic-bezier(0.4, 0, 0.2, 1)';
             }
         }
@@ -1033,6 +1171,9 @@ module.exports = class SolariMotion {
         // Check if we just updated to show the changelog
         this.checkChangelog();
 
+        this.saveConfig(); // Generate/Update config schema file for Solari App
+        this._setupFileWatcher();
+
         // Check for updates with premium confirmation modal
         this.checkForUpdates();
 
@@ -1046,6 +1187,7 @@ module.exports = class SolariMotion {
 
     stop() {
         console.log('[SolariMotion] Stopping...');
+        this._stopFileWatcher();
         this._rootObs?.disconnect();
         this._rootObs = null;
         this._stopFPSMonitor();
@@ -1257,22 +1399,22 @@ module.exports = class SolariMotion {
         BdApi.DOM.removeStyle(this.dynamicStyleId);
         const rules = [];
 
-        rules.push(this._buildRule('channelSwitch',  ['[class*="chatContent_"]', '[class*="chat_"]>[class*="content_"]']));
-        rules.push(this._buildRule('serverSwitch',   ['[class*="sidebar_"]>[class*="listScroller_"]']));
-        rules.push(this._buildRule('settings',       ['[class*="contentRegionScroller_"]', '[class*="standardSidebarView_"] [class*="contentRegion_"]']));
-        rules.push(this._buildRule('contextMenu',    ['[class*="menu_"][class*="styleFlexible_"]', 'nav[class*="menu_"]']));
-        rules.push(this._buildRule('modals',         ['[class*="modal_"] [class*="root_"]', '[class*="layerContainer_"]>[class*="layer_"] [class*="focusLock_"]']));
-        rules.push(this._buildRule('userPopout',     ['[class*="userPopout_"]', '[class*="layer_"] [class*="userCard_"]']));
-        rules.push(this._buildRule('emojiPicker',    ['[class*="emojiPicker_"]', '[class*="expressionPickerSidebar_"]', '[class*="contentWrapper_"][class*="picker_"]']));
-        rules.push(this._buildRule('autoComplete',   ['[class*="autocomplete_"]']));
-        rules.push(this._buildRule('imageViewer',    ['[class*="mediaViewer_"]', '[class*="carouselModal_"]']));
-        rules.push(this._buildRule('callOverlay',    ['[class*="callContainer_"]']));
-        rules.push(this._buildRule('uploadPreview',  ['[class*="uploadModal_"]', '[class*="attachment_"][class*="uploading_"]']));
-        rules.push(this._buildRule('memberList',     ['[class*="members_"]']));
-        rules.push(this._buildRule('serverFolders',  ['[class*="expandedFolderIconWrapper_"]']));
-        rules.push(this._buildRule('threadPanel',    ['[class*="container_"][class*="thread_"]', '[class*="threadSidebar_"]']));
-        rules.push(this._buildRule('inbox',          ['[class*="inboxPanel_"]', '[class*="noticesPopoutWrap_"]']));
-        rules.push(this._buildRule('appDirectory',   ['[class*="applicationDirectory_"]', '[class*="directoryItems_"]']));
+        rules.push(this._buildRule('channelSwitch', ['[class*="chatContent_"]', '[class*="chat_"]>[class*="content_"]']));
+        rules.push(this._buildRule('serverSwitch', ['[class*="sidebar_"]>[class*="listScroller_"]']));
+        rules.push(this._buildRule('settings', ['[class*="contentRegionScroller_"]', '[class*="standardSidebarView_"] [class*="contentRegion_"]']));
+        rules.push(this._buildRule('contextMenu', ['[class*="menu_"][class*="styleFlexible_"]', 'nav[class*="menu_"]']));
+        rules.push(this._buildRule('modals', ['[class*="modal_"] [class*="root_"]', '[class*="layerContainer_"]>[class*="layer_"] [class*="focusLock_"]']));
+        rules.push(this._buildRule('userPopout', ['[class*="userPopout_"]', '[class*="layer_"] [class*="userCard_"]']));
+        rules.push(this._buildRule('emojiPicker', ['[class*="emojiPicker_"]', '[class*="expressionPickerSidebar_"]', '[class*="contentWrapper_"][class*="picker_"]']));
+        rules.push(this._buildRule('autoComplete', ['[class*="autocomplete_"]']));
+        rules.push(this._buildRule('imageViewer', ['[class*="mediaViewer_"]', '[class*="carouselModal_"]']));
+        rules.push(this._buildRule('callOverlay', ['[class*="callContainer_"]']));
+        rules.push(this._buildRule('uploadPreview', ['[class*="uploadModal_"]', '[class*="attachment_"][class*="uploading_"]']));
+        rules.push(this._buildRule('memberList', ['[class*="members_"]']));
+        rules.push(this._buildRule('serverFolders', ['[class*="expandedFolderIconWrapper_"]']));
+        rules.push(this._buildRule('threadPanel', ['[class*="container_"][class*="thread_"]', '[class*="threadSidebar_"]']));
+        rules.push(this._buildRule('inbox', ['[class*="inboxPanel_"]', '[class*="noticesPopoutWrap_"]']));
+        rules.push(this._buildRule('appDirectory', ['[class*="applicationDirectory_"]', '[class*="directoryItems_"]']));
 
         // Tooltips — needs special selector pattern
         const tt = this.config.categories.tooltips;
@@ -1333,9 +1475,9 @@ module.exports = class SolariMotion {
         const cfg = this.config.categories[catKey];
         if (!cfg?.enabled || cfg.animation === 'none') return;
         node.dataset.smA = '1';
-        const dur   = Math.round(cfg.duration * (this.config.intensity / 100));
+        const dur = Math.round(cfg.duration * (this.config.intensity / 100));
         const delay = this._getStaggerDelay(catKey);
-        node.style.animation      = `sm-${cfg.animation} ${dur}ms ${this._resolveEasing(cfg)} both`;
+        node.style.animation = `sm-${cfg.animation} ${dur}ms ${this._resolveEasing(cfg)} both`;
         node.style.animationDelay = `${delay}ms`;
         this._stats.totalAnimated++;
         this._updateStatsDisplay();
@@ -1416,7 +1558,7 @@ module.exports = class SolariMotion {
 
     _applyPreset(name) {
         this.config.globalPreset = name;
-        this.config.categories   = this._clonePreset(name);
+        this.config.categories = this._clonePreset(name);
         document.documentElement.style.setProperty('--sm-int', this.config.intensity / 100);
         this.saveConfig();
         this._injectDynamicCSS();
@@ -1442,21 +1584,21 @@ module.exports = class SolariMotion {
     _buildHeader() {
         const el = document.createElement('div');
         el.className = 'sm-header';
-        
+
         const logo = document.createElement('div');
         logo.className = 'sm-logo';
         logo.textContent = '✨';
-        
+
         const info = document.createElement('div');
         info.className = 'sm-header-info';
         info.innerHTML = `
             <h2>Solari Motion</h2>
             <p>${this._t('header_subtitle')}</p>
         `;
-        
+
         const langSelector = document.createElement('div');
         langSelector.className = 'sm-lang-selector';
-        
+
         const btnEn = document.createElement('button');
         btnEn.className = `sm-lang-btn ${this.config.language === 'en' ? 'active' : ''}`;
         btnEn.textContent = 'EN';
@@ -1467,7 +1609,7 @@ module.exports = class SolariMotion {
             this.saveConfig();
             el.closest('.sm-panel').replaceWith(this.getSettingsPanel());
         });
-        
+
         const btnPt = document.createElement('button');
         btnPt.className = `sm-lang-btn ${this.config.language === 'pt' ? 'active' : ''}`;
         btnPt.textContent = 'PT';
@@ -1478,19 +1620,19 @@ module.exports = class SolariMotion {
             this.saveConfig();
             el.closest('.sm-panel').replaceWith(this.getSettingsPanel());
         });
-        
+
         langSelector.appendChild(btnEn);
         langSelector.appendChild(btnPt);
-        
+
         const badge = document.createElement('div');
         badge.className = 'sm-badge';
         badge.textContent = `v${SolariMotion.VERSION}`;
-        
+
         el.appendChild(logo);
         el.appendChild(info);
         el.appendChild(langSelector);
         el.appendChild(badge);
-        
+
         return el;
     }
 
@@ -1500,7 +1642,7 @@ module.exports = class SolariMotion {
         bar.id = 'sm-stats-bar';
         this._statsEl = bar;
         const active = Object.values(this.config.categories).filter(c => c.enabled).length;
-        const total  = Object.keys(SolariMotion.CATEGORY_META).length;
+        const total = Object.keys(SolariMotion.CATEGORY_META).length;
         const preset = this.config.globalPreset;
         const presetLabel = preset.charAt(0).toUpperCase() + preset.slice(1);
         bar.innerHTML = `
@@ -1582,20 +1724,20 @@ module.exports = class SolariMotion {
         grid.className = 'sm-presets';
 
         [
-            { key: 'fluid',     icon: '🌊', label: 'Fluid',     subKey: 'preset_sub_fluid'     },
-            { key: 'snappy',    icon: '⚡', label: 'Snappy',    subKey: 'preset_sub_snappy'    },
-            { key: 'bounce',    icon: '🎾', label: 'Bounce',    subKey: 'preset_sub_bounce'    },
-            { key: 'minimal',   icon: '🌫️', label: 'Minimal',   subKey: 'preset_sub_minimal'   },
-            { key: 'off',       icon: '🚫', label: 'Off',       subKey: 'preset_sub_off'       },
+            { key: 'fluid', icon: '🌊', label: 'Fluid', subKey: 'preset_sub_fluid' },
+            { key: 'snappy', icon: '⚡', label: 'Snappy', subKey: 'preset_sub_snappy' },
+            { key: 'bounce', icon: '🎾', label: 'Bounce', subKey: 'preset_sub_bounce' },
+            { key: 'minimal', icon: '🌫️', label: 'Minimal', subKey: 'preset_sub_minimal' },
+            { key: 'off', icon: '🚫', label: 'Off', subKey: 'preset_sub_off' },
             { key: 'cinematic', icon: '🎬', label: 'Cinematic', subKey: 'preset_sub_cinematic' },
-            { key: 'jelly',     icon: '🫧', label: 'Jelly',     subKey: 'preset_sub_jelly'     },
-            { key: 'gravity',   icon: '🪐', label: 'Gravity',   subKey: 'preset_sub_gravity'   },
-            { key: 'glass',     icon: '🔮', label: 'Glass',     subKey: 'preset_sub_glass'     },
-            { key: 'retro',     icon: '📟', label: 'Retro',     subKey: 'preset_sub_retro'     },
-            { key: 'zen',       icon: '🧘', label: 'Zen',       subKey: 'preset_sub_zen'       },
-            { key: 'sharp',     icon: '🗡️', label: 'Sharp',     subKey: 'preset_sub_sharp'     },
-            { key: 'cascade',   icon: '🌊', label: 'Cascade',   subKey: 'preset_sub_cascade'   },
-            { key: 'pendulum',  icon: '🕰️', label: 'Pendulum',  subKey: 'preset_sub_pendulum'  },
+            { key: 'jelly', icon: '🫧', label: 'Jelly', subKey: 'preset_sub_jelly' },
+            { key: 'gravity', icon: '🪐', label: 'Gravity', subKey: 'preset_sub_gravity' },
+            { key: 'glass', icon: '🔮', label: 'Glass', subKey: 'preset_sub_glass' },
+            { key: 'retro', icon: '📟', label: 'Retro', subKey: 'preset_sub_retro' },
+            { key: 'zen', icon: '🧘', label: 'Zen', subKey: 'preset_sub_zen' },
+            { key: 'sharp', icon: '🗡️', label: 'Sharp', subKey: 'preset_sub_sharp' },
+            { key: 'cascade', icon: '🌊', label: 'Cascade', subKey: 'preset_sub_cascade' },
+            { key: 'pendulum', icon: '🕰️', label: 'Pendulum', subKey: 'preset_sub_pendulum' },
         ].forEach(({ key, icon, label, subKey }) => {
             const btn = document.createElement('button');
             btn.className = `sm-preset-btn ${this.config.globalPreset === key ? 'active' : ''}`;
@@ -1615,8 +1757,8 @@ module.exports = class SolariMotion {
         const div = document.createElement('div');
         div.className = 'sm-toggles';
         [
-            { key: 'performanceMode',      labelKey: 'toggle_perf_label',   subKey: 'toggle_perf_sub' },
-            { key: 'fpsProtection',        labelKey: 'toggle_fps_label',    subKey: 'toggle_fps_sub' },
+            { key: 'performanceMode', labelKey: 'toggle_perf_label', subKey: 'toggle_perf_sub' },
+            { key: 'fpsProtection', labelKey: 'toggle_fps_label', subKey: 'toggle_fps_sub' },
             { key: 'respectReducedMotion', labelKey: 'toggle_motion_label', subKey: 'toggle_motion_sub' },
         ].forEach(({ key, labelKey, subKey }) => {
             const card = document.createElement('div');
@@ -1735,7 +1877,7 @@ module.exports = class SolariMotion {
             for (const [key, meta] of Object.entries(SolariMotion.CATEGORY_META)) {
                 const translatedLabel = this._t('cat_' + key + '_label');
                 const translatedDesc = this._t('cat_' + key + '_desc');
-                const inGroup  = activeGroup === 'all' || meta.group === activeGroup;
+                const inGroup = activeGroup === 'all' || meta.group === activeGroup;
                 const inSearch = !q || translatedLabel.toLowerCase().includes(q) || translatedDesc.toLowerCase().includes(q);
                 if (inGroup && inSearch) {
                     catList.appendChild(this._buildCategoryCard(key, meta, this.config.categories[key]));
@@ -1744,11 +1886,11 @@ module.exports = class SolariMotion {
         };
 
         [
-            { key: 'all',        labelKey: 'chip_all' },
+            { key: 'all', labelKey: 'chip_all' },
             { key: 'navigation', labelKey: 'chip_nav' },
-            { key: 'overlays',   labelKey: 'chip_overlays' },
-            { key: 'content',    labelKey: 'chip_content' },
-            { key: 'server',     labelKey: 'chip_server' },
+            { key: 'overlays', labelKey: 'chip_overlays' },
+            { key: 'content', labelKey: 'chip_content' },
+            { key: 'server', labelKey: 'chip_server' },
         ].forEach(({ key, labelKey }) => {
             const chip = document.createElement('button');
             chip.className = `sm-chip ${activeGroup === key ? 'active' : ''}`;
@@ -1777,7 +1919,7 @@ module.exports = class SolariMotion {
         card.className = `sm-cat-card ${cat.enabled ? 'enabled' : ''}`;
 
         const translatedLabel = this._t('cat_' + key + '_label');
-        const translatedDesc  = this._t('cat_' + key + '_desc');
+        const translatedDesc = this._t('cat_' + key + '_desc');
 
         const header = document.createElement('div');
         header.className = 'sm-cat-header';
@@ -1888,10 +2030,10 @@ module.exports = class SolariMotion {
 
     _buildBezierEditor(catKey, cat) {
         const raw = cat.customEasing || 'cubic-bezier(0.4,0,0.2,1)';
-        const m   = raw.match(/cubic-bezier\(([^)]+)\)/);
-        const v   = m ? m[1].split(',').map(parseFloat) : [0.4, 0, 0.2, 1];
-        const p1  = { x: v[0] ?? 0.4, y: v[1] ?? 0 };
-        const p2  = { x: v[2] ?? 0.2, y: v[3] ?? 1 };
+        const m = raw.match(/cubic-bezier\(([^)]+)\)/);
+        const v = m ? m[1].split(',').map(parseFloat) : [0.4, 0, 0.2, 1];
+        const p1 = { x: v[0] ?? 0.4, y: v[1] ?? 0 };
+        const p2 = { x: v[2] ?? 0.2, y: v[3] ?? 1 };
 
         const container = document.createElement('div');
         container.className = 'sm-bezier-container';
@@ -1937,7 +2079,7 @@ module.exports = class SolariMotion {
             if (!drag) return;
             const v = toVal(e);
             if (drag === 'p1') { p1.x = v.x; p1.y = v.y; }
-            else               { p2.x = v.x; p2.y = v.y; }
+            else { p2.x = v.x; p2.y = v.y; }
             commit();
         });
         canvas.addEventListener('pointerup', () => { drag = null; });
@@ -1977,14 +2119,14 @@ module.exports = class SolariMotion {
         const presetWrap = document.createElement('div');
         presetWrap.className = 'sm-bezier-presets';
         [
-            ['Material',  [0.4, 0, 0.2, 1]],
-            ['Snappy',    [0.25, 0.46, 0.45, 0.94]],
-            ['Bounce',    [0.34, 1.56, 0.64, 1]],
-            ['Elastic',   [0.68, -0.55, 0.265, 1.55]],
-            ['EaseOut',   [0, 0, 0.2, 1]],
-            ['EaseIn',    [0.4, 0, 1, 1]],
+            ['Material', [0.4, 0, 0.2, 1]],
+            ['Snappy', [0.25, 0.46, 0.45, 0.94]],
+            ['Bounce', [0.34, 1.56, 0.64, 1]],
+            ['Elastic', [0.68, -0.55, 0.265, 1.55]],
+            ['EaseOut', [0, 0, 0.2, 1]],
+            ['EaseIn', [0.4, 0, 1, 1]],
             ['EaseInOut', [0.4, 0, 0.6, 1]],
-            ['Linear',    [0, 0, 1, 1]],
+            ['Linear', [0, 0, 1, 1]],
         ].forEach(([label, vals]) => {
             const chip = document.createElement('button');
             chip.className = 'sm-bezier-chip';
@@ -2089,7 +2231,7 @@ module.exports = class SolariMotion {
 
         const itemSuffix = this.config.language === 'pt' ? ' itens' : ' items';
         const delaySlider = this._buildSlider(this._t('field_delay'), 'delay', catKey, stagger, 10, 150, 5, 'ms');
-        const maxSlider   = this._buildSlider(this._t('field_max_items'), 'maxItems', catKey, stagger, 2, 20, 1, itemSuffix);
+        const maxSlider = this._buildSlider(this._t('field_max_items'), 'maxItems', catKey, stagger, 2, 20, 1, itemSuffix);
 
         const onStaggerChange = () => {
             this.config.categories[catKey].stagger = stagger;
@@ -2120,7 +2262,7 @@ module.exports = class SolariMotion {
     _triggerLivePreview(cat, meta) {
         document.querySelector('.sm-preview-overlay')?.remove();
 
-        const dur    = Math.round(cat.duration * (this.config.intensity / 100));
+        const dur = Math.round(cat.duration * (this.config.intensity / 100));
         const easing = this._resolveEasing(cat);
 
         const key = Object.keys(SolariMotion.CATEGORY_META).find(k => SolariMotion.CATEGORY_META[k] === meta) || '';
