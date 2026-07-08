@@ -2,251 +2,409 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solari</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solari</title>
+  <meta name="description" content="Solari - Loading application and checking for updates.">
+  <meta property="og:title" content="Solari">
+  <meta property="og:description" content="Loading application and checking for updates.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        body {
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(145deg, #0f0c29, #302b63, #24243e);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #e0e0e0;
-            user-select: none;
-            -webkit-app-region: drag;
-            /* Allow dragging the frameless window */
-        }
+    :root {
+      --primary:      #ff6b35;
+      --primary-dark: #e85520;
+      --bg:           #0c0c0e;
+      --text:         #fafafa;
+      --text-dim:     rgba(250, 250, 250, 0.4);
+    }
 
-        /* ===== LOGO ===== */
-        .logo-container {
-            position: relative;
-            width: 120px;
-            height: 120px;
-            margin-bottom: 30px;
-        }
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+      color: var(--text);
+      user-select: none;
+      -webkit-app-region: drag;
+    }
 
-        .logo {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            object-fit: cover;
-            filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.3));
-            transition: filter 0.5s ease;
-        }
+    /* ===== BACKGROUND ===== */
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 107, 53, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 107, 53, 0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black 40%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black 40%, transparent 100%);
+      animation: gridFadeIn 1.2s ease forwards;
+    }
 
-        .logo.pulse {
-            animation: logoPulse 2s ease-in-out infinite;
-        }
+    @keyframes gridFadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
 
-        @keyframes logoPulse {
+    .bg-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 520px;
+      height: 520px;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(255, 107, 53, 0.08) 0%, transparent 70%);
+      animation: glowPulse 4s ease-in-out infinite;
+    }
 
-            0%,
-            100% {
-                filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.3));
-            }
+    @keyframes glowPulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1);   opacity: 0.6; }
+      50%       { transform: translate(-50%, -50%) scale(1.1); opacity: 1;   }
+    }
 
-            50% {
-                filter: drop-shadow(0 0 35px rgba(255, 165, 0, 0.6));
-            }
-        }
+    /* ===== MAIN CONTENT ===== */
+    .splash-root {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+    }
 
-        /* ===== SPINNER (ring) ===== */
-        .spinner {
-            position: absolute;
-            top: -8px;
-            left: -8px;
-            width: 136px;
-            height: 136px;
-            border: 3px solid transparent;
-            border-top-color: #ff9800;
-            border-radius: 50%;
-            animation: spin 1.2s linear infinite;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
+    /* ===== LOGO RING ===== */
+    .logo-wrapper {
+      position: relative;
+      width: 96px;
+      height: 96px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 32px;
+      animation: logoReveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
 
-        .spinner.active {
-            opacity: 1;
-        }
+    @keyframes logoReveal {
+      from { opacity: 0; transform: scale(0.7) translateY(12px); }
+      to   { opacity: 1; transform: scale(1)   translateY(0);    }
+    }
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
+    .logo-ring {
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+    }
 
-        /* ===== STATUS TEXT ===== */
-        .status-text {
-            font-size: 13px;
-            color: #b0b0b0;
-            text-align: center;
-            min-height: 20px;
-            transition: opacity 0.3s ease;
-        }
+    .logo-ring svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
 
-        /* ===== PROGRESS BAR ===== */
-        .progress-container {
-            width: 200px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            margin-top: 16px;
-            overflow: hidden;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
+    .ring-track {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.06);
+      stroke-width: 2;
+    }
 
-        .progress-container.active {
-            opacity: 1;
-        }
+    .ring-progress {
+      fill: none;
+      stroke: url(#ringGrad);
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-dasharray: 330;
+      stroke-dashoffset: 330;
+      transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
 
-        .progress-bar {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #ff9800, #ff5722);
-            border-radius: 4px;
-            transition: width 0.3s ease;
-        }
+    .logo-img {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      object-fit: cover;
+      filter: drop-shadow(0 4px 20px rgba(255, 107, 53, 0.4));
+      animation: logoPulse 3s ease-in-out infinite;
+    }
 
-        /* ===== VERSION TEXT ===== */
-        .version-text {
-            position: absolute;
-            bottom: 14px;
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.25);
-        }
+    @keyframes logoPulse {
+      0%, 100% { filter: drop-shadow(0 4px 20px rgba(255, 107, 53, 0.3)); }
+      50%       { filter: drop-shadow(0 4px 32px rgba(255, 107, 53, 0.65)); }
+    }
 
-        /* ===== ERROR STATE ===== */
-        .status-text.error {
-            color: #ff6b6b;
-        }
-    </style>
+    /* ===== WORDMARK ===== */
+    .wordmark {
+      font-size: 2.4rem;
+      font-weight: 700;
+      letter-spacing: -1px;
+      line-height: 1;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--text) 40%, rgba(250,250,250,0.5) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: wordmarkReveal 0.7s 0.25s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+
+    @keyframes wordmarkReveal {
+      from { opacity: 0; transform: translateY(8px);  }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .tagline {
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 48px;
+      animation: wordmarkReveal 0.7s 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+
+    /* ===== STATUS ===== */
+    .status-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: 240px;
+      animation: wordmarkReveal 0.5s 0.6s ease both;
+    }
+
+    .status-text {
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-dim);
+      text-align: center;
+      min-height: 18px;
+      transition: color 0.3s ease, opacity 0.25s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .status-text.error {
+      color: #f87171;
+    }
+
+    /* Progress bar */
+    .progress-track {
+      width: 100%;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.07);
+      border-radius: 999px;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .progress-track.active {
+      opacity: 1;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+      border-radius: 999px;
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 12px rgba(255, 107, 53, 0.5);
+    }
+
+    /* ===== VERSION ===== */
+    .version-badge {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.2);
+      letter-spacing: 0.04em;
+      animation: wordmarkReveal 0.5s 0.8s ease both;
+    }
+
+    /* ===== CORNER ACCENTS ===== */
+    .corner {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      opacity: 0.25;
+    }
+
+    .corner-tl { top: 16px;    left: 16px;    border-top: 1.5px solid var(--primary);  border-left:   1.5px solid var(--primary);  }
+    .corner-tr { top: 16px;    right: 16px;   border-top: 1.5px solid var(--primary);  border-right:  1.5px solid var(--primary);  }
+    .corner-bl { bottom: 16px; left: 16px;    border-bottom: 1.5px solid var(--primary); border-left:  1.5px solid var(--primary);  }
+    .corner-br { bottom: 16px; right: 16px;   border-bottom: 1.5px solid var(--primary); border-right: 1.5px solid var(--primary);  }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
 </head>
 
 <body>
-    <div class="logo-container">
-        <img class="logo pulse" id="logo" src="" alt="Solari">
-        <div class="spinner active" id="spinner"></div>
+  <!-- Background -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <!-- Corner decorations -->
+  <div class="corner corner-tl"></div>
+  <div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div>
+  <div class="corner corner-br"></div>
+
+  <!-- Main splash -->
+  <div class="splash-root">
+
+    <!-- Logo + SVG ring -->
+    <div class="logo-wrapper">
+      <div class="logo-ring">
+        <svg viewBox="0 0 108 108">
+          <defs>
+            <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stop-color="#e85520"/>
+              <stop offset="100%" stop-color="#ff6b35"/>
+            </linearGradient>
+          </defs>
+          <circle class="ring-track"    cx="54" cy="54" r="52"/>
+          <circle class="ring-progress" id="ringProgress" cx="54" cy="54" r="52"/>
+        </svg>
+      </div>
+      <img class="logo-img" id="splashLogo" src="" alt="Solari">
     </div>
 
-    <div class="status-text" id="status">Checking for updates...</div>
+    <!-- Wordmark -->
+    <div class="wordmark">Solari</div>
+    <div class="tagline">Discord Rich Presence</div>
 
-    <div class="progress-container" id="progressContainer">
-        <div class="progress-bar" id="progressBar"></div>
+    <!-- Status + progress -->
+    <div class="status-area">
+      <div class="status-text" id="splashStatus">Checking for updates...</div>
+      <div class="progress-track" id="progressTrack">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
     </div>
+  </div>
 
-    <div class="version-text" id="version"></div>
+  <!-- Version -->
+  <div class="version-badge" id="splashVersion"></div>
 
-    <script>
-        const { ipcRenderer } = require('electron');
+  <script>
+    const { ipcRenderer } = require('electron');
 
-        const statusEl = document.getElementById('status');
-        const spinnerEl = document.getElementById('spinner');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const logoEl = document.getElementById('logo');
-        const versionEl = document.getElementById('version');
+    const statusEl  = document.getElementById('splashStatus');
+    const ring      = document.getElementById('ringProgress');
+    const progTrack = document.getElementById('progressTrack');
+    const progFill  = document.getElementById('progressFill');
+    const logoEl    = document.getElementById('splashLogo');
+    const versionEl = document.getElementById('splashVersion');
 
-        // Resolve logo path (works in both dev and packaged)
-        try {
-            const path = require('path');
-            const fs = require('fs');
+    // Ring circumference = 2π × 52 ≈ 326.7 → we use 330 for clean rounding
+    const RING_CIRC = 330;
 
-            // Try extraResources first (packaged), then root (dev)
-            const candidates = [
-                path.join(process.resourcesPath || '', 'icon.png'),
-                path.join(__dirname, '..', '..', 'SolariPhotoTransparente.png'),
-                path.join(__dirname, '..', 'assets', 'icon.png')
-            ];
+    function setRingProgress(pct) {
+      const offset = RING_CIRC - (RING_CIRC * pct / 100);
+      ring.style.strokeDashoffset = offset;
+    }
 
-            for (const candidate of candidates) {
-                if (fs.existsSync(candidate)) {
-                    logoEl.src = candidate;
-                    break;
-                }
-            }
-        } catch (e) {
-            console.error('Could not resolve logo path:', e);
+    // Resolve logo path (works in both dev and packaged)
+    try {
+      const path = require('path');
+      const fs   = require('fs');
+
+      const candidates = [
+        path.join(process.resourcesPath || '', 'icon.png'),
+        path.join(__dirname, '..', '..', 'SolariPhotoTransparente.png'),
+        path.join(__dirname, '..', 'assets', 'icon.png'),
+      ];
+
+      for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+          logoEl.src = candidate;
+          break;
         }
+      }
+    } catch (e) {
+      console.error('Could not resolve logo path:', e);
+    }
 
-        // Set version text
-        try {
-            const pkg = require('../../package.json');
-            versionEl.textContent = `v${pkg.version}`;
-        } catch (e) { }
+    // Set version
+    try {
+      const pkg = require('../../package.json');
+      versionEl.textContent = `v${pkg.version}`;
+    } catch (e) {}
 
-        // Listen for status updates from main process
-        ipcRenderer.on('update-status', (event, data) => {
-            const { state, message } = data;
+    // Listen for status updates from main process
+    ipcRenderer.on('update-status', (event, data) => {
+      const { state, message } = data;
+      statusEl.classList.remove('error');
 
-            statusEl.classList.remove('error');
+      switch (state) {
+        case 'checking':
+          statusEl.textContent = message || 'Checking for updates...';
+          setRingProgress(15);
+          progTrack.classList.remove('active');
+          break;
 
-            switch (state) {
-                case 'checking':
-                    statusEl.textContent = message || 'Checking for updates...';
-                    spinnerEl.classList.add('active');
-                    progressContainer.classList.remove('active');
-                    break;
+        case 'downloading':
+          statusEl.textContent = message || 'Downloading update...';
+          setRingProgress(40);
+          progTrack.classList.add('active');
+          break;
 
-                case 'downloading':
-                    statusEl.textContent = message || 'Downloading update...';
-                    spinnerEl.classList.remove('active');
-                    progressContainer.classList.add('active');
-                    break;
+        case 'installing':
+          statusEl.textContent = message || 'Installing update...';
+          setRingProgress(75);
+          progTrack.classList.remove('active');
+          break;
 
-                case 'installing':
-                    statusEl.textContent = message || 'Installing update...';
-                    spinnerEl.classList.add('active');
-                    progressContainer.classList.remove('active');
-                    break;
+        case 'updating-plugins':
+          statusEl.textContent = message || 'Updating plugins...';
+          setRingProgress(85);
+          break;
 
-                case 'updating-plugins':
-                    statusEl.textContent = message || 'Updating plugins...';
-                    spinnerEl.classList.add('active');
-                    progressContainer.classList.remove('active');
-                    break;
+        case 'loading':
+          statusEl.textContent = message || 'Starting Solari...';
+          setRingProgress(100);
+          progTrack.classList.remove('active');
+          break;
 
-                case 'loading':
-                    statusEl.textContent = message || 'Starting Solari...';
-                    spinnerEl.classList.add('active');
-                    progressContainer.classList.remove('active');
-                    logoEl.classList.remove('pulse');
-                    break;
+        case 'error':
+          statusEl.textContent = message || 'Update check failed. Starting anyway...';
+          statusEl.classList.add('error');
+          setRingProgress(0);
+          progTrack.classList.remove('active');
+          break;
+      }
+    });
 
-                case 'error':
-                    statusEl.textContent = message || 'Update check failed. Starting anyway...';
-                    statusEl.classList.add('error');
-                    spinnerEl.classList.remove('active');
-                    progressContainer.classList.remove('active');
-                    break;
-            }
-        });
+    // Listen for download progress
+    ipcRenderer.on('download-progress', (event, data) => {
+      const { percent, downloaded, total } = data;
+      progFill.style.width = `${percent}%`;
+      setRingProgress(20 + percent * 0.55); // map 0–100% → ring 20–75%
 
-        // Listen for download progress
-        ipcRenderer.on('download-progress', (event, data) => {
-            const { percent, downloaded, total } = data;
-            progressBar.style.width = `${percent}%`;
-
-            if (downloaded && total) {
-                const dlMB = (downloaded / 1048576).toFixed(1);
-                const totalMB = (total / 1048576).toFixed(1);
-                statusEl.textContent = `Downloading update... ${dlMB}/${totalMB} MB`;
-            } else {
-                statusEl.textContent = `Downloading update... ${Math.round(percent)}%`;
-            }
-        });
-    </script>
+      if (downloaded && total) {
+        const dlMB    = (downloaded / 1048576).toFixed(1);
+        const totalMB = (total / 1048576).toFixed(1);
+        statusEl.textContent = `Downloading... ${dlMB} / ${totalMB} MB`;
+      } else {
+        statusEl.textContent = `Downloading... ${Math.round(percent)}%`;
+      }
+    });
+  </script>
 </body>
 
 </html>

@@ -68,6 +68,9 @@ const RULES = {
     largeImageText(el) {
         return el.value ? STATE.VALID : STATE.NEUTRAL;
     },
+    largeImageLink(el) {
+        return _validateUrl(el.value);
+    },
     smallImage(el) {
         if (!el.value) return STATE.NEUTRAL;
         // Warn if small image set but large image is empty
@@ -77,6 +80,9 @@ const RULES = {
     },
     smallImageText(el) {
         return el.value ? STATE.VALID : STATE.NEUTRAL;
+    },
+    smallImageLink(el) {
+        return _validateUrl(el.value);
     },
     button1Label(el) {
         if (!el.value) return STATE.NEUTRAL;
@@ -124,7 +130,9 @@ const MESSAGES = {
     state: { warn: '', error: `Exceeds ${MAX_STATE} character limit` },
     stateUrl: { warn: 'URL should start with https://', error: '' },
     largeImage: { warn: 'URL should start with https://', error: '' },
+    largeImageLink: { warn: 'URL should start with https://', error: '' },
     smallImage: { warn: 'Set a Large Image first for the small image to show', error: '' },
+    smallImageLink: { warn: 'URL should start with https://', error: '' },
     button1Label: { warn: '', error: `Exceeds ${MAX_BTN_LABEL} character limit` },
     button1Url: { warn: 'URL should start with https://', error: 'Button 1 has a label but no URL' },
     button2Label: { warn: '', error: `Exceeds ${MAX_BTN_LABEL} character limit` },
@@ -137,6 +145,17 @@ function _validate(id) {
     const el = document.getElementById(id);
     const rule = RULES[id];
     if (!el || !rule) return;
+
+    // Auto-prefix URL fields if they lack protocol but contain a domain-like dot
+    const URL_FIELDS = ['detailsUrl', 'stateUrl', 'largeImage', 'largeImageLink', 'smallImage', 'smallImageLink', 'button1Url', 'button2Url'];
+    if (URL_FIELDS.includes(id)) {
+        let val = el.value.trim();
+        if (val && !/^https?:\/\//i.test(val) && val.includes('.')) {
+            el.value = 'https://' + val;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
 
     const result = rule(el);
     const msgs = MESSAGES[id] || {};

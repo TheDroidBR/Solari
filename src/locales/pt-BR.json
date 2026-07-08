@@ -25,10 +25,7 @@
     "rpcTitle": "Discord RPC",
     "rpcDesc": "Configurações globais para integração com o Discord.",
     "updatesTitle": "Atualizações e Info",
-    "updatesDesc": "Gerenciar atualizações automáticas e ver logs.",
-    "labelDefaultClientIds": "Client IDs Padrão",
-    "useDefaultClientIds": "Usar Client IDs de Fábrica",
-    "useDefaultClientIdsDesc": "Usa Client IDs padrão de fábrica para Netflix, Twitch, YouTube e Prime Video (Recomendado para usar com a extensão)."
+    "updatesDesc": "Gerenciar atualizações automáticas e ver logs."
   },
   "pluginStore": {
     "title": "Extensões Oficiais",
@@ -98,10 +95,16 @@
     "largeImageWarning": "Se a imagem não aparecer, reinicie o Solari!",
     "largeImageText": "TEXTO DA IMAGEM GRANDE",
     "largeImageTextPlaceholder": "Legenda da imagem grande",
+    "largeImageLink": "LINK DA IMAGEM GRANDE (OPCIONAL)",
+    "largeImageLinkPlaceholder": "Link ao clicar na Imagem Grande (ex: https://...)",
+    "tipLargeImageLink": "Torna a Imagem Grande clicável. Deve começar com https://.",
     "smallImage": "IMAGEM PEQUENA (URL)",
     "smallImageHint": "Imagem do canto inferior direito",
     "smallImageText": "TEXTO DA IMAGEM PEQUENA",
     "smallImageTextPlaceholder": "Legenda da imagem pequena",
+    "smallImageLink": "LINK DA IMAGEM PEQUENA (OPCIONAL)",
+    "smallImageLinkPlaceholder": "Link ao clicar na Imagem Pequena (ex: https://...)",
+    "tipSmallImageLink": "Torna a Imagem Pequena clicável. Deve começar com https://.",
     "button1Label": "NOME DO BOTÃO 1",
     "button1Url": "URL DO BOTÃO 1",
     "button2Label": "NOME DO BOTÃO 2",
@@ -123,7 +126,10 @@
     "timestampEndHint": "Mostra quanto falta ao invés de quanto passou",
     "buttons": "Botões (aparecem no Discord)",
     "smallImagePlaceholder": "Cole a URL (ex: https://i.imgur.com/...)",
-    "largeImagePlaceholder": "Cole a URL (ex: https://i.imgur.com/...)"
+    "largeImagePlaceholder": "Cole a URL (ex: https://i.imgur.com/...)",
+    "useProgressBar": "Mostrar barra de progresso",
+    "progressCurrent": "Tempo Atual (MM:SS ou Segundos)",
+    "progressTotal": "Duração Total (MM:SS ou Segundos)"
   },
   "fallback": {
     "title": "Status Padrão (Fallback)",
@@ -185,7 +191,8 @@
     "listening": "Ouvindo",
     "watching": "Assistindo",
     "competing": "Competindo em:",
-    "elapsed": "passados",
+    "elapsed": "decorrido",
+    "remaining": "restante",
     "loading": "Carregando..."
   },
   "plugins": {
@@ -403,5 +410,11 @@
     "retryBtn": "🔄 Tentar Novamente",
     "loading": "Carregando catálogo premium...",
     "appliedToast": "Preset '{name}' ativado com sucesso!"
+  },
+  "general": {
+    "buttonViewEpisode": "Ver Episódio",
+    "buttonViewSeries": "Ver Série",
+    "buttonWatchMovie": "Assistir Filme",
+    "buttonViewMovie": "Ver Filme"
   }
 }

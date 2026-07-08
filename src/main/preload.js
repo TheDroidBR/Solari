@@ -24,7 +24,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'update-activity',
             'exit-manual-mode',
             'toggle-activity',
-            'uninstall-app'
+            'uninstall-app',
+            'window-minimize',
+            'window-maximize',
+            'window-close',
+            'dialog-response'
         ];
         if (validChannels.includes(channel)) {
             ipcRenderer.send(channel, data);
@@ -47,6 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'download-progress',
             'show-changelog',
             'show-toast',
+            'show-custom-dialog',
             'language-changed',
             'preset-auto-loaded',
             'autodetect-toggled',

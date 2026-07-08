@@ -26,6 +26,7 @@ let _lastGpuPoll = 0;
 let _lastHwRpcUpdate = 0;
 let _lastHwRpcString = '';
 let _activeNvidiaSmiProcess = null;
+let _activeInterval = 0;
 
 /**
  * Initialize the HW Monitor manager.
@@ -181,10 +182,41 @@ function _formatHWStatsForRPC() {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 function startHWMonitor() {
-    if (_store.hwMonitorInterval) return; // Already running
     if (!_store.hwMonitorEnabled) return;
 
-    const interval = _store.hwMonitorSettings.intervalMs || 2000;
+    const baseInterval = _store.hwMonitorSettings.intervalMs || 2000;
+    
+    // Determine target interval based on Eco Mode
+    let interval = baseInterval;
+    if (global.ecoMode) {
+        interval = Math.max(baseInterval, _CONSTANTS.HW_MONITOR_INTERVAL_ECO_MS || 10000);
+    }
+    
+    // Determine if mainWindow is visible
+    if (global.isMainWindowVisible === false) {
+        // If window is minimized/hidden, check if we need to send stats to Discord RPC
+        const isRpcNeeded = _store.hwMonitorEnabled && _store.isEnabled;
+        if (!isRpcNeeded) {
+            // No need to poll at all if the window is hidden and it's not being sent to Discord RPC!
+            if (_store.hwMonitorInterval) {
+                console.log('[HW Monitor] Stopping polling: Window is hidden & RPC stats are disabled');
+                stopHWMonitor();
+            }
+            return;
+        }
+        
+        // If RPC is active but window is hidden, we poll slower to preserve resources
+        interval = Math.max(interval, 15000);
+    }
+
+    // If interval has changed, recreate it
+    if (_store.hwMonitorInterval) {
+        if (_activeInterval === interval) return; // Keep running if interval didn't change
+        clearInterval(_store.hwMonitorInterval);
+        _store.hwMonitorInterval = null;
+    }
+
+    _activeInterval = interval;
     console.log('[HW Monitor] Starting lightweight polling every', interval, 'ms');
 
     _getCpuUsage(); // Warm up counters
@@ -197,6 +229,7 @@ function stopHWMonitor() {
         clearInterval(_store.hwMonitorInterval);
         _store.hwMonitorInterval = null;
         _store.latestHwStats = null;
+        _activeInterval = 0;
         if (_activeNvidiaSmiProcess) {
             try { _activeNvidiaSmiProcess.kill(); } catch { }
             _activeNvidiaSmiProcess = null;

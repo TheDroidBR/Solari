@@ -77,7 +77,7 @@ function init() {
     if (!wizardContainer) return;
 
     let isDragging = false;
-    let startX, startY, initLeft, initTop;
+    let startX, startY, initLeft, initTop, dragWidth, dragHeight;
 
     wizardContainer.addEventListener('mousedown', (e) => {
         if (!wizardOverlay?.classList.contains('preview-mode')) return;
@@ -90,6 +90,8 @@ function init() {
         const rect = wizardContainer.getBoundingClientRect();
         initLeft = rect.left;
         initTop = rect.top;
+        dragWidth = rect.width;
+        dragHeight = rect.height;
 
         wizardContainer.style.transition = 'none';
         wizardContainer.style.cursor = 'grabbing';
@@ -99,10 +101,17 @@ function init() {
         if (!isDragging) return;
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
+
+        const maxX = window.innerWidth - dragWidth;
+        const maxY = window.innerHeight - dragHeight;
+
+        let targetLeft = Math.max(0, Math.min(initLeft + dx, maxX));
+        let targetTop = Math.max(0, Math.min(initTop + dy, maxY));
+
         Object.assign(wizardContainer.style, {
             position: 'fixed',
-            left: `${initLeft + dx}px`,
-            top: `${initTop + dy}px`,
+            left: `${targetLeft}px`,
+            top: `${targetTop}px`,
             margin: '0',
             transform: 'none'
         });

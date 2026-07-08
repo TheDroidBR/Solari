@@ -1,5 +1,10 @@
 # Plugins Changelog
 
+## SolariMotion v1.0.2 (2026-06-14)
+- ⚙️ **Dynamic Configuration**: Fully integrated with the Solari APP's dynamic settings panel via local configuration schema export.
+- 🔄 **Real-Time Synchronization**: Implemented a background file watcher to monitor settings changes from Solari APP and apply them instantly inside Discord.
+- 🧹 **Resource Cleanup**: Properly unbinds and cleans up background file watcher instances upon plugin deactivation to prevent memory leaks.
+
 ## SolariMotion v1.0.1 (2026-05-29)
 - 🚀 **Auto-Updater System**: Integrated a premium, fully-translated confirmation modal to notify you on update availability.
 - 📋 **Integrated Changelog**: Automatically parses and shows native BetterDiscord changelog details on successful update.

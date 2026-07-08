@@ -167,6 +167,39 @@
     }
   },
   {
+    "name": "YouTube Music",
+    "clientId": "1520432295255871498",
+    "activityType": "2",
+    "details": "Ouvindo músicas incríveis 🎵",
+    "detailsUrl": "https://music.youtube.com",
+    "state": "Em sintonia",
+    "stateUrl": "https://music.youtube.com",
+    "largeImage": "https://i.imgur.com/8nxoBHs.gif",
+    "largeImageText": "YouTube Music Premium",
+    "smallImage": "https://i.imgur.com/Iv90wsz.png",
+    "smallImageText": "Qualidade de Áudio Alta",
+    "button1Label": "Abrir YouTube Music",
+    "button1Url": "https://music.youtube.com",
+    "button2Label": "Solari RPC",
+    "button2Url": "https://github.com/TheDroidBR/Solari",
+    "pt": {
+      "details": "Ouvindo músicas incríveis 🎵",
+      "state": "Em sintonia",
+      "largeImageText": "YouTube Music Premium",
+      "smallImageText": "Qualidade de Áudio Alta",
+      "button1Label": "Abrir YouTube Music",
+      "button2Label": "Solari RPC"
+    },
+    "en": {
+      "details": "Listening to amazing music 🎵",
+      "state": "In tune",
+      "largeImageText": "YouTube Music Premium",
+      "smallImageText": "High Audio Quality",
+      "button1Label": "Open YouTube Music",
+      "button2Label": "Solari RPC"
+    }
+  },
+  {
     "name": "Spotify",
     "clientId": "1511611871533465790",
     "activityType": "2",

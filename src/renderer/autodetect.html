@@ -5,25 +5,62 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solari - Auto-Detecção</title>
+    <meta name="description" content="Solari - Auto-detecção de presets.">
+    <meta property="og:title" content="Solari - Auto-detecção">
+    <meta property="og:description" content="Configure presets para serem ativados automaticamente no Solari.">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="ui-ux-pro.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 
         :root {
-            --primary: #ff9966;
-            --primary-dark: #ff5e62;
-            --accent: #5865F2;
-            --success: #4ade80;
-            --warning: #ffbd2e;
+            /* ===== CORE PALETTE ===== */
+            --primary: #ff6b35;
+            --primary-dark: #e85520;
+            --primary-light: #ff8f5e;
+            --primary-glow: rgba(255, 107, 53, 0.35);
+
+            /* Semantic */
+            --success: #22c55e;
+            --warning: #f59e0b;
             --danger: #ef4444;
-            --bg-dark: #0f0c29;
-            --bg-mid: #1a1a3e;
-            --bg-light: #24243e;
-            --glass: rgba(255, 255, 255, 0.03);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --text: #ffffff;
-            --text-muted: rgba(255, 255, 255, 0.6);
-            --text-dim: rgba(255, 255, 255, 0.4);
-            --glow-primary: rgba(255, 153, 102, 0.4);
+            --info: #38bdf8;
+
+            /* ===== BACKGROUNDS ===== */
+            --bg-base:   #0c0c0e;
+            --bg-raised: #111114;
+            --bg-card:   #161618;
+            --bg-hover:  #1c1c1f;
+            --bg-active: #222226;
+
+            /* ===== SURFACES & BORDERS ===== */
+            --border-subtle:  rgba(255, 255, 255, 0.06);
+            --border-default: rgba(255, 255, 255, 0.10);
+            --border-strong:  rgba(255, 255, 255, 0.18);
+            --border-accent:  rgba(255, 107, 53, 0.5);
+
+            /* ===== TEXT ===== */
+            --text: #fafafa;
+            --text-muted: rgba(250, 250, 250, 0.75);
+            --text-dim:   rgba(250, 250, 250, 0.45);
+            --text-glow: 0 0 12px rgba(255, 107, 53, 0.6);
+
+            /* ===== GEOMETRY ===== */
+            --radius-sm:   4px;
+            --radius-main: 8px;
+            --radius-inner: 6px;
+            --radius-lg:   12px;
+            --radius-pill: 999px;
+
+            /* ===== SHADOWS ===== */
+            --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.6);
+            --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-subtle);
+            --shadow-neon: 0 0 16px rgba(255, 107, 53, 0.25);
+
+            /* ===== ANIMATION TIMING ===== */
+            --transition-fast:   0.12s ease;
+            --transition-normal: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow:   0.45s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         * {
@@ -31,76 +68,130 @@
             padding: 0;
             box-sizing: border-box;
             scrollbar-width: thin;
-            scrollbar-color: var(--primary) rgba(0, 0, 0, 0.2);
+            scrollbar-color: rgba(255, 107, 53, 0.5) transparent;
+            font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
         }
 
-        /* Modern Scrollbar Styling */
+        /* ===== SCROLLBAR ===== */
         ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+            width: 5px;
+            height: 5px;
         }
 
         ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, var(--primary), var(--primary-dark));
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, var(--primary-dark), var(--primary));
-        }
-
-        ::-webkit-scrollbar-corner {
             background: transparent;
         }
 
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 107, 53, 0.4);
+            border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 107, 53, 0.7);
+        }
+
         body {
-            font-family: 'Outfit', 'Segoe UI', sans-serif;
-            background: var(--bg-dark);
+            background: var(--bg-base);
             color: var(--text);
-            min-height: 100vh;
-            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
             margin: 0;
-            overflow-y: auto;
+            padding: 0;
         }
 
-        @keyframes gradientShift {
-
-            0%,
-            100% {
-                background-position: 0% 50%;
-            }
-
-            50% {
-                background-position: 100% 50%;
-            }
+        /* ===== TITLEBAR ===== */
+        .titlebar {
+            height: 32px;
+            background-color: var(--bg-base);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            -webkit-app-region: drag;
+            padding: 0 12px;
+            z-index: 10000;
+            flex-shrink: 0;
         }
 
-        .container {
-            width: 100%;
+        .titlebar-drag {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
             height: 100%;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0f0c29 0%, #1a1a3e 50%, #16162a 100%);
-            background-size: 400% 400%;
-            animation: gradientShift 15s ease infinite;
-            backdrop-filter: blur(30px);
-            -webkit-backdrop-filter: blur(30px);
-            border-radius: 0;
-            padding: 28px;
-            box-shadow: none;
+        }
+
+        .titlebar-logo-img {
+            width: 16px;
+            height: 16px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .titlebar-app-name {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        .titlebar-controls {
+            display: flex;
+            align-items: center;
+            height: 100%;
+            -webkit-app-region: no-drag;
+        }
+
+        .titlebar-btn {
+            background: transparent;
             border: none;
+            color: var(--text-dim);
+            width: 44px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color var(--transition-fast), color var(--transition-fast);
+        }
+
+        .titlebar-btn:hover {
+            background-color: var(--bg-hover);
+            color: var(--text);
+        }
+
+        .titlebar-btn.close-btn:hover {
+            background-color: var(--danger) !important;
+            color: #fafafa !important;
+        }
+
+        .titlebar-btn svg {
+            width: 10px;
+            height: 10px;
+        }
+
+        /* ===== CONTAINER ===== */
+        .container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: var(--bg-base);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            animation: containerFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
         }
 
         @keyframes containerFadeIn {
             from {
                 opacity: 0;
-                transform: translateY(15px);
+                transform: translateY(8px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -109,50 +200,146 @@
 
         h1 {
             text-align: center;
-            margin-bottom: 8px;
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 50%, #ff7b54 100%);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 40px var(--glow-primary);
+            color: var(--text);
+            letter-spacing: -0.5px;
+            margin-top: 10px;
+            margin-bottom: 4px;
         }
 
         .subtitle {
             text-align: center;
             color: var(--text-dim);
-            margin-bottom: 28px;
-            font-size: 0.9em;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+            font-weight: 500;
         }
 
+        /* ===== TABS (PILL HIGH-TECH STYLE) ===== */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            background: var(--bg-raised);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-pill);
+            padding: 4px;
+            flex-shrink: 0;
+            width: fit-content;
+            margin: 0 auto 10px auto;
+        }
+
+        .tab {
+            padding: 8px 24px;
+            text-align: center;
+            background: transparent;
+            border-radius: var(--radius-pill);
+            cursor: pointer;
+            transition: all var(--transition-normal);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            border: none;
+            user-select: none;
+        }
+
+        .tab:hover {
+            color: var(--text-muted);
+            background: var(--bg-hover);
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 14px var(--primary-glow);
+            border: none;
+        }
+
+        .tab-content {
+            display: none;
+            height: 100%;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            animation: tabReveal 0.25s ease both;
+        }
+
+        @keyframes tabReveal {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== SECTION CARDS ===== */
+        .section-box {
+            background: var(--bg-card);
+            border-radius: 6px;
+            padding: 20px;
+            border: 1px solid var(--border-subtle);
+            transition: all var(--transition-normal);
+            box-shadow: var(--shadow-card);
+        }
+
+        .section-box:hover {
+            border-color: var(--border-strong);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .section-box h2 {
+            font-size: 0.9rem;
+            margin-bottom: 14px;
+            color: var(--primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-box.fallback h2 {
+            color: var(--info);
+        }
+
+        .section-box.website h2 {
+            color: #14b8a6;
+        }
+
+        /* ===== MAPPING CONTAINERS ===== */
         .mapping-container {
             display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+            min-height: 200px;
         }
 
         .column {
-            flex: 1;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
-            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-card);
+            border-radius: 6px;
             padding: 18px;
-            border: 1px solid var(--glass-border);
-            transition: all 0.3s ease;
+            border: 1px solid var(--border-subtle);
+            flex: 1;
+            transition: all var(--transition-normal);
         }
 
         .column:hover {
-            border-color: rgba(255, 255, 255, 0.12);
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border-color: var(--border-strong);
         }
 
         .column h2 {
-            font-size: 0.95em;
+            font-size: 0.9rem;
             margin-bottom: 12px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-subtle);
             color: var(--primary);
-            font-weight: 600;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -161,259 +348,326 @@
         .preset-list,
         .mapping-list {
             list-style: none;
-            max-height: 160px;
             overflow-y: auto;
-            padding: 4px;
+            padding: 2px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex: 1;
+            max-height: 260px;
         }
 
         .preset-item,
         .mapping-item {
             padding: 12px 14px;
-            margin-bottom: 6px;
-            background: rgba(0, 0, 0, 0.25);
-            border: 1px solid transparent;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.25s ease;
+            background: var(--bg-raised);
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            cursor: default;
+            transition: all var(--transition-fast);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            font-size: 0.9rem;
         }
 
-        .preset-item:hover,
         .mapping-item:hover {
-            background: rgba(255, 153, 102, 0.15);
-            border-color: rgba(255, 153, 102, 0.3);
-            transform: translateX(3px);
+            border-color: var(--border-default);
+            background: var(--bg-hover);
         }
 
-        .preset-item.selected {
-            background: linear-gradient(135deg, rgba(255, 153, 102, 0.25) 0%, rgba(255, 94, 98, 0.15) 100%);
-            border: 1px solid var(--primary);
-            box-shadow: 0 0 15px rgba(255, 153, 102, 0.2);
+        .mapping-item span {
+            font-family: inherit;
+        }
+
+        .mapping-item strong {
+            color: var(--primary);
         }
 
         .mapping-item .delete-btn {
-            background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
-            border: none;
-            color: white;
-            padding: 6px 10px;
-            border-radius: 6px;
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-dim);
+            width: 26px;
+            height: 26px;
+            border-radius: 4px;
             cursor: pointer;
-            font-size: 0.8em;
-            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            transition: all var(--transition-normal);
         }
 
         .mapping-item .delete-btn:hover {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: var(--danger);
+            color: var(--danger);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
             transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
         }
 
-        .section-box {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
-            border-radius: 16px;
-            padding: 18px;
-            margin-bottom: 18px;
-            border: 1px solid var(--glass-border);
-            transition: all 0.3s ease;
-        }
-
-        .section-box:hover {
-            border-color: rgba(255, 255, 255, 0.12);
-        }
-
-        .section-box h2 {
-            font-size: 0.95em;
-            margin-bottom: 14px;
-            color: var(--success);
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .section-box.fallback h2 {
-            color: #60a5fa;
-        }
-
-        .section-box.website h2 {
-            color: #14b8a6;
-        }
-
+        /* ===== FORMS ===== */
         .form-row {
             display: flex;
             gap: 12px;
             align-items: flex-end;
+            flex-wrap: wrap;
         }
 
         .form-group {
             flex: 1;
+            min-width: 180px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.8em;
-            color: var(--text-muted);
+            font-size: 0.72rem;
+            color: var(--text-dim);
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.08em;
+            font-weight: 700;
         }
 
         .form-group input,
         .form-group select {
             width: 100%;
-            padding: 12px 14px;
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            background: rgba(0, 0, 0, 0.3);
+            height: 38px;
+            padding: 0 12px;
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            background: var(--bg-raised);
             color: var(--text);
-            font-size: 0.9em;
-            transition: all 0.3s ease;
+            font-size: 0.875rem;
+            font-family: inherit;
+            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
         }
 
         .form-group input:hover,
         .form-group select:hover {
-            border-color: rgba(255, 255, 255, 0.15);
-            background: rgba(0, 0, 0, 0.35);
+            border-color: var(--border-strong);
         }
 
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px var(--glow-primary);
+            box-shadow: var(--shadow-neon);
         }
 
+        /* ===== BUTTONS (TECHNO GRADIENTS) ===== */
         .btn {
-            padding: 12px 22px;
-            border: none;
-            border-radius: 12px;
+            padding: 10px 18px;
+            border: 1px solid transparent;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            font-size: 0.875rem;
+            transition: all var(--transition-normal);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+            height: 38px;
+            user-select: none;
         }
 
         .btn-primary {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
-            box-shadow: 0 4px 15px rgba(255, 94, 98, 0.3);
+            box-shadow: 0 2px 8px rgba(255, 107, 53, 0.2);
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(255, 123, 84, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(255, 107, 53, 0.45);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
         }
 
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: #e0e0e0;
+            background: transparent;
+            border-color: var(--border-strong);
+            color: var(--text-muted);
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--bg-hover);
+            color: var(--text);
+            border-color: var(--text-dim);
         }
 
         .btn-blue {
-            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
             color: white;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
         }
 
         .btn-blue:hover {
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-blue:active {
+            transform: translateY(0);
         }
 
         .btn-teal {
-            background: linear-gradient(135deg, #0d9488, #14b8a6);
+            background: linear-gradient(135deg, #0d9488, #0f766e);
             color: white;
+            box-shadow: 0 2px 8px rgba(13, 148, 136, 0.2);
         }
 
         .btn-teal:hover {
-            box-shadow: 0 4px 12px rgba(20, 184, 166, 0.4);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+        }
+
+        .btn-teal:active {
+            transform: translateY(0);
         }
 
         .footer {
             display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
+            justify-content: flex-end;
+            margin-top: 10px;
+            flex-shrink: 0;
         }
 
         .hint {
-            font-size: 0.8em;
-            color: #888;
-            margin-top: 5px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 4px;
         }
 
         .empty-state {
             text-align: center;
-            padding: 15px;
-            color: #666;
+            padding: 20px;
+            color: var(--text-dim);
             font-style: italic;
+            font-size: 0.85rem;
+            border: 1px dashed var(--border-subtle);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.01);
         }
 
         .arrow {
-            font-size: 1.5em;
-            color: #ff9966;
+            font-size: 1.25rem;
+            color: var(--primary);
             display: flex;
             align-items: center;
+            justify-content: center;
+            height: 38px;
+            padding-bottom: 2px;
         }
 
         .fallback-status {
-            display: inline-block;
-            padding: 4px 10px;
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
             border-radius: 4px;
-            font-size: 0.85em;
-            margin-left: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-raised);
+            height: 38px;
         }
 
         .fallback-status.active {
-            background: rgba(74, 222, 128, 0.2);
-            color: #4ade80;
+            border-color: rgba(34, 197, 94, 0.25);
+            background: rgba(34, 197, 94, 0.06);
+            color: var(--success);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.05);
         }
 
         .fallback-status.inactive {
-            background: rgba(255, 255, 255, 0.1);
-            color: #888;
+            color: var(--text-dim);
         }
 
-        .tabs {
+        /* ===== RADIO OPTIONS (SLEEK INTERACTIVE CARDS) ===== */
+        .radio-option-container {
             display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 10px;
         }
 
-        .tab {
+        .radio-option {
             flex: 1;
-            padding: 12px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
+            min-width: 220px;
+            padding: 18px;
+            border-radius: 6px;
+            border: 1px solid var(--border-default) !important;
+            background: var(--bg-raised) !important;
             cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid transparent;
+            transition: all var(--transition-normal);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
         }
 
-        .tab:hover {
-            background: rgba(255, 255, 255, 0.1);
+        .radio-option:hover {
+            border-color: var(--border-strong) !important;
+            background: var(--bg-hover) !important;
+            transform: translateY(-2px);
         }
 
-        .tab.active {
-            background: rgba(255, 123, 84, 0.2);
-            border-color: #ff7b54;
-        }
-
-        .tab-content {
+        .radio-option input[type="radio"] {
             display: none;
         }
 
-        .tab-content.active {
-            display: block;
+        .radio-option strong {
+            font-size: 0.95rem;
+            font-weight: 700;
+            transition: color var(--transition-fast);
+        }
+
+        .radio-option p {
+            font-size: 0.75rem !important;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        /* Highlight active states from script */
+        .radio-option.active.extension-active {
+            border-color: var(--success) !important;
+            background: rgba(34, 197, 94, 0.04) !important;
+            box-shadow: 0 0 16px rgba(34, 197, 94, 0.1);
+        }
+
+        .radio-option.active.autodetect-active {
+            border-color: #14b8a6 !important;
+            background: rgba(20, 184, 166, 0.04) !important;
+            box-shadow: 0 0 16px rgba(20, 184, 166, 0.1);
         }
     </style>
 </head>
 
 <body>
+    <!-- ===== TITLEBAR ===== -->
+    <div class="titlebar" id="titlebar">
+        <div class="titlebar-drag">
+            <img class="titlebar-logo-img" id="titlebarLogo" src="" alt="Solari Logo">
+            <span class="titlebar-app-name">Solari — Auto-Detecção</span>
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-btn" id="windowMinBtn" aria-label="Minimizar">
+                <svg width="10" height="10" viewBox="0 0 10 10"><rect y="4" width="10" height="2" fill="currentColor"/></svg>
+            </button>
+            <button class="titlebar-btn" id="windowMaxBtn" aria-label="Maximizar">
+                <svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+            <button class="titlebar-btn close-btn" id="windowCloseBtn" aria-label="Fechar">
+                <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1 L9 9 M9 1 L1 9" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+        </div>
+    </div>
+
     <div class="container">
         <h1>🎯 Auto-Detecção</h1>
         <p class="subtitle">Configure presets para serem ativados automaticamente</p>
@@ -430,13 +684,11 @@
             <div class="section-box fallback">
                 <h2>🔄 Preset Padrão (Fallback)</h2>
                 <p class="hint" style="margin-bottom: 10px;">Quando nenhum programa mapeado for detectado:</p>
-                <div class="form-row">
-                    <div class="form-group">
-                        <select id="fallbackPresetSelect">
-                            <option value="-1">Nenhum (manter último preset)</option>
-                            <option value="-2">🚫 Desativar RPC (sem status)</option>
-                        </select>
-                    </div>
+                <div class="form-row" style="align-items: center;">
+                    <select id="fallbackPresetSelect" style="flex: 1; min-width: 180px;">
+                        <option value="-1">Nenhum (manter último preset)</option>
+                        <option value="-2">🚫 Desativar RPC (sem status)</option>
+                    </select>
                     <button id="saveFallbackBtn" class="btn btn-blue">Salvar</button>
                     <span id="fallbackStatus" class="fallback-status inactive">Não configurado</span>
                 </div>
@@ -457,7 +709,10 @@
                         <label>Nome do Processo (ex: chrome.exe)</label>
                         <input type="text" id="processName" placeholder="nome_do_programa.exe" />
                     </div>
-                    <button id="addMappingBtn" class="btn btn-primary">Adicionar</button>
+                    <div class="form-group" style="flex: 0 0 auto; min-width: auto;">
+                        <label style="visibility: hidden; user-select: none;">&nbsp;</label>
+                        <button id="addMappingBtn" class="btn btn-primary">Adicionar</button>
+                    </div>
                 </div>
                 <p class="hint">💡 Dica: Use o Gerenciador de Tarefas (Ctrl+Shift+Esc) para ver o nome do processo</p>
             </div>
@@ -476,30 +731,24 @@
         <!-- Tab: Websites -->
         <div id="tab-websites" class="tab-content">
             <!-- Extension vs AutoDetect Toggle -->
-            <div class="section-box"
-                style="border-color: var(--primary); background: linear-gradient(135deg, rgba(255, 153, 102, 0.1) 0%, rgba(255, 94, 98, 0.05) 100%);">
-                <h2 style="color: var(--primary);">🔌 Método de Detecção</h2>
-                <p class="hint" style="margin-bottom: 15px;">Escolha como detectar sites como YouTube, Netflix e Twitch:
-                </p>
+            <div class="section-box">
+                <h2>🔌 Método de Detecção</h2>
+                <p class="hint" style="margin-bottom: 15px;">Escolha como detectar sites como YouTube, Netflix e Twitch:</p>
 
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <label class="radio-option" id="useExtensionOption"
-                        style="flex: 1; min-width: 200px; padding: 15px; border-radius: 12px; border: 2px solid var(--glass-border); background: rgba(0,0,0,0.2); cursor: pointer; transition: all 0.3s;">
-                        <input type="radio" name="webDetectionMethod" value="extension" id="useExtensionRadio"
-                            style="margin-right: 10px;">
+                <div class="radio-option-container">
+                    <label class="radio-option" id="useExtensionOption">
+                        <input type="radio" name="webDetectionMethod" value="extension" id="useExtensionRadio">
                         <strong style="color: var(--success);">🧩 Usar Extensão</strong>
-                        <p style="font-size: 0.8em; color: var(--text-muted); margin-top: 5px;">
+                        <p style="color: var(--text-dim);">
                             Detecta automaticamente o que você está assistindo no navegador.<br>
                             <em>Requer a extensão Solari instalada.</em>
                         </p>
                     </label>
 
-                    <label class="radio-option" id="useAutoDetectOption"
-                        style="flex: 1; min-width: 200px; padding: 15px; border-radius: 12px; border: 2px solid var(--glass-border); background: rgba(0,0,0,0.2); cursor: pointer; transition: all 0.3s;">
-                        <input type="radio" name="webDetectionMethod" value="autodetect" id="useAutoDetectRadio"
-                            style="margin-right: 10px;">
+                    <label class="radio-option" id="useAutoDetectOption">
+                        <input type="radio" name="webDetectionMethod" value="autodetect" id="useAutoDetectRadio">
                         <strong style="color: #14b8a6;">🌐 Usar Auto-Detecção</strong>
-                        <p style="font-size: 0.8em; color: var(--text-muted); margin-top: 5px;">
+                        <p style="color: var(--text-dim);">
                             Detecta por palavra-chave no título da janela.<br>
                             <em>Não requer extensão.</em>
                         </p>
@@ -525,7 +774,10 @@
                             <label>Palavra-chave no título (ex: Netflix, YouTube)</label>
                             <input type="text" id="websiteKeyword" placeholder="Netflix" />
                         </div>
-                        <button id="addWebsiteMappingBtn" class="btn btn-teal">Adicionar</button>
+                        <div class="form-group" style="flex: 0 0 auto; min-width: auto;">
+                            <label style="visibility: hidden; user-select: none;">&nbsp;</label>
+                            <button id="addWebsiteMappingBtn" class="btn btn-teal">Adicionar</button>
+                        </div>
                     </div>
                     <p class="hint">💡 Quando você abrir Netflix no navegador, o título será "Netflix - Brave" e será
                         detectado!</p>
@@ -568,6 +820,30 @@
         const { ipcRenderer, shell } = require('electron');
         const path = require('path');
         const fs = require('fs');
+        
+        // Logo path resolution
+        try {
+            const candidates = [
+                path.join(process.resourcesPath || '', 'icon.png'),
+                path.join(__dirname, '..', '..', 'SolariPhotoTransparente.png'),
+                path.join(__dirname, '..', 'assets', 'icon.png'),
+            ];
+            
+            let solvedPath = '';
+            for (const candidate of candidates) {
+                if (fs.existsSync(candidate)) {
+                    solvedPath = candidate;
+                    break;
+                }
+            }
+            
+            if (solvedPath) {
+                const tLogo = document.getElementById('titlebarLogo');
+                if (tLogo) tLogo.src = solvedPath;
+            }
+        } catch (e) {
+            console.error('[AutoDetect] Could not resolve logo path:', e);
+        }
 
         // Local translations for autodetect window
         let translations = {};
@@ -755,19 +1031,15 @@
             if (useExtensionForWeb) {
                 useExtensionRadio.checked = true;
                 useAutoDetectRadio.checked = false;
-                useExtensionOption.style.borderColor = 'var(--success)';
-                useExtensionOption.style.background = 'rgba(74, 222, 128, 0.15)';
-                useAutoDetectOption.style.borderColor = 'var(--glass-border)';
-                useAutoDetectOption.style.background = 'rgba(0,0,0,0.2)';
+                useExtensionOption.classList.add('active', 'extension-active');
+                useAutoDetectOption.classList.remove('active', 'autodetect-active');
                 autoDetectWebsiteSettings.style.display = 'none';
                 extensionInfo.style.display = 'block';
             } else {
                 useExtensionRadio.checked = false;
                 useAutoDetectRadio.checked = true;
-                useExtensionOption.style.borderColor = 'var(--glass-border)';
-                useExtensionOption.style.background = 'rgba(0,0,0,0.2)';
-                useAutoDetectOption.style.borderColor = '#14b8a6';
-                useAutoDetectOption.style.background = 'rgba(20, 184, 166, 0.15)';
+                useExtensionOption.classList.remove('active', 'extension-active');
+                useAutoDetectOption.classList.add('active', 'autodetect-active');
                 autoDetectWebsiteSettings.style.display = 'block';
                 extensionInfo.style.display = 'none';
             }
@@ -1019,6 +1291,23 @@
             updateUILanguage();
         });
 
+        // Theme synchronization logic
+        function setTheme(theme) {
+            if (theme === 'default') {
+                document.documentElement.removeAttribute('data-theme');
+            } else {
+                document.documentElement.setAttribute('data-theme', theme);
+            }
+        }
+
+        // Listen for theme changes from main process
+        ipcRenderer.on('theme-loaded', (event, theme) => {
+            if (theme) setTheme(theme);
+        });
+
+        // Request current theme on load
+        ipcRenderer.send('get-theme');
+
         // Open external links in default browser
         document.addEventListener('click', (e) => {
             if (e.target && e.target.id === 'getExtensionLink') {
@@ -1026,6 +1315,15 @@
                 ipcRenderer.send('open-external-url', e.target.href);
             }
         });
+
+        // Window controls click listeners
+        const minBtn = document.getElementById('windowMinBtn');
+        const maxBtn = document.getElementById('windowMaxBtn');
+        const winCloseBtn = document.getElementById('windowCloseBtn');
+
+        if (minBtn) minBtn.addEventListener('click', () => ipcRenderer.send('window-minimize'));
+        if (maxBtn) maxBtn.addEventListener('click', () => ipcRenderer.send('window-maximize'));
+        if (winCloseBtn) winCloseBtn.addEventListener('click', () => ipcRenderer.send('window-close'));
     </script>
 </body>
 

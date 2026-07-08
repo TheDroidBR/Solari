@@ -36,6 +36,7 @@
         "identityAdded": "Profil \"{name}\" hinzugefügt!",
         "notesExported": "Notizen exportiert",
         "settingsReset": "Einstellungen zurückgesetzt",
+        "success": "Erfolgreich",
         "error": "Fehler"
     },
     "about": {
@@ -72,6 +73,44 @@
         "plugins": "Plugins",
         "settings": "Einstellungen"
     },
+    "extensionTab": {
+        "title": "Browser-Erweiterung",
+        "statusDisconnected": "Nicht verbunden. Stellen Sie sicher, dass die Solari-Erweiterung installiert und Ihr Browser geöffnet ist.",
+        "statusConnected": "Mit Browser-Erweiterung verbunden (v{version})",
+        "controlsTitle": "Allgemeine Steuerung",
+        "controlsDesc": "Passen Sie das Verhalten der Erweiterung im Browser an.",
+        "labelTabMode": "Tab-Auswahlmodus",
+        "tabModeDesc": "Wählen Sie, wie der aktive Tab ausgewählt wird.",
+        "modeAuto": "Automatisch (Fokus)",
+        "modeManual": "Manuell (Liste)",
+        "labelIncognito": "Inkognito-Tab",
+        "incognitoDesc": "Medien-Erkennung in Inkognito-Tabs erlauben.",
+        "platformsTracking": "Überwachte Plattformen",
+        "activeTabsTitle": "Erkannte Tabs",
+        "activeTabsDesc": "Tabs mit aktiven Medien, die von der Browser-Erweiterung erkannt wurden.",
+        "noActiveTabs": "Keine aktiven Medien-Tabs erkannt.",
+        "statsTitle": "Wiedergabezeit",
+        "statsDesc": "Nutzungsstatistiken in der aktuellen Sitzung.",
+        "activeLabel": "Aktiv",
+        "inactiveLabel": "Inaktiv",
+        "setPrimary": "Als aktive Quelle festlegen",
+        "promoTitle": "Synchronisieren Sie Ihr Browsing in Echtzeit",
+        "promoDescription": "Mit der offiziellen Solari-Erweiterung können Sie Ihre Discord Rich Presence automatisch mit dem synchronisieren, was Sie im Browser ansehen!",
+        "howToInstall": "Einrichtung:",
+        "step1": "Installieren Sie die offizielle Solari-Erweiterung aus dem Chrome Web Store.",
+        "step2": "Lassen Sie die Erweiterung aktiviert (sie verbindet sich automatisch mit der Solari-App).",
+        "step3": "Öffnen Sie ein beliebiges Video oder einen Stream auf YouTube, Netflix, Twitch oder Prime Video.",
+        "step4": "Ihr Discord-Status wird in Echtzeit aktualisiert!",
+        "getBtn": "Erweiterung erhalten",
+        "guideBtn": "Anleitung ansehen",
+        "mappingsTitle": "Medien-Mapping",
+        "mappingsDesc": "Konfigurieren Sie das Preset und die Client-ID für jede Plattform.",
+        "useRecommended": "Empfohlenes verwenden",
+        "recommended": "Empfohlen",
+        "invalidActivity": "Ungültiges Preset",
+        "invalidActivityDesc": "Für die Plattform {platform} muss das Preset als '{expected}' konfiguriert sein.",
+        "nonePreset": "-- Keines (Standard) --"
+    },
     "settings": {
         "generalTitle": "Allgemein",
         "generalDesc": "App-Start und Benutzeroberfläche.",
@@ -86,9 +125,7 @@
         "labelApp": "App",
         "labelPlugins": "Plugins",
         "showEcoMode": "Eco-Modus anzeigen",
-        "showEcoModeDesc": "Zeigt die Eco-Modus-Leiste oben in Solari an.",
-        "useDefaultClientIds": "Werkseinstellungen-Client-IDs verwenden",
-        "useDefaultClientIdsDesc": "Verwendet die werkseitigen Standard-Client-IDs für Netflix, Twitch, YouTube und Prime Video (Empfohlen für die Verwendung mit der Erweiterung)."
+        "showEcoModeDesc": "Zeigt die Eco-Modus-Leiste oben in Solari an."
     },
     "pluginStore": {
         "title": "Offizielle Plugins",
@@ -100,6 +137,8 @@
         "installed": "Installiert",
         "installing": "Wird heruntergeladen...",
         "activateNotice": "Aktivieren Sie das Plugin in den BetterDiscord-Einstellungen!",
+        "bdNotInstalledInstallNotice": "Plugin installiert! BetterDiscord ist jedoch nicht installiert. Sie müssen BetterDiscord installieren, damit das Plugin funktioniert, und es in den BetterDiscord-Einstellungen aktivieren.",
+        "bdDirNotFoundTooltip": "BetterDiscord-Plugin-Ordner nicht gefunden. Installieren Sie zuerst BetterDiscord.",
         "bdWarningTitle": "BetterDiscord nicht erkannt",
         "bdWarningDesc": "Um Solari-Plugins zu verwenden, muss BetterDiscord auf Discord installiert sein.",
         "bdDownload": "BetterDiscord herunterladen",
@@ -358,8 +397,11 @@
         "invalidClientId": "Ungültige Client ID (muss numerisch sein, 15-30 Stellen)",
         "updated": "Profil aktualisiert!",
         "added": "Profil \"{name}\" hinzugefügt!",
-        "factoryClientIds": "Werkseinstellungen-Client-IDs",
-        "customProfiles": "Benutzerdefinierte Profile"
+        "factoryClientIds": "Erweiterung",
+        "publicClientIds": "Öffentlich",
+        "customProfiles": "Personalisiert",
+        "searchOption": "Client ID suchen...",
+        "searchModalTitle": "Client ID suchen"
     },
     "soundboard": {
         "driverRequired": "Audiotreiber erforderlich",
@@ -671,5 +713,39 @@
         "button": "🧩 Erweiterung erhalten",
         "tutorialButton": "📖 Anleitung",
         "toastInfo": "Installieren Sie die Erweiterung, um Videos und Streams automatisch zu synchronisieren!"
+    },
+    "search": {
+        "placeholder": "App-Namen oder ID eingeben...",
+        "noResults": "Keine Apps gefunden"
+    },
+    "feedbackModal": {
+        "title": "Feedback & Vorschläge",
+        "chooseDesc": "Deine Meinung ist uns sehr wichtig, um Solari zu verbessern! Bitte wähle das passende Format für deine Nachricht:",
+        "chooseFeedbackTitle": "Feedback hinterlassen",
+        "chooseFeedbackDesc": "Bewerte deine Erfahrung und gib uns eine Bewertung von 1 bis 5 Sternen.",
+        "chooseSuggestionTitle": "Vorschlag senden",
+        "chooseSuggestionDesc": "Hast du eine Idee? Schlage neue Funktionen und Verbesserungen für die App vor.",
+        "close": "Schließen",
+        "ratingLabel": "Bewertung",
+        "subjectLabel": "Betreff / Titel",
+        "feedbackSubjectPlaceholder": "Z.B.: Die App ist hervorragend!",
+        "messageLabel": "Nachricht / Kommentar",
+        "feedbackMessagePlaceholder": "Beschreibe deine Erfahrung im Detail...",
+        "discordLabel": "Dein Discord (Optional)",
+        "discordPlaceholder": "Z.B.: benutzer oder benutzer#0000",
+        "back": "Zurück",
+        "submitFeedback": "Feedback senden",
+        "suggestionSubjectLabel": "Titel des Vorschlags",
+        "suggestionSubjectPlaceholder": "Z.B.: Unterstützung für Winamp hinzufügen",
+        "suggestionMessageLabel": "Beschreibung der Idee",
+        "suggestionMessagePlaceholder": "Erkläre, wie diese Verbesserung funktionieren würde und warum sie nützlich wäre...",
+        "submitSuggestion": "Vorschlag senden",
+        "cooldownMessage": "Bitte warte {minutes} Min. vor dem Absenden neuer Formulare.",
+        "requiredFields": "Bitte fülle alle Pflichtfelder aus!",
+        "successMessage": "Vielen Dank! Formular erfolgreich übermittelt.",
+        "serverCooldown": "Übermittlungslimit für deine IP-Adresse erreicht. Bitte versuche es später noch einmal.",
+        "submitError": "Fehler beim Senden: {error}",
+        "networkError": "Netzwerkfehler beim Senden des Formulars.",
+        "sending": "Wird gesendet..."
     }
 }

@@ -69,6 +69,7 @@ function getDataPath() {
 function loadData() {
     let raw;
     let data;
+    let shouldRepair = false;
     try {
         if (!_fs.existsSync(_DATA_PATH)) {
             _autoDetectLanguage();
@@ -82,19 +83,36 @@ function loadData() {
     } catch (e) {
         console.error('[DataManager] Failed to load data, attempting backup fallback:', e);
         const bakPath = _DATA_PATH + '.bak';
+        let recovered = false;
         if (_fs.existsSync(bakPath)) {
             try {
                 console.log(`[DataManager] Loading data from backup: ${bakPath}`);
                 raw = _fs.readFileSync(bakPath);
                 data = JSON.parse(raw);
+                recovered = true;
+                shouldRepair = true;
             } catch (bakErr) {
                 console.error('[DataManager] Failed to load data from backup as well:', bakErr);
+            }
+        }
+        if (!recovered) {
+            const rescuePath = _path.join(_app.getPath('userData'), 'customrp-data-rescue.json');
+            if (_fs.existsSync(rescuePath)) {
+                try {
+                    console.log(`[DataManager] Loading data from rescue file: ${rescuePath}`);
+                    raw = _fs.readFileSync(rescuePath);
+                    data = JSON.parse(raw);
+                    recovered = true;
+                    shouldRepair = true;
+                } catch (rescueErr) {
+                    console.error('[DataManager] Failed to load data from rescue file as well:', rescueErr);
+                    _dataLoadFailed = true;
+                    return;
+                }
+            } else {
                 _dataLoadFailed = true;
                 return;
             }
-        } else {
-            _dataLoadFailed = true;
-            return;
         }
     }
 
@@ -139,8 +157,9 @@ function loadData() {
                 console.log(`[DataManager] Migrating orphan mapping to preset: ${mapping.presetName}`);
                 _store.presets.push({
                     name: mapping.presetName, type: 0, details: '', state: '',
-                    largeImageKey: '', largeImageText: '', smallImageKey: '', smallImageText: '',
-                    button1Label: '', button1Url: '', button2Label: '', button2Url: '', clientId: ''
+                    largeImageKey: '', largeImageText: '', largeImageLink: '', smallImageKey: '', smallImageText: '', smallImageLink: '',
+                    button1Label: '', button1Url: '', button2Label: '', button2Url: '', clientId: '',
+                    useProgressBar: false, progressCurrent: '', progressTotal: ''
                 });
             }
         });
@@ -163,6 +182,9 @@ function loadData() {
         // AFK
         if (data.systemAFKSettings) _store.systemAFKSettings = { ..._store.systemAFKSettings, ...data.systemAFKSettings };
 
+        // Extension stats
+        if (data.extensionStats) _store.extensionStats = { ..._store.extensionStats, ...data.extensionStats };
+
         // Soundboard (defer to after initialization)
         if (data.soundBoardData) global.pendingSoundBoardData = data.soundBoardData;
 
@@ -172,6 +194,11 @@ function loadData() {
         _dataLoadFailed = false;
 
         if (typeof _onLoadComplete === 'function') _onLoadComplete(data);
+
+        if (shouldRepair) {
+            console.log('[DataManager] Successfully recovered data. Scheduling repair save.');
+            saveData();
+        }
 
     } catch (e) {
         console.error('[DataManager] Failed to load data:', e);
@@ -236,26 +263,103 @@ function _buildPayload() {
         solariNotesSettings: _store.solariNotesSettings,
         systemAFKSettings: _store.systemAFKSettings,
         spotifyClientId: _store.spotifyClientId,
-        spotifyTokens: _store.spotifyTokens
+        spotifyTokens: _store.spotifyTokens,
+        extensionStats: _store.extensionStats
     };
 }
 
+async function _writeAtomicFile(filePath, json) {
+    const tmp = filePath + '.tmp';
+    const handle = await _fs.promises.open(tmp, 'w');
+    await handle.writeFile(json, 'utf8');
+    await handle.sync();
+    await handle.close();
+    await _fs.promises.rename(tmp, filePath);
+    
+    if (process.platform !== 'win32') {
+        let dirHandle;
+        try {
+            dirHandle = await _fs.promises.open(_path.dirname(filePath), 'r');
+            await dirHandle.sync();
+        } catch (err) {
+            console.error('[DataManager] Directory sync failed:', err);
+        } finally {
+            if (dirHandle) await dirHandle.close();
+        }
+    }
+}
+
+function _writeAtomicFileSync(filePath, json) {
+    const tmp = filePath + '.tmp';
+    _fs.writeFileSync(tmp, json, 'utf8');
+    const fd = _fs.openSync(tmp, 'r+');
+    _fs.fsyncSync(fd);
+    _fs.closeSync(fd);
+    _fs.renameSync(tmp, filePath);
+    
+    if (process.platform !== 'win32') {
+        let dirFd;
+        try {
+            dirFd = _fs.openSync(_path.dirname(filePath), 'r');
+            _fs.fsyncSync(dirFd);
+        } catch (err) {
+            console.error('[DataManager] Directory sync failed (sync):', err);
+        } finally {
+            if (dirFd !== undefined) _fs.closeSync(dirFd);
+        }
+    }
+}
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const ONE_WEEK_MS = 7 * ONE_DAY_MS;
+
 async function _saveDataImmediate() {
     if (_dataLoadFailed) {
-        _writeRescueFile(_buildPayload());
         return;
     }
     try {
         const json = JSON.stringify(_buildPayload(), null, 2);
-        // Backup existing file
-        if (_fs.existsSync(_DATA_PATH)) {
-            try { await _fs.promises.copyFile(_DATA_PATH, _DATA_PATH + '.bak'); }
-            catch (e) { console.error('[DataManager] Backup failed:', e); }
+        if (!json || json === '{}') {
+            console.warn('[DataManager] Payload is empty, skipping save.');
+            return;
         }
-        // Atomic write: tmp → rename
-        const tmp = _DATA_PATH + '.tmp';
-        await _fs.promises.writeFile(tmp, json);
-        await _fs.promises.rename(tmp, _DATA_PATH);
+
+        // 1. Save Main File
+        await _writeAtomicFile(_DATA_PATH, json);
+
+        // 2. Daily Backup Copy
+        const bakPath = _DATA_PATH + '.bak';
+        let shouldWriteBak = true;
+        if (_fs.existsSync(bakPath)) {
+            try {
+                const stats = await _fs.promises.stat(bakPath);
+                const age = Date.now() - stats.mtimeMs;
+                shouldWriteBak = age >= ONE_DAY_MS;
+            } catch (e) {
+                console.error('[DataManager] Failed to check backup mtime:', e);
+            }
+        }
+        if (shouldWriteBak) {
+            console.log('[DataManager] Writing daily backup...');
+            await _writeAtomicFile(bakPath, json);
+        }
+
+        // 3. Weekly Rescue Copy
+        const rescuePath = _path.join(_app.getPath('userData'), 'customrp-data-rescue.json');
+        let shouldWriteRescue = true;
+        if (_fs.existsSync(rescuePath)) {
+            try {
+                const stats = await _fs.promises.stat(rescuePath);
+                const age = Date.now() - stats.mtimeMs;
+                shouldWriteRescue = age >= ONE_WEEK_MS;
+            } catch (e) {
+                console.error('[DataManager] Failed to check rescue mtime:', e);
+            }
+        }
+        if (shouldWriteRescue) {
+            console.log('[DataManager] Writing weekly rescue...');
+            await _writeAtomicFile(rescuePath, json);
+        }
     } catch (e) {
         console.error('[DataManager] Save failed:', e);
     }
@@ -263,34 +367,51 @@ async function _saveDataImmediate() {
 
 function _saveDataImmediateSync() {
     if (_dataLoadFailed) {
-        _writeRescueFileSync(_buildPayload());
         return;
     }
     try {
-        if (_fs.existsSync(_DATA_PATH)) {
-            try { _fs.copyFileSync(_DATA_PATH, _DATA_PATH + '.bak'); }
-            catch (e) { console.error('[DataManager] Backup failed:', e); }
+        const json = JSON.stringify(_buildPayload(), null, 2);
+        if (!json || json === '{}') return;
+
+        // 1. Save Main File
+        _writeAtomicFileSync(_DATA_PATH, json);
+
+        // 2. Daily Backup Copy (Sync)
+        const bakPath = _DATA_PATH + '.bak';
+        let shouldWriteBak = true;
+        if (_fs.existsSync(bakPath)) {
+            try {
+                const stats = _fs.statSync(bakPath);
+                const age = Date.now() - stats.mtimeMs;
+                shouldWriteBak = age >= ONE_DAY_MS;
+            } catch (e) {
+                console.error('[DataManager] Failed to check backup mtime (sync):', e);
+            }
         }
-        _fs.writeFileSync(_DATA_PATH, JSON.stringify(_buildPayload(), null, 2));
+        if (shouldWriteBak) {
+            console.log('[DataManager] Writing daily backup (sync)...');
+            _writeAtomicFileSync(bakPath, json);
+        }
+
+        // 3. Weekly Rescue Copy (Sync)
+        const rescuePath = _path.join(_app.getPath('userData'), 'customrp-data-rescue.json');
+        let shouldWriteRescue = true;
+        if (_fs.existsSync(rescuePath)) {
+            try {
+                const stats = _fs.statSync(rescuePath);
+                const age = Date.now() - stats.mtimeMs;
+                shouldWriteRescue = age >= ONE_WEEK_MS;
+            } catch (e) {
+                console.error('[DataManager] Failed to check rescue mtime (sync):', e);
+            }
+        }
+        if (shouldWriteRescue) {
+            console.log('[DataManager] Writing weekly rescue (sync)...');
+            _writeAtomicFileSync(rescuePath, json);
+        }
     } catch (e) {
         console.error('[DataManager] Sync save failed:', e);
     }
-}
-
-async function _writeRescueFile(payload) {
-    try {
-        const rescuePath = _path.join(_app.getPath('userData'), 'customrp-data-rescue.json');
-        await _fs.promises.writeFile(rescuePath, JSON.stringify({ ...payload, _rescueTimestamp: new Date().toISOString() }, null, 2));
-        console.warn('[DataManager] Data load had previously failed. Saved to rescue file.');
-    } catch (e) { console.error('[DataManager] Rescue write failed:', e); }
-}
-
-function _writeRescueFileSync(payload) {
-    try {
-        const rescuePath = _path.join(_app.getPath('userData'), 'customrp-data-rescue.json');
-        _fs.writeFileSync(rescuePath, JSON.stringify({ ...payload, _rescueTimestamp: new Date().toISOString() }, null, 2));
-        console.warn('[DataManager] Data load had previously failed. Saved to rescue file (sync).');
-    } catch (e) { console.error('[DataManager] Rescue sync write failed:', e); }
 }
 
 /** Auto-detects system language and sets it in the store. */

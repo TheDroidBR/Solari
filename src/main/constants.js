@@ -44,32 +44,35 @@ module.exports = {
     RPC_SWITCH_MAX_ATTEMPTS: 300, // Max attempts for switchRpcClient (~5 min at 1s, ~25 min at 5s)
     RPC_LONG_RETRY_DELAY_MS: 10000,
     RPC_HEALTH_CHECK_INTERVAL_MS: 15000,
+    RPC_HEALTH_CHECK_INTERVAL_ECO_MS: 45000,
     ACTIVITY_UPDATE_DEBOUNCE_MS: 300,
     PRESENCE_UPDATE_THROTTLE_MS: 100, // Leading-edge throttle for cascading updatePresence calls
     SWITCH_LOGIN_TIMEOUT_MS: 10000, // Timeout for switchRpcClient login attempts
-
+    
     // Startup Delays
     AUTO_DETECT_STARTUP_DELAY_MS: 3000,
     CONSOLE_HIDE_DELAY_MS: 500,
     RPC_READY_RESTORE_DELAY_MS: 2000, // Wait before restoring activity after RPC ready
-
+    
     // Discord API
     DISCORD_API_TIMEOUT_MS: 5000,
-
+    
     // BetterDiscord Auto-Repair
     BD_POLL_INTERVAL_MS: 10000, // Status check polling interval (v1.11.1: was 5s, optimized to 10s — WS events are the primary signal)
+    BD_POLL_INTERVAL_ECO_MS: 30000,
     BD_BROKEN_THRESHOLD: 3,    // Consecutive broken detections before repair
     BD_REPAIR_COOLDOWN_MS: 120000, // 2-minute cooldown between repairs
     BD_REPAIR_WINDOW_MS: 600000,   // 10-minute sliding window
     BD_MAX_REPAIRS_WINDOW: 3,      // Max repairs in the window
-
+    
     // Browser Extension
     EXTENSION_CLEAR_DEBOUNCE_MS: 1000, // Grace period before clearing extension presence
     EXTENSION_DISCONNECT_TIMEOUT_MS: 3000, // Wait before clearing presence on WS disconnect
-
+    
     // Hardware Monitor
     HW_GPU_POLL_INTERVAL_MS: 10000, // GPU sampling interval (nvidia-smi is expensive)
     HW_RPC_THROTTLE_MS: 3000, // Min interval between HW-triggered RPC updates (Safe limit: ~3-5s)
+    HW_MONITOR_INTERVAL_ECO_MS: 10000, // Polling interval in Eco Mode
 
     // Website Detection
     WEBSITE_FAIL_THRESHOLD: 3, // Consecutive failures before clearing website presence

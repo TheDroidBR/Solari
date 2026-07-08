@@ -244,7 +244,7 @@ async function checkUpdateSilent() {
 function installUpdateAndRestart() {
     if (updateReady) {
         console.log('[Solari Updater] Installing update and restarting...');
-        autoUpdater.quitAndInstall(false, true); // isSilent=false, isForceRunAfter=true
+        autoUpdater.quitAndInstall(true, true); // isSilent=true, isForceRunAfter=true
     } else {
         console.warn('[Solari Updater] installUpdateAndRestart called but no update is ready');
     }

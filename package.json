@@ -1,7 +1,7 @@
 {
   "name": "solari",
   "productName": "Solari",
-  "version": "1.13.0",
+  "version": "2.0.0",
   "description": "Solari - Advanced Discord Rich Presence",
   "main": "src/main/index.js",
   "scripts": {
@@ -17,7 +17,7 @@
   "author": "TheDroid",
   "license": "GPL-2.0",
   "devDependencies": {
-    "electron": "^41.1.1",
+    "electron": "^42.4.0",
     "electron-builder": "^25.0.0"
   },
   "dependencies": {
@@ -51,6 +51,10 @@
       {
         "from": "SolariPhotoTransparente.png",
         "to": "icon.png"
+      },
+      {
+        "from": "SolariPhotoTransparente_sidebar.png",
+        "to": "icon_sidebar.png"
       }
     ],
     "win": {
@@ -62,9 +66,11 @@
       "verifyUpdateCodeSignature": false
     },
     "nsis": {
-      "oneClick": true,
+      "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
+      "allowToChangeInstallationDirectory": true,
+      "multiLanguageInstaller": true,
+      "runAfterFinish": true,
       "artifactName": "Solari-Setup.exe",
       "shortcutName": "Solari"
     },

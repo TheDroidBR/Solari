@@ -11,7 +11,7 @@
 const { BrowserWindow, shell } = require('electron');
 const path = require('path');
 const CONSTANTS = require('../constants');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 
 /** @type {BrowserWindow|null} */
 let mainWindow = null;
@@ -38,13 +38,17 @@ function init(iconPath) {
  */
 function openExternalSafe(url) {
     if (process.platform === 'win32') {
-        const safeUrl = url.replace(/"/g, '\\"');
-        exec(`explorer "${safeUrl}"`, (err) => {
-            if (err) {
+        try {
+            const child = spawn('explorer.exe', [url], { detached: true, stdio: 'ignore' });
+            child.unref();
+            child.on('error', (err) => {
                 console.error('[WindowManager] explorer open failed, falling back to shell:', err);
                 shell.openExternal(url);
-            }
-        });
+            });
+        } catch (e) {
+            console.error('[WindowManager] explorer spawn threw, falling back to shell:', e);
+            shell.openExternal(url);
+        }
     } else {
         shell.openExternal(url);
     }
@@ -69,8 +73,9 @@ function createMainWindow({ onClose } = {}) {
         minWidth: 1100,
         title: 'Solari',
         icon: ICON_PATH,
-        backgroundColor: '#0f0c29',
+        backgroundColor: '#0c0c0e',
         show: false,
+        frame: false,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -198,7 +203,8 @@ function createAutoDetectWindow() {
         minWidth: 700,
         icon: ICON_PATH,
         title: 'Auto-Detect Settings',
-        backgroundColor: '#0f0c29',
+        backgroundColor: '#0c0c0e',
+        frame: false,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,

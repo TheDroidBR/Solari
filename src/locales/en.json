@@ -25,10 +25,7 @@
     "rpcTitle": "Discord RPC",
     "rpcDesc": "Global settings for Discord integration.",
     "updatesTitle": "Updates & Info",
-    "updatesDesc": "Manage automatic updates and view changelogs.",
-    "labelDefaultClientIds": "Default Client IDs",
-    "useDefaultClientIds": "Use Factory Client IDs",
-    "useDefaultClientIdsDesc": "Uses factory default Client IDs for Netflix, Twitch, YouTube, and Prime Video (Recommended for use with the extension)."
+    "updatesDesc": "Manage automatic updates and view changelogs."
   },
   "pluginStore": {
     "title": "Official Plugins",
@@ -98,10 +95,16 @@
     "largeImageWarning": "If the image doesn't show, restart Solari and try again! If the link ends with '?h=extension', it means the URL wasn't converted. Change the URL manually!",
     "largeImageText": "LARGE IMAGE TEXT",
     "largeImageTextPlaceholder": "Tooltip for large image",
+    "largeImageLink": "LARGE IMAGE LINK (OPTIONAL)",
+    "largeImageLinkPlaceholder": "Link when clicking Large Image (ex: https://...)",
+    "tipLargeImageLink": "Makes Large Image clickable. Must start with https://.",
     "smallImage": "SMALL IMAGE (URL)",
     "smallImageHint": "Image that appears in the bottom right corner of the Rich Presence",
     "smallImageText": "SMALL IMAGE TEXT",
     "smallImageTextPlaceholder": "Tooltip for small image",
+    "smallImageLink": "SMALL IMAGE LINK (OPTIONAL)",
+    "smallImageLinkPlaceholder": "Link when clicking Small Image (ex: https://...)",
+    "tipSmallImageLink": "Makes Small Image clickable. Must start with https://.",
     "button1Label": "BUTTON 1 LABEL",
     "button1Url": "BUTTON 1 URL",
     "button2Label": "BUTTON 2 LABEL",
@@ -123,7 +126,10 @@
     "timestampEndHint": "Shows how much time is left instead of how much has passed",
     "buttons": "Buttons (appear in Rich Presence)",
     "smallImagePlaceholder": "Paste small image URL (ex: https://i.imgur.com/...)",
-    "largeImagePlaceholder": "Paste large image URL (ex: https://i.imgur.com/...)"
+    "largeImagePlaceholder": "Paste large image URL (ex: https://i.imgur.com/...)",
+    "useProgressBar": "Show progress bar",
+    "progressCurrent": "Current Time (MM:SS or Seconds)",
+    "progressTotal": "Total Duration (MM:SS or Seconds)"
   },
   "fallback": {
     "title": "Default Status (Fallback)",
@@ -186,6 +192,7 @@
     "watching": "Watching",
     "competing": "Competing in:",
     "elapsed": "elapsed",
+    "remaining": "remaining",
     "loading": "Loading..."
   },
   "plugins": {
@@ -406,5 +413,11 @@
     "retryBtn": "🔄 Try Again",
     "loading": "Loading premium catalog...",
     "appliedToast": "Preset '{name}' applied successfully!"
+  },
+  "general": {
+    "buttonViewEpisode": "View Episode",
+    "buttonViewSeries": "View Series",
+    "buttonWatchMovie": "Watch Movie",
+    "buttonViewMovie": "View Movie"
   }
 }

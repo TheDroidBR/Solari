@@ -160,6 +160,7 @@ async function fetchPresetsCatalog(isSilent = false) {
         const hasChanges = !cachedPresets || JSON.stringify(cachedPresets) !== stringified;
 
         cachedPresets = data;
+        document.dispatchEvent(new CustomEvent('public-presets-updated', { detail: data }));
 
         if (hasChanges) {
             renderPresetsGrid(cachedPresets);
@@ -217,7 +218,9 @@ function resolvePresetStrings(preset) {
         details: localized.details !== undefined ? localized.details : (preset.details || ''),
         state: localized.state !== undefined ? localized.state : (preset.state || ''),
         largeImageText: localized.largeImageText !== undefined ? localized.largeImageText : (preset.largeImageText || ''),
+        largeImageLink: preset.largeImageLink || '',
         smallImageText: localized.smallImageText !== undefined ? localized.smallImageText : (preset.smallImageText || ''),
+        smallImageLink: preset.smallImageLink || '',
         button1Label: localized.button1Label !== undefined ? localized.button1Label : (preset.button1Label || ''),
         button2Label: localized.button2Label !== undefined ? localized.button2Label : (preset.button2Label || '')
     };
@@ -392,8 +395,10 @@ async function handleApplyPreset(preset) {
             stateUrl: preset.stateUrl || '',
             largeImageKey: preset.largeImage || '',
             largeImageText: preset.largeImageText || '',
+            largeImageLink: preset.largeImageLink || '',
             smallImageKey: preset.smallImage || '',
             smallImageText: preset.smallImageText || '',
+            smallImageLink: preset.smallImageLink || '',
             partyCurrent: preset.partyCurrent ? parseInt(preset.partyCurrent, 10) : null,
             partyMax: preset.partyMax ? parseInt(preset.partyMax, 10) : null,
             button1Label: preset.button1Label || '',
@@ -407,7 +412,7 @@ async function handleApplyPreset(preset) {
         dependencies.ipcRenderer.send('update-activity', payload);
 
         // Reset extension ad banner dismissal for streaming presets
-        const STREAMING_CLIENT_IDS = ['1461859944390332496', '1461860225765347472', '1461881250498482409'];
+        const STREAMING_CLIENT_IDS = ['1461859944390332496', '1520432295255871498', '1461860225765347472', '1461881250498482409', '1511842632240730112'];
         if (STREAMING_CLIENT_IDS.includes(preset.clientId)) {
             localStorage.removeItem('solari_extension_ad_dismissed');
         }
@@ -454,7 +459,7 @@ async function handleCustomizePreset(preset) {
         fillFormFields(preset, identityId);
 
         // Reset extension ad banner dismissal for streaming presets
-        const STREAMING_CLIENT_IDS = ['1461859944390332496', '1461860225765347472', '1461881250498482409'];
+        const STREAMING_CLIENT_IDS = ['1461859944390332496', '1520432295255871498', '1461860225765347472', '1461881250498482409', '1511842632240730112'];
         if (STREAMING_CLIENT_IDS.includes(preset.clientId)) {
             localStorage.removeItem('solari_extension_ad_dismissed');
         }
@@ -643,8 +648,10 @@ async function handleSaveLocalPreset(preset) {
             stateUrl: preset.stateUrl || '',
             largeImageKey: preset.largeImage || '',
             largeImageText: preset.largeImageText || '',
+            largeImageLink: preset.largeImageLink || '',
             smallImageKey: preset.smallImage || '',
             smallImageText: preset.smallImageText || '',
+            smallImageLink: preset.smallImageLink || '',
             button1Label: preset.button1Label || '',
             button1Url: preset.button1Url || '',
             button2Label: preset.button2Label || '',
@@ -679,6 +686,7 @@ async function handleSaveLocalPreset(preset) {
  * Helper to pre-populate custom editor input fields.
  */
 function fillFormFields(preset, identityId) {
+    window.currentLoadedPresetName = preset.name;
     const selectActivity = document.getElementById('activityType');
     const inputDetails = document.getElementById('details');
     const inputDetailsUrl = document.getElementById('detailsUrl');
@@ -686,8 +694,10 @@ function fillFormFields(preset, identityId) {
     const inputStateUrl = document.getElementById('stateUrl');
     const inputLargeImage = document.getElementById('largeImage');
     const inputLargeImageText = document.getElementById('largeImageText');
+    const inputLargeImageLink = document.getElementById('largeImageLink');
     const inputSmallImage = document.getElementById('smallImage');
     const inputSmallImageText = document.getElementById('smallImageText');
+    const inputSmallImageLink = document.getElementById('smallImageLink');
     const inputPartyCurrent = document.getElementById('partyCurrent');
     const inputPartyMax = document.getElementById('partyMax');
     const inputBtn1Label = document.getElementById('button1Label');
@@ -706,8 +716,10 @@ function fillFormFields(preset, identityId) {
     if (inputStateUrl) inputStateUrl.value = preset.stateUrl || '';
     if (inputLargeImage) inputLargeImage.value = preset.largeImage || '';
     if (inputLargeImageText) inputLargeImageText.value = preset.largeImageText || '';
+    if (inputLargeImageLink) inputLargeImageLink.value = preset.largeImageLink || '';
     if (inputSmallImage) inputSmallImage.value = preset.smallImage || '';
     if (inputSmallImageText) inputSmallImageText.value = preset.smallImageText || '';
+    if (inputSmallImageLink) inputSmallImageLink.value = preset.smallImageLink || '';
     
     if (inputPartyCurrent) inputPartyCurrent.value = preset.partyCurrent !== undefined ? preset.partyCurrent : '';
     if (inputPartyMax) inputPartyMax.value = preset.partyMax !== undefined ? preset.partyMax : '';
@@ -764,4 +776,8 @@ function setupMainTabActiveListener() {
     });
 }
 
-module.exports = { init };
+module.exports = { 
+    init,
+    getCachedPresets: () => cachedPresets,
+    fetchPresetsCatalog
+};

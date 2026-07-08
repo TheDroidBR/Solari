@@ -26,6 +26,8 @@ const { initI18n, t, applyTranslations, loadTranslations, getCurrentLang } = req
     }
 })();
 
+let isWindowVisible = true;
+
 // --- UI Elements ---
 const activityTypeSelect = document.getElementById('activityType');
 const detailsInput = document.getElementById('details');
@@ -34,8 +36,10 @@ const stateInput = document.getElementById('state');
 const stateUrlInput = document.getElementById('stateUrl');
 const largeImageInput = document.getElementById('largeImage');
 const largeImageTextInput = document.getElementById('largeImageText');
+const largeImageLinkInput = document.getElementById('largeImageLink');
 const smallImageInput = document.getElementById('smallImage');
 const smallImageTextInput = document.getElementById('smallImageText');
+const smallImageLinkInput = document.getElementById('smallImageLink');
 const button1LabelInput = document.getElementById('button1Label');
 const button1UrlInput = document.getElementById('button1Url');
 const button2LabelInput = document.getElementById('button2Label');
@@ -45,7 +49,14 @@ const partyMaxInput = document.getElementById('partyMax');
 const timestampRadios = document.querySelectorAll('input[name="timestampMode"]');
 const customTimestampInput = document.getElementById('customTimestamp');
 const customTimestampGroup = document.getElementById('customTimestampGroup');
+const timestampModeGroup = document.getElementById('timestampModeGroup');
 const useEndTimestamp = document.getElementById('useEndTimestamp');
+const useEndTimestampContainer = document.getElementById('useEndTimestampContainer');
+const useProgressBarInput = document.getElementById('useProgressBar');
+const useProgressBarContainer = document.getElementById('useProgressBarContainer');
+const progressBarGroup = document.getElementById('progressBarGroup');
+const progressCurrentInput = document.getElementById('progressCurrent');
+const progressTotalInput = document.getElementById('progressTotal');
 const updateBtn = document.getElementById('updateBtn');
 const resetBtn = document.getElementById('resetBtn');
 const statusToggle = document.getElementById('statusToggle');
@@ -55,6 +66,8 @@ const afkIndicator = document.getElementById('afkIndicator');
 
 const defDetailsInput = document.getElementById('defDetails');
 const defStateInput = document.getElementById('defState');
+
+window.currentLoadedPresetName = null;
 const saveDefaultBtn = document.getElementById('saveDefaultBtn');
 const presetNameInput = document.getElementById('presetName');
 const savePresetBtn = document.getElementById('savePresetBtn');
@@ -178,6 +191,7 @@ let showTrash = false;
 
 // Custom CSS Elements
 let identities = [];
+let localPresets = [];
 const customCssBtn = document.getElementById('customCssBtn');
 
 // --- Settings Tab Elements ---
@@ -187,8 +201,6 @@ const settingsMinimizeToTray = document.getElementById('settings-minimizeToTray'
 const settingsShowEcoMode = document.getElementById('settings-showEcoMode');
 const settingsLanguage = document.getElementById('settings-language');
 const settingsClientIdBtn = document.getElementById('settings-clientIdBtn');
-const settingsUseDefaultClientIds = document.getElementById('settings-useDefaultClientIds');
-const identityUseDefaultClientIds = document.getElementById('identity-useDefaultClientIds');
 const settingsAutoCheckApp = document.getElementById('settings-autoCheckApp');
 const settingsAutoCheckPlugins = document.getElementById('settings-autoCheckPlugins');
 const settingsAdvancedTelemetry = document.getElementById('settings-advancedTelemetry');
@@ -224,18 +236,19 @@ document.head.appendChild(customStyle);
 
 // Built-in CSS Themes (use !important to override Solari's default theme)
 const BUILTIN_CSS_PRESETS = {
-    'neon-purple': {
-        name: '💜 Neon Purple',
+    'neon-indigo': {
+        name: '💙 Neon Indigo',
         css: `:root {
-  --primary: #a855f7 !important;
-  --primary-dark: #9333ea !important;
-  --primary-light: #c084fc !important;
-  --primary-glow: rgba(168, 85, 247, 0.4) !important;
-  --accent: #a855f7 !important;
+  --primary: #6366f1 !important;
+  --primary-dark: #4f46e5 !important;
+  --primary-light: #818cf8 !important;
+  --primary-glow: rgba(99, 102, 241, 0.4) !important;
+  --accent: #6366f1 !important;
 }
-.glass-card { border-color: rgba(168, 85, 247, 0.25) !important; }
-.btn-primary { background: linear-gradient(135deg, #a855f7, #7c3aed) !important; }
-.btn-primary-glow { box-shadow: 0 0 20px rgba(168, 85, 247, 0.5) !important; }`
+.glass-card { border-color: rgba(99, 102, 241, 0.25) !important; }
+.btn-primary { background: linear-gradient(135deg, #6366f1, #4f46e5) !important; }
+.btn-primary-glow { box-shadow: 0 0 20px rgba(99, 102, 241, 0.5) !important; }
+.modal-content, .toast { font-family: 'Segoe UI', sans-serif !important; }`
     },
     'crimson': {
         name: '🔥 Crimson',
@@ -587,26 +600,7 @@ if (settingsShowEcoMode) {
         updateEcoModeVisibility();
     });
 }
-function updateDefaultClientIdsToggles(checked) {
-    if (settingsUseDefaultClientIds) settingsUseDefaultClientIds.checked = checked;
-    if (identityUseDefaultClientIds) identityUseDefaultClientIds.checked = checked;
-    appSettings.useDefaultExtensionClientIds = checked;
-    renderIdentities();
-    populatePresetClientIdDropdown();
-}
 
-if (settingsUseDefaultClientIds) {
-    settingsUseDefaultClientIds.addEventListener('change', (e) => {
-        ipcRenderer.send('save-app-settings', { useDefaultExtensionClientIds: e.target.checked });
-        updateDefaultClientIdsToggles(e.target.checked);
-    });
-}
-if (identityUseDefaultClientIds) {
-    identityUseDefaultClientIds.addEventListener('change', (e) => {
-        ipcRenderer.send('save-app-settings', { useDefaultExtensionClientIds: e.target.checked });
-        updateDefaultClientIdsToggles(e.target.checked);
-    });
-}
 if (settingsLanguage) {
     settingsLanguage.addEventListener('change', (e) => {
         ipcRenderer.send('save-language', e.target.value);
@@ -689,6 +683,190 @@ function showPromptModal(title, message, defaultValue = '') {
     });
 }
 
+function showCustomModal(options = {}) {
+    return new Promise((resolve) => {
+        const {
+            type = 'info',
+            title = 'Solari',
+            message = '',
+            detail = '',
+            buttons = ['OK'],
+            defaultId = 0,
+            cancelId = 0,
+            checkboxLabel = '',
+            checkboxChecked = false
+        } = options;
+
+        // Remove existing modal if any
+        let existing = document.getElementById('customDialogModal');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'customDialogModal';
+        overlay.className = 'modal active';
+        overlay.style.zIndex = '19999'; // Higher than normal prompt
+
+        // Dynamic Glow Border class based on type
+        const glowClass = `custom-dialog-${type}`;
+
+        // Get styled SVG icon for dialog type
+        const iconHtml = getDialogIcon(type);
+
+        // Build HTML for buttons
+        const renderedButtons = buttons.map((btnText, idx) => {
+            const isDefault = idx === (defaultId !== undefined ? defaultId : 0);
+            let btnClass = 'btn btn-secondary';
+            if (isDefault) {
+                btnClass = type === 'warning' ? 'btn btn-danger' : 'btn btn-primary';
+            }
+            return `<button class="${btnClass}" data-index="${idx}" style="flex: 1; padding: 10px 20px; font-size: 0.9rem; font-weight: 600; min-width: 100px;">${btnText}</button>`;
+        }).join('');
+
+        // Build HTML for checkbox (optional)
+        let checkboxHtml = '';
+        if (checkboxLabel) {
+            const isChecked = checkboxChecked ? 'checked' : '';
+            checkboxHtml = `
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 20px; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; user-select: none;" id="dialogCheckboxWrapper">
+                    <input type="checkbox" id="dialogCheckbox" ${isChecked} style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--primary, #ff6b35);">
+                    <label for="dialogCheckbox" style="cursor: pointer; font-family: 'Space Grotesk', sans-serif;">${checkboxLabel}</label>
+                </div>
+            `;
+        }
+
+        overlay.innerHTML = `
+            <div class="modal-content ${glowClass}" style="max-width: 440px; text-align: center; padding: 30px; display: flex; flex-direction: column; align-items: center;">
+                ${iconHtml}
+                <h2 style="margin-bottom: 10px; font-size: 1.3rem; background: var(--text-gradient, var(--text)); -webkit-background-clip: text; color: transparent; font-family: 'Space Grotesk', sans-serif; font-weight: 700;">${title}</h2>
+                <p style="margin-bottom: 12px; color: var(--text); font-size: 1rem; font-weight: 500; line-height: 1.4; font-family: 'Space Grotesk', sans-serif;">${message}</p>
+                ${detail ? `<p style="margin-bottom: 22px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; font-family: 'Space Grotesk', sans-serif; white-space: pre-wrap; width: 100%; text-align: center;">${detail}</p>` : '<div style="margin-bottom: 10px;"></div>'}
+                ${checkboxHtml}
+                <div class="dialog-buttons-container" style="display: flex; gap: 15px; justify-content: center; width: 100%; margin-top: 5px;">
+                    ${renderedButtons}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const close = (responseIndex) => {
+            const checkboxEl = document.getElementById('dialogCheckbox');
+            const checked = checkboxEl ? checkboxEl.checked : false;
+            overlay.remove();
+            resolve({ response: responseIndex, checkboxChecked: checked });
+        };
+
+        // Wire up buttons click events
+        overlay.querySelectorAll('button[data-index]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.getAttribute('data-index'), 10);
+                close(idx);
+            });
+        });
+
+        // Setup checkbox wrapper click toggle
+        const checkboxWrapper = document.getElementById('dialogCheckboxWrapper');
+        if (checkboxWrapper) {
+            checkboxWrapper.addEventListener('click', (e) => {
+                if (e.target.id !== 'dialogCheckbox' && e.target.tagName !== 'LABEL') {
+                    const checkbox = document.getElementById('dialogCheckbox');
+                    if (checkbox) checkbox.checked = !checkbox.checked;
+                }
+            });
+        }
+
+        // Keyboard navigation and focus trapping
+        const focusables = Array.from(overlay.querySelectorAll('button, input[type="checkbox"]'));
+        if (focusables.length > 0) {
+            const defaultButton = overlay.querySelector(`button[data-index="${defaultId !== undefined ? defaultId : 0}"]`) || focusables[0];
+            defaultButton.focus();
+
+            overlay.addEventListener('keydown', (e) => {
+                if (e.key === 'Tab') {
+                    const first = focusables[0];
+                    const last = focusables[focusables.length - 1];
+                    if (e.shiftKey) {
+                        if (document.activeElement === first) {
+                            last.focus();
+                            e.preventDefault();
+                        }
+                    } else {
+                        if (document.activeElement === last) {
+                            first.focus();
+                            e.preventDefault();
+                        }
+                    }
+                } else if (e.key === 'Escape') {
+                    const cancelIndex = cancelId !== undefined ? cancelId : 0;
+                    close(cancelIndex);
+                    e.preventDefault();
+                } else if (e.key === 'Enter') {
+                    if (document.activeElement && document.activeElement.tagName === 'BUTTON') {
+                        return; // Let native button click fire
+                    }
+                    const defBtn = overlay.querySelector(`button[data-index="${defaultId !== undefined ? defaultId : 0}"]`);
+                    if (defBtn) {
+                        defBtn.click();
+                        e.preventDefault();
+                    }
+                }
+            });
+        }
+    });
+}
+
+function getDialogIcon(type) {
+    switch (type) {
+        case 'warning':
+            return `
+                <div class="dialog-icon-wrapper warning">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+            `;
+        case 'error':
+            return `
+                <div class="dialog-icon-wrapper error">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                </div>
+            `;
+        case 'question':
+            return `
+                <div class="dialog-icon-wrapper question">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+            `;
+        case 'info':
+        default:
+            return `
+                <div class="dialog-icon-wrapper info">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                </div>
+            `;
+    }
+}
+
+// IPC Listener for showing the custom dialog from main process
+ipcRenderer.on('show-custom-dialog', async (event, options) => {
+    const result = await showCustomModal(options);
+    ipcRenderer.send('dialog-response', result);
+});
+
 if (settingsClientIdBtn) {
     settingsClientIdBtn.addEventListener('click', async () => {
         const currentId = await ipcRenderer.invoke('get-client-id');
@@ -719,25 +897,15 @@ if (settingsAdvancedTelemetry) {
 }
 if (settingsCheckUpdatesBtn) {
     settingsCheckUpdatesBtn.addEventListener('click', () => {
-        const btnLabel = settingsCheckUpdatesBtn.querySelector('.btn-label');
-        const btnLoader = settingsCheckUpdatesBtn.querySelector('.btn-loader');
-        
-        if (btnLabel && btnLoader) {
-            btnLabel.style.display = 'none';
-            btnLoader.style.display = 'inline-block';
-            settingsCheckUpdatesBtn.disabled = true;
-            
-            // Auto-restore after 8s if no response (safety fallback)
-            setTimeout(() => {
-                if (settingsCheckUpdatesBtn.disabled) {
-                    btnLabel.style.display = 'inline-block';
-                    btnLoader.style.display = 'none';
-                    settingsCheckUpdatesBtn.disabled = false;
-                }
-            }, 8000);
-        }
-        
-        ipcRenderer.send('trigger-update-check');
+        ipcRenderer.send('trigger-update-check', {
+            title: t('menu.updates') || 'Atualizações',
+            updateAvailable: t('menu.updateAvailable') || 'Update Available!',
+            updateMessage: t('menu.updateMessage') || 'A new version of Solari is available.',
+            downloadNow: t('menu.downloadNow') || 'Download Now',
+            later: t('menu.later') || 'Later',
+            noUpdates: t('menu.noUpdates') || 'You are using the latest version!',
+            checkingUpdates: t('menu.checkingUpdates') || 'Checking for updates...'
+        });
     });
 }
 
@@ -746,6 +914,214 @@ document.getElementById('faqLink')?.addEventListener('click', (e) => {
     e.preventDefault();
     ipcRenderer.send('open-external-url', 'https://solarirpc.com/faq.html');
 });
+
+document.getElementById('discordServerLink')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    ipcRenderer.send('open-external-url', 'https://discord.gg/hR8nQZhDgf');
+});
+
+// --- Feedback & Suggestions Modal System ---
+const feedbackModal = document.getElementById('feedbackModal');
+const feedbackLink = document.getElementById('feedbackLink');
+const feedbackCloseBtn = document.getElementById('feedbackCloseBtn');
+
+const feedbackChooseView = document.getElementById('feedbackChooseView');
+const feedbackFormView = document.getElementById('feedbackFormView');
+const suggestionFormView = document.getElementById('suggestionFormView');
+
+const btnChooseFeedback = document.getElementById('btnChooseFeedback');
+const btnChooseSuggestion = document.getElementById('btnChooseSuggestion');
+
+const feedbackBackBtn1 = document.getElementById('feedbackBackBtn1');
+const feedbackBackBtn2 = document.getElementById('feedbackBackBtn2');
+
+const feedbackSubmitBtn = document.getElementById('feedbackSubmitBtn');
+const suggestionSubmitBtn = document.getElementById('suggestionSubmitBtn');
+
+const feedbackStars = document.getElementById('feedbackStars');
+const feedbackRatingVal = document.getElementById('feedbackRatingVal');
+
+function resetFeedbackModal() {
+    document.getElementById('feedbackSubject').value = '';
+    document.getElementById('feedbackMessage').value = '';
+    document.getElementById('feedbackSender').value = '';
+    document.getElementById('suggestionSubject').value = '';
+    document.getElementById('suggestionMessage').value = '';
+    document.getElementById('suggestionSender').value = '';
+    
+    setRatingStars(5);
+    
+    feedbackChooseView.classList.remove('hidden');
+    feedbackFormView.classList.add('hidden');
+    suggestionFormView.classList.add('hidden');
+}
+
+function setRatingStars(rating) {
+    if (feedbackRatingVal) feedbackRatingVal.value = rating;
+    if (feedbackStars) {
+        const stars = feedbackStars.querySelectorAll('span');
+        stars.forEach((star, index) => {
+            if (index < rating) {
+                star.style.color = '#ffbc00';
+                star.textContent = '★';
+            } else {
+                star.style.color = '#4b5563';
+                star.textContent = '☆';
+            }
+        });
+    }
+}
+
+feedbackStars?.addEventListener('click', (e) => {
+    const star = e.target.closest('span');
+    if (star) {
+        const rating = parseInt(star.dataset.star, 10);
+        setRatingStars(rating);
+    }
+});
+
+feedbackLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    resetFeedbackModal();
+    feedbackModal?.classList.add('active');
+});
+
+feedbackCloseBtn?.addEventListener('click', () => {
+    feedbackModal?.classList.remove('active');
+});
+feedbackModal?.addEventListener('click', (e) => {
+    if (e.target === feedbackModal) {
+        feedbackModal.classList.remove('active');
+    }
+});
+
+btnChooseFeedback?.addEventListener('click', () => {
+    feedbackChooseView.classList.add('hidden');
+    feedbackFormView.classList.remove('hidden');
+});
+btnChooseSuggestion?.addEventListener('click', () => {
+    feedbackChooseView.classList.add('hidden');
+    suggestionFormView.classList.remove('hidden');
+});
+
+feedbackBackBtn1?.addEventListener('click', () => {
+    feedbackFormView.classList.add('hidden');
+    feedbackChooseView.classList.remove('hidden');
+});
+feedbackBackBtn2?.addEventListener('click', () => {
+    suggestionFormView.classList.add('hidden');
+    feedbackChooseView.classList.remove('hidden');
+});
+
+function checkLocalFeedbackCooldown() {
+    try {
+        const raw = localStorage.getItem('solari_feedback_timestamps');
+        let timestamps = raw ? JSON.parse(raw) : [];
+        const now = Date.now();
+        
+        timestamps = timestamps.filter(t => now - t < 3600000);
+        localStorage.setItem('solari_feedback_timestamps', JSON.stringify(timestamps));
+        
+        if (timestamps.length >= 3) {
+            const earliest = Math.min(...timestamps);
+            const remainingMs = 3600000 - (now - earliest);
+            const remainingMin = Math.ceil(remainingMs / 60000);
+            return { blocked: true, remainingMinutes: remainingMin };
+        }
+    } catch (e) {
+        console.error('Error checking local cooldown:', e);
+    }
+    return { blocked: false };
+}
+
+function recordFeedbackSubmission() {
+    try {
+        const raw = localStorage.getItem('solari_feedback_timestamps');
+        const timestamps = raw ? JSON.parse(raw) : [];
+        timestamps.push(Date.now());
+        localStorage.setItem('solari_feedback_timestamps', JSON.stringify(timestamps));
+    } catch (e) {
+        console.error('Error recording feedback submission:', e);
+    }
+}
+
+async function submitFeedbackForm(type) {
+    const cooldown = checkLocalFeedbackCooldown();
+    if (cooldown.blocked) {
+        showToast('⏳', t('feedbackModal.cooldownMessage', { minutes: cooldown.remainingMinutes }), 'error');
+        return;
+    }
+    
+    let subject = '';
+    let message = '';
+    let sender = '';
+    let rating = null;
+    
+    if (type === 'feedback') {
+        subject = document.getElementById('feedbackSubject').value.trim();
+        message = document.getElementById('feedbackMessage').value.trim();
+        sender = document.getElementById('feedbackSender').value.trim();
+        rating = document.getElementById('feedbackRatingVal').value;
+    } else {
+        subject = document.getElementById('suggestionSubject').value.trim();
+        message = document.getElementById('suggestionMessage').value.trim();
+        sender = document.getElementById('suggestionSender').value.trim();
+    }
+    
+    if (!subject || !message) {
+        showToast('⚠️', t('feedbackModal.requiredFields'), 'error');
+        return;
+    }
+    
+    if (feedbackSubmitBtn) feedbackSubmitBtn.disabled = true;
+    if (suggestionSubmitBtn) suggestionSubmitBtn.disabled = true;
+    
+    if (type === 'feedback' && feedbackSubmitBtn) feedbackSubmitBtn.textContent = t('feedbackModal.sending');
+    else if (suggestionSubmitBtn) suggestionSubmitBtn.textContent = t('feedbackModal.sending');
+    
+    try {
+        const formData = new FormData();
+        formData.append('type', type);
+        formData.append('subject', subject);
+        formData.append('message', message);
+        formData.append('sender', sender);
+        if (rating) formData.append('rating', rating);
+        
+        const response = await fetch('https://solarirpc.com/counter.php?action=submit_feedback', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            recordFeedbackSubmission();
+            showToast('✅', t('feedbackModal.successMessage'), 'success');
+            feedbackModal?.classList.remove('active');
+        } else {
+            if (data.error === 'cooldown') {
+                showToast('⏳', t('feedbackModal.serverCooldown'), 'error');
+            } else {
+                showToast('❌', t('feedbackModal.submitError', { error: data.error || 'Erro desconhecido' }), 'error');
+            }
+        }
+    } catch (err) {
+        showToast('❌', t('feedbackModal.networkError'), 'error');
+        console.error('[Feedback] Submission error:', err);
+    } finally {
+        if (feedbackSubmitBtn) {
+            feedbackSubmitBtn.disabled = false;
+            feedbackSubmitBtn.textContent = t('feedbackModal.submitFeedback');
+        }
+        if (suggestionSubmitBtn) {
+            suggestionSubmitBtn.disabled = false;
+            suggestionSubmitBtn.textContent = t('feedbackModal.submitSuggestion');
+        }
+    }
+}
+
+feedbackSubmitBtn?.addEventListener('click', () => submitFeedbackForm('feedback'));
+suggestionSubmitBtn?.addEventListener('click', () => submitFeedbackForm('suggestion'));
 
 document.getElementById('discordDevPortalLink')?.addEventListener('click', (e) => {
     e.preventDefault();
@@ -761,16 +1137,29 @@ if (settingsChangelogBtn) {
         ipcRenderer.send('request-changelog'); // Must be mapped in backend
     });
 }
-if (settingsSetupWizardBtn) {
-    settingsSetupWizardBtn.addEventListener('click', () => {
-        if (typeof showSetupWizard === 'function') {
-            showSetupWizard();
-        } else {
-            const wizard = document.getElementById('setupWizard');
-            if (wizard) wizard.style.display = 'flex';
+// Setup Wizard button trigger (using event delegation for maximum reliability)
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('#settings-setupWizardBtn');
+    if (btn) {
+        console.log('[Solari] Setup wizard button clicked (via event delegation)');
+        try {
+            if (typeof showSetupWizard === 'function') {
+                showSetupWizard();
+            } else {
+                console.warn('[Solari] showSetupWizard is not a function, falling back to direct display');
+                const wizard = document.getElementById('setupWizard');
+                if (wizard) wizard.style.display = 'flex';
+            }
+        } catch (err) {
+            console.error('[Solari] Setup wizard trigger error:', err);
+            if (typeof showToast === 'function') {
+                showToast('❌', 'Erro ao abrir assistente: ' + err.message, 'error');
+            } else {
+                alert('Erro ao abrir assistente: ' + err.message);
+            }
         }
-    });
-}
+    }
+});
 if (settingsAboutBtn) {
     settingsAboutBtn.addEventListener('click', () => {
         const aboutModal = document.getElementById('aboutModal');
@@ -808,8 +1197,6 @@ function syncSettingsUI(loadedSettings) {
     if (settingsAutoCheckApp) settingsAutoCheckApp.checked = appSettings.autoCheckAppUpdates || false;
     if (settingsAutoCheckPlugins) settingsAutoCheckPlugins.checked = appSettings.autoCheckPluginUpdates || false;
     if (settingsAdvancedTelemetry) settingsAdvancedTelemetry.checked = appSettings.advancedTelemetry !== false;
-    if (settingsUseDefaultClientIds) settingsUseDefaultClientIds.checked = appSettings.useDefaultExtensionClientIds !== false;
-    if (identityUseDefaultClientIds) identityUseDefaultClientIds.checked = appSettings.useDefaultExtensionClientIds !== false;
     renderIdentities();
 
     // Apply UI Dependencies
@@ -819,6 +1206,10 @@ function syncSettingsUI(loadedSettings) {
     // Dropdown (PROTECTED BY LOCK)
     if (settingsLanguage && !isSyncingLanguage) {
         settingsLanguage.value = appSettings.language || 'en';
+    }
+
+    if (window.ExtensionTabManager && typeof window.ExtensionTabManager.renderMappings === 'function') {
+        window.ExtensionTabManager.renderMappings();
     }
 }
 
@@ -917,11 +1308,15 @@ ipcRenderer.on('data-loaded', async (event, data) => {
             activityTypeSelect.value = actType;
         }
         if (data.lastFormState.details) detailsInput.value = data.lastFormState.details;
+        if (data.lastFormState.detailsUrl && detailsUrlInput) detailsUrlInput.value = data.lastFormState.detailsUrl;
         if (data.lastFormState.state) stateInput.value = data.lastFormState.state;
+        if (data.lastFormState.stateUrl && stateUrlInput) stateUrlInput.value = data.lastFormState.stateUrl;
         if (data.lastFormState.largeImageKey) largeImageInput.value = data.lastFormState.largeImageKey;
         if (data.lastFormState.largeImageText) largeImageTextInput.value = data.lastFormState.largeImageText;
+        if (data.lastFormState.largeImageLink && largeImageLinkInput) largeImageLinkInput.value = data.lastFormState.largeImageLink;
         if (data.lastFormState.smallImageKey) smallImageInput.value = data.lastFormState.smallImageKey;
         if (data.lastFormState.smallImageText) smallImageTextInput.value = data.lastFormState.smallImageText;
+        if (data.lastFormState.smallImageLink && smallImageLinkInput) smallImageLinkInput.value = data.lastFormState.smallImageLink;
         if (data.lastFormState.button1Label) button1LabelInput.value = data.lastFormState.button1Label;
         if (data.lastFormState.button1Url) button1UrlInput.value = data.lastFormState.button1Url;
         if (data.lastFormState.button2Label) button2LabelInput.value = data.lastFormState.button2Label;
@@ -943,6 +1338,25 @@ ipcRenderer.on('data-loaded', async (event, data) => {
 
         if (data.lastFormState.useEndTimestamp !== undefined && useEndTimestamp) {
             useEndTimestamp.checked = data.lastFormState.useEndTimestamp;
+        }
+
+        if (data.lastFormState.activePresetName) {
+            window.currentLoadedPresetName = data.lastFormState.activePresetName;
+        }
+
+        if (data.lastFormState.useProgressBar !== undefined && useProgressBarInput) {
+            useProgressBarInput.checked = data.lastFormState.useProgressBar;
+            if (progressBarGroup) {
+                progressBarGroup.style.display = data.lastFormState.useProgressBar ? 'flex' : 'none';
+            }
+        }
+
+        if (data.lastFormState.progressCurrent !== undefined && progressCurrentInput) {
+            progressCurrentInput.value = data.lastFormState.progressCurrent;
+        }
+
+        if (data.lastFormState.progressTotal !== undefined && progressTotalInput) {
+            progressTotalInput.value = data.lastFormState.progressTotal;
         }
 
         if (data.lastFormState.clientId !== undefined) {
@@ -998,7 +1412,7 @@ ipcRenderer.on('data-loaded', async (event, data) => {
         // If there was no restored state, trigger a preview with default empty fields
         updatePreview();
     }
-    
+
     // Run validation on all fields to show visual status of loaded data
     require('./modules/ui-validator').validateAll();
 
@@ -1056,7 +1470,7 @@ ipcRenderer.on('data-loaded', async (event, data) => {
             statusText.style.color = '#f59e0b';
         }
     }
-    
+
     // Initialize Extension Ad Banner
     if (typeof initExtensionAd === 'function') {
         initExtensionAd();
@@ -1300,6 +1714,8 @@ function renderPresets(presets) {
         return;
     }
 
+    localPresets = presets;
+
     presets.forEach((preset, index) => {
         const div = document.createElement('div');
         div.className = 'preset-item';
@@ -1350,8 +1766,10 @@ function renderPresets(presets) {
                         stateUrl: stateUrlInput?.value || '',
                         largeImageKey: largeImageInput.value,
                         largeImageText: largeImageTextInput.value,
+                        largeImageLink: largeImageLinkInput?.value || '',
                         smallImageKey: smallImageInput.value,
                         smallImageText: smallImageTextInput.value,
+                        smallImageLink: smallImageLinkInput?.value || '',
                         button1Label: button1LabelInput.value,
                         button1Url: button1UrlInput.value,
                         button2Label: button2LabelInput.value,
@@ -1361,6 +1779,9 @@ function renderPresets(presets) {
                         timestampMode: Array.from(timestampRadios || []).find(r => r.checked)?.value || 'normal',
                         customTimestamp: customTimestampInput?.value && (Array.from(timestampRadios || []).find(r => r.checked)?.value === 'custom') ? new Date(customTimestampInput.value).getTime() : null,
                         useEndTimestamp: useEndTimestamp?.checked || false,
+                        useProgressBar: useProgressBarInput?.checked || false,
+                        progressCurrent: progressCurrentInput?.value || '',
+                        progressTotal: progressTotalInput?.value || '',
                         clientId: presetClientIdSelect ? presetClientIdSelect.value : ''
                     };
 
@@ -1375,6 +1796,10 @@ function renderPresets(presets) {
 
         presetList.appendChild(div);
     });
+
+    if (window.ExtensionTabManager && typeof window.ExtensionTabManager.renderMappings === 'function') {
+        window.ExtensionTabManager.renderMappings();
+    }
 }
 
 // Update SoundBoard UI based on VB-Cable driver status
@@ -1429,6 +1854,12 @@ function openPluginConfig(pluginName) {
         if (typeof loadSolariMessageToolsConfig === 'function') loadSolariMessageToolsConfig();
     }
 
+    // Auto-detect dynamic config file from disk for other/generic plugins
+    const isSpecialCase = ['smartafk', 'spotifysync', 'solarinotes', 'solarimessagetools'].includes(pluginName.toLowerCase());
+    if (!isSpecialCase) {
+        loadGenericPluginConfig(pluginName);
+    }
+
     const panel = document.getElementById(panelId);
     if (panel) {
         panel.style.display = 'block';
@@ -1448,6 +1879,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadPreset(preset) {
+    window.currentLoadedPresetName = preset.name;
     let actType = preset.type || "0";
     if (actType === "1" || actType === 1) actType = "3";
     activityTypeSelect.value = actType;
@@ -1457,8 +1889,10 @@ function loadPreset(preset) {
     if (stateUrlInput) stateUrlInput.value = preset.stateUrl || '';
     largeImageInput.value = preset.largeImageKey || '';
     largeImageTextInput.value = preset.largeImageText || '';
+    if (largeImageLinkInput) largeImageLinkInput.value = preset.largeImageLink || '';
     smallImageInput.value = preset.smallImageKey || '';
     smallImageTextInput.value = preset.smallImageText || '';
+    if (smallImageLinkInput) smallImageLinkInput.value = preset.smallImageLink || '';
     button1LabelInput.value = preset.button1Label || '';
     button1UrlInput.value = preset.button1Url || '';
     button2LabelInput.value = preset.button2Label || '';
@@ -1486,6 +1920,11 @@ function loadPreset(preset) {
     }
 
     if (useEndTimestamp) useEndTimestamp.checked = preset.useEndTimestamp || false;
+
+    // Restore progress bar settings
+    if (useProgressBarInput) useProgressBarInput.checked = preset.useProgressBar || false;
+    if (progressCurrentInput) progressCurrentInput.value = preset.progressCurrent || '';
+    if (progressTotalInput) progressTotalInput.value = preset.progressTotal || '';
 
     // Restore Client ID selection for this preset
     const presetClientIdSelect = document.getElementById('presetClientId');
@@ -1542,8 +1981,10 @@ function saveFormState() {
         stateUrl: stateUrlInput?.value || '',
         largeImageKey: largeImageInput.value,
         largeImageText: largeImageTextInput.value,
+        largeImageLink: largeImageLinkInput?.value || '',
         smallImageKey: smallImageInput.value,
         smallImageText: smallImageTextInput.value,
+        smallImageLink: smallImageLinkInput?.value || '',
         button1Label: button1LabelInput.value,
         button1Url: button1UrlInput.value,
         button2Label: button2LabelInput.value,
@@ -1553,8 +1994,12 @@ function saveFormState() {
         timestampMode: Array.from(timestampRadios || []).find(r => r.checked)?.value || 'normal',
         customTimestamp: customTimestampInput?.value ? new Date(customTimestampInput.value).getTime() : null,
         useEndTimestamp: useEndTimestamp?.checked || false,
+        useProgressBar: useProgressBarInput?.checked || false,
+        progressCurrent: progressCurrentInput?.value || '',
+        progressTotal: progressTotalInput?.value || '',
         statusEnabled: statusToggle.checked,
-        clientId: presetClientIdSelect ? presetClientIdSelect.value : ''
+        clientId: presetClientIdSelect ? presetClientIdSelect.value : '',
+        activePresetName: window.currentLoadedPresetName || ''
     };
     ipcRenderer.send('save-form-state', formState);
 }
@@ -1566,12 +2011,43 @@ function debouncedSaveFormState() {
     saveTimeout = setTimeout(saveFormState, 500);
 }
 
+// Document visibility listener to throttle rendering in background
+document.addEventListener('visibilitychange', () => {
+    isWindowVisible = !document.hidden;
+    if (isWindowVisible) {
+        // Force an immediate preview update when restoring visibility
+        updatePreview();
+    }
+});
+
+let previewDebounceTimeout = null;
+
+function handlePreviewInput() {
+    if (!isWindowVisible) return; // Skip completely if invisible
+    
+    // Eco Mode optimization: debounce preview rendering during typing
+    if (document.body.classList.contains('eco-mode')) {
+        if (previewDebounceTimeout) clearTimeout(previewDebounceTimeout);
+        previewDebounceTimeout = setTimeout(updatePreview, 2500); // 2.5s debounce
+    } else {
+        updatePreview();
+    }
+}
+
 // Add listeners to auto-save on change
-[activityTypeSelect, detailsInput, stateInput, largeImageInput, largeImageTextInput, smallImageInput, smallImageTextInput, button1LabelInput, button1UrlInput, button2LabelInput, button2UrlInput].forEach(el => {
+[
+    activityTypeSelect, detailsInput, detailsUrlInput, stateInput, stateUrlInput,
+    largeImageInput, largeImageTextInput, largeImageLinkInput,
+    smallImageInput, smallImageTextInput, smallImageLinkInput,
+    button1LabelInput, button1UrlInput, button2LabelInput, button2UrlInput,
+    useProgressBarInput, progressCurrentInput, progressTotalInput,
+    useEndTimestamp, customTimestampInput
+].forEach(el => {
+    if (!el) return;
     el.addEventListener('input', debouncedSaveFormState);
     el.addEventListener('change', debouncedSaveFormState);
-    // Also update preview on input
-    el.addEventListener('input', updatePreview);
+    // Also update preview on input (with throttling in Eco Mode)
+    el.addEventListener('input', handlePreviewInput);
     el.addEventListener('change', updatePreview);
 });
 
@@ -1584,8 +2060,20 @@ statusToggle?.addEventListener('change', saveFormState);
 ecoModeToggle?.addEventListener('change', (e) => {
     if (e.target.checked) {
         document.body.classList.add('eco-mode');
+        // Store current theme and set to default
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'default';
+        if (currentTheme !== 'default') {
+            localStorage.setItem('solari_theme_before_eco', currentTheme);
+        }
+        setTheme('default');
     } else {
         document.body.classList.remove('eco-mode');
+        // Restore previous theme
+        const savedTheme = localStorage.getItem('solari_theme_before_eco');
+        if (savedTheme) {
+            setTheme(savedTheme);
+            localStorage.removeItem('solari_theme_before_eco');
+        }
     }
     // Save state immediately
     ipcRenderer.send('save-eco-mode', e.target.checked);
@@ -1631,9 +2119,70 @@ const activityTypeLabels = {
 };
 
 function updatePreview() {
+    if (!isWindowVisible) return; // Suspende atualizações visuais se a janela estiver oculta
     const activityType = activityTypeSelect.value;
     const details = detailsInput.value;
     const state = stateInput.value;
+
+    // Sync time segment buttons active class
+    const activeRadio = Array.from(timestampRadios || []).find(r => r.checked);
+    const timestampMode = activeRadio ? activeRadio.value : 'normal';
+
+    if (activeRadio) {
+        document.querySelectorAll('.time-segment-btn').forEach(btn => {
+            if (btn.getAttribute('data-value') === activeRadio.value) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    // Toggle timestamp options and progress bar visibility
+    const isProgressActive = useProgressBarInput && useProgressBarInput.checked && (activityType === '2' || activityType === '3');
+
+    if (timestampModeGroup) {
+        timestampModeGroup.style.display = isProgressActive ? 'none' : 'block';
+    }
+
+    if (isProgressActive) {
+        if (customTimestampGroup) customTimestampGroup.style.display = 'none';
+        if (useEndTimestampContainer) {
+            useEndTimestampContainer.style.display = 'none';
+            if (useEndTimestamp) useEndTimestamp.checked = false;
+        }
+    } else {
+        if (customTimestampGroup) {
+            customTimestampGroup.style.display = timestampMode === 'custom' ? 'block' : 'none';
+        }
+        if (useEndTimestampContainer) {
+            if (timestampMode === 'custom') {
+                useEndTimestampContainer.style.display = 'flex';
+            } else {
+                useEndTimestampContainer.style.display = 'none';
+                if (useEndTimestamp) useEndTimestamp.checked = false;
+            }
+        }
+    }
+
+    // Toggle progress bar container based on activity type (Watching or Listening only)
+    if (useProgressBarContainer) {
+        const isProgressAllowed = (activityType === '2' || activityType === '3');
+        if (isProgressAllowed) {
+            useProgressBarContainer.style.display = 'block';
+            if (progressBarGroup) {
+                progressBarGroup.style.display = (useProgressBarInput && useProgressBarInput.checked) ? 'flex' : 'none';
+            }
+        } else {
+            useProgressBarContainer.style.display = 'none';
+            if (progressBarGroup) {
+                progressBarGroup.style.display = 'none';
+            }
+            if (useProgressBarInput) {
+                useProgressBarInput.checked = false;
+            }
+        }
+    }
 
     // Load and apply customized user profile options
     const displayNameEl = document.getElementById('previewUserDisplayName');
@@ -1641,15 +2190,15 @@ function updatePreview() {
     const avatarImgEl = document.getElementById('previewUserAvatarImg');
     const bannerEl = document.getElementById('previewProfileBanner');
 
-    const savedDisplayName = localStorage.getItem('solari_preview_display_name') || 
-                              localStorage.getItem('solari_detected_display_name') || 
-                              'Gabriel';
-    const savedUsername = localStorage.getItem('solari_preview_username') || 
-                          localStorage.getItem('solari_detected_username') || 
-                          'solari_user';
-    const savedAvatar = localStorage.getItem('solari_preview_avatar') || 
-                        localStorage.getItem('solari_detected_avatar') || 
-                        'SolariPhotoTransparente.png';
+    const savedDisplayName = localStorage.getItem('solari_preview_display_name') ||
+        localStorage.getItem('solari_detected_display_name') ||
+        'Gabriel';
+    const savedUsername = localStorage.getItem('solari_preview_username') ||
+        localStorage.getItem('solari_detected_username') ||
+        'solari_user';
+    const savedAvatar = localStorage.getItem('solari_preview_avatar') ||
+        localStorage.getItem('solari_detected_avatar') ||
+        'SolariPhotoTransparente.png';
     const savedBannerColor = localStorage.getItem('solari_preview_banner_color') || '';
 
     if (displayNameEl) displayNameEl.textContent = savedDisplayName;
@@ -1724,18 +2273,102 @@ function updatePreview() {
     const largeImageText = largeImageTextInput.value;
 
     if (previewState) {
+        let stateText = '';
         if (isPlaying && state) {
-            // Playing mode: show state in this slot
-            previewState.textContent = state;
+            stateText = state;
+        } else if ((activityType === '2' || activityType === '5') && largeImageText) {
+            stateText = largeImageText;
+        }
+
+
+
+        if (stateText) {
+            previewState.innerHTML = stateText;
             previewState.style.display = 'block';
             previewState.style.opacity = '1';
-        } else if ((activityType === '2' || activityType === '5') && largeImageText) {
-            // Listening/Competing: show largeImageText (Discord behavior)
-            previewState.textContent = largeImageText;
-            previewState.style.display = 'block';
-            previewState.style.opacity = '0.7';
         } else {
             previewState.style.display = 'none';
+        }
+    }
+
+    // Update progress bar
+    const previewProgress = document.getElementById('previewProgress');
+    const previewProgressCurrent = document.getElementById('previewProgressCurrent');
+    const previewProgressTotal = document.getElementById('previewProgressTotal');
+    const previewProgressBarFill = document.getElementById('previewProgressBarFill');
+
+    if (previewProgress) {
+        const useProgress = useProgressBarInput ? useProgressBarInput.checked : false;
+        if (useProgress) {
+            const currentStr = progressCurrentInput?.value || '00:00';
+            const totalStr = progressTotalInput?.value || '00:00';
+
+            if (previewProgressCurrent) previewProgressCurrent.textContent = currentStr;
+            if (previewProgressTotal) previewProgressTotal.textContent = totalStr;
+
+            const currentSecs = parseTimeToSeconds(currentStr);
+            const totalSecs = parseTimeToSeconds(totalStr);
+
+            let percent = 0;
+            if (totalSecs > 0) {
+                percent = Math.min(100, Math.max(0, (currentSecs / totalSecs) * 100));
+            }
+            if (previewProgressBarFill) {
+                previewProgressBarFill.style.width = `${percent}%`;
+            }
+
+            previewProgress.style.display = 'flex';
+            if (previewTime) previewTime.style.display = 'none';
+        } else {
+            previewProgress.style.display = 'none';
+            if (previewTime) {
+                previewTime.style.display = 'block';
+
+                if (timestampMode === 'normal') {
+                    previewTime.innerHTML = `00:00 <span data-i18n="preview.elapsed">${t('preview.elapsed') || 'decorrido'}</span>`;
+                } else if (timestampMode === 'local') {
+                    const now = new Date();
+                    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                    const diffMs = Date.now() - startOfDay;
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                    const pad = (n) => n.toString().padStart(2, '0');
+                    previewTime.innerHTML = `${pad(diffHours)}:${pad(diffMins)}:00 <span data-i18n="preview.elapsed">${t('preview.elapsed') || 'decorrido'}</span>`;
+                } else if (timestampMode === 'custom') {
+                    const customVal = customTimestampInput?.value ? new Date(customTimestampInput.value).getTime() : null;
+                    const isEnd = useEndTimestamp?.checked || false;
+
+                    if (customVal) {
+                        if (isEnd) {
+                            const diffMs = customVal - Date.now();
+                            if (diffMs > 0) {
+                                const diffMins = Math.floor(diffMs / 60000);
+                                const diffSecs = Math.floor((diffMs % 60000) / 1000);
+                                const pad = (n) => n.toString().padStart(2, '0');
+                                previewTime.innerHTML = `${pad(diffMins)}:${pad(diffSecs)} <span data-i18n="preview.remaining">${t('preview.remaining') || 'restante'}</span>`;
+                            } else {
+                                previewTime.innerHTML = `00:00 <span data-i18n="preview.remaining">${t('preview.remaining') || 'restante'}</span>`;
+                            }
+                        } else {
+                            const diffMs = Date.now() - customVal;
+                            if (diffMs > 0) {
+                                const diffMins = Math.floor(diffMs / 60000);
+                                const diffSecs = Math.floor((diffMs % 60000) / 1000);
+                                const pad = (n) => n.toString().padStart(2, '0');
+                                previewTime.innerHTML = `${pad(diffMins)}:${pad(diffSecs)} <span data-i18n="preview.elapsed">${t('preview.elapsed') || 'decorrido'}</span>`;
+                            } else {
+                                previewTime.innerHTML = `00:00 <span data-i18n="preview.elapsed">${t('preview.elapsed') || 'decorrido'}</span>`;
+                            }
+                        }
+                    } else {
+                        if (isEnd) {
+                            previewTime.innerHTML = `05:00 <span data-i18n="preview.remaining">${t('preview.remaining') || 'restante'}</span>`;
+                        } else {
+                            previewTime.innerHTML = `00:00 <span data-i18n="preview.elapsed">${t('preview.elapsed') || 'decorrido'}</span>`;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -1800,8 +2433,10 @@ function updatePreview() {
 // --- Browser Extension Advertisement Banner ---
 const STREAMING_CLIENT_IDS = [
     '1461859944390332496', // YouTube
+    '1520432295255871498', // YouTube Music
     '1461860225765347472', // Twitch
-    '1461881250498482409'  // Netflix
+    '1461881250498482409', // Netflix
+    '1511842632240730112'  // Prime Video
 ];
 
 function checkShowExtensionAd() {
@@ -2004,7 +2639,7 @@ function initProfileCustomizer() {
             localStorage.removeItem('solari_preview_username');
             localStorage.removeItem('solari_preview_avatar');
             localStorage.removeItem('solari_preview_banner_color');
-            
+
             closeModal();
             updatePreview();
         });
@@ -2022,8 +2657,61 @@ setTimeout(updatePreview, 100);
 timestampRadios.forEach(radio => {
     radio.addEventListener('change', () => {
         customTimestampGroup.style.display = radio.value === 'custom' && radio.checked ? 'block' : 'none';
+        debouncedSaveFormState();
+        updatePreview();
     });
 });
+
+// Handle time segment buttons clicking
+const timeSegmentBtns = document.querySelectorAll('.time-segment-btn');
+timeSegmentBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const val = btn.getAttribute('data-value');
+        const radio = document.querySelector(`input[name="timestampMode"][value="${val}"]`);
+        if (radio) {
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change'));
+        }
+
+        timeSegmentBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    });
+});
+
+// Toggle progress bar inputs
+useProgressBarInput?.addEventListener('change', () => {
+    if (progressBarGroup) {
+        progressBarGroup.style.display = useProgressBarInput.checked ? 'flex' : 'none';
+    }
+    updatePreview();
+});
+
+// Helper to parse time in MM:SS, H:MM:SS or raw seconds
+function parseTimeToSeconds(str) {
+    if (!str) return 0;
+    str = str.trim();
+    if (!str) return 0;
+
+    // Check if it's just raw seconds
+    if (/^\d+$/.test(str)) {
+        return parseInt(str, 10);
+    }
+
+    // Check MM:SS or H:MM:SS
+    const parts = str.split(':');
+    if (parts.length === 2) {
+        const min = parseInt(parts[0], 10) || 0;
+        const sec = parseInt(parts[1], 10) || 0;
+        return (min * 60) + sec;
+    } else if (parts.length === 3) {
+        const hr = parseInt(parts[0], 10) || 0;
+        const min = parseInt(parts[1], 10) || 0;
+        const sec = parseInt(parts[2], 10) || 0;
+        return (hr * 3600) + (min * 60) + sec;
+    }
+
+    return 0;
+}
 
 // Update Status
 updateBtn?.addEventListener('click', async () => {
@@ -2096,16 +2784,37 @@ updateBtn?.addEventListener('click', async () => {
             customTimestamp = new Date(customTimestampInput.value).getTime();
         }
 
+        // Calculate progress bar timestamps if active
+        let startTimestamp = undefined;
+        let endTimestamp = undefined;
+        const useProgressBar = useProgressBarInput ? useProgressBarInput.checked : false;
+        if (useProgressBar) {
+            const currentSecs = parseTimeToSeconds(progressCurrentInput?.value);
+            const totalSecs = parseTimeToSeconds(progressTotalInput?.value);
+            if (totalSecs > 0) {
+                const now = Date.now();
+                startTimestamp = now - (currentSecs * 1000);
+                endTimestamp = startTimestamp + (totalSecs * 1000);
+            }
+        }
+
         const activity = {
             type: parseInt(activityTypeSelect.value),
             details: detailsInput.value || undefined,
             detailsUrl: detailsUrlInput?.value || undefined,
             state: stateInput.value || undefined,
             stateUrl: stateUrlInput?.value || undefined,
+            useProgressBar: useProgressBar,
+            progressCurrent: progressCurrentInput?.value || undefined,
+            progressTotal: progressTotalInput?.value || undefined,
+            startTimestamp: startTimestamp,
+            endTimestamp: endTimestamp,
             largeImageKey: imageUrl,
             largeImageText: largeImageTextInput.value || undefined,
+            largeImageLink: largeImageLinkInput?.value || undefined,
             smallImageKey: smallImageUrl,
             smallImageText: smallImageTextInput.value || undefined,
+            smallImageLink: smallImageLinkInput?.value || undefined,
             buttons: buttons.length > 0 ? buttons : undefined,
             partyCurrent: partyCurrent > 0 ? partyCurrent : undefined,
             partyMax: partyMax > 0 ? partyMax : undefined,
@@ -2113,7 +2822,8 @@ updateBtn?.addEventListener('click', async () => {
             customTimestamp: customTimestamp,
             useEndTimestamp: useEndTimestamp ? useEndTimestamp.checked : false,
             clientId: document.getElementById('presetClientId')?.value || undefined,
-            instance: false
+            instance: false,
+            presetName: window.currentLoadedPresetName || undefined
         };
         ipcRenderer.send('update-activity', activity);
         uiContext.forceManualMode();
@@ -2155,11 +2865,11 @@ async function handleImgurConversion(inputElement) {
             if (resolved) {
                 inputElement.value = resolved;
                 showToast('🪄', t('toasts.imgurConverted'), 'success');
-                
+
                 // Dispatch input/change events to trigger core listeners
                 inputElement.dispatchEvent(new Event('input', { bubbles: true }));
                 inputElement.dispatchEvent(new Event('change', { bubbles: true }));
-                
+
                 // Force immediate preview update and debounced state save
                 if (typeof updatePreview === 'function') updatePreview();
                 if (typeof debouncedSaveFormState === 'function') debouncedSaveFormState();
@@ -2179,6 +2889,7 @@ if (smallImageInput) {
 
 // Reset to Default
 resetBtn?.addEventListener('click', () => {
+    window.currentLoadedPresetName = null;
     activityTypeSelect.value = "0";
     detailsInput.value = '';
     if (detailsUrlInput) detailsUrlInput.value = '';
@@ -2186,16 +2897,28 @@ resetBtn?.addEventListener('click', () => {
     if (stateUrlInput) stateUrlInput.value = '';
     largeImageInput.value = '';
     largeImageTextInput.value = '';
+    if (largeImageLinkInput) largeImageLinkInput.value = '';
     smallImageInput.value = '';
     smallImageTextInput.value = '';
+    if (smallImageLinkInput) smallImageLinkInput.value = '';
     button1LabelInput.value = '';
     button1UrlInput.value = '';
     button2LabelInput.value = '';
     button2UrlInput.value = '';
+
+    // Clear progress bar inputs as well
+    if (useProgressBarInput) useProgressBarInput.checked = false;
+    if (progressCurrentInput) progressCurrentInput.value = '';
+    if (progressTotalInput) progressTotalInput.value = '';
+
     ipcRenderer.send('reset-activity');
     showToast('🔄', t('presence.reset') || 'Reset!', 'info');
     resetBtn.textContent = t('presence.reset');
     setTimeout(() => resetBtn.textContent = t('presence.resetToDefault'), 2000);
+
+    // Update preview and save form state
+    updatePreview();
+    saveFormState();
 });
 
 // Save Default (if fallback section exists)
@@ -2233,8 +2956,10 @@ savePresetBtn?.addEventListener('click', () => {
         stateUrl: stateUrlInput?.value || '',
         largeImageKey: largeImageInput.value,
         largeImageText: largeImageTextInput.value,
+        largeImageLink: largeImageLinkInput?.value || '',
         smallImageKey: smallImageInput.value,
         smallImageText: smallImageTextInput.value,
+        smallImageLink: smallImageLinkInput?.value || '',
         button1Label: button1LabelInput.value,
         button1Url: button1UrlInput.value,
         button2Label: button2LabelInput.value,
@@ -2244,6 +2969,9 @@ savePresetBtn?.addEventListener('click', () => {
         timestampMode: Array.from(timestampRadios || []).find(r => r.checked)?.value || 'normal',
         customTimestamp: customTimestampInput?.value && (Array.from(timestampRadios || []).find(r => r.checked)?.value === 'custom') ? new Date(customTimestampInput.value).getTime() : null,
         useEndTimestamp: useEndTimestamp?.checked || false,
+        useProgressBar: useProgressBarInput?.checked || false,
+        progressCurrent: progressCurrentInput?.value || '',
+        progressTotal: progressTotalInput?.value || '',
         clientId: presetClientIdSelect ? presetClientIdSelect.value : '' // Per-preset Client ID
     };
     ipcRenderer.send('save-preset', preset);
@@ -2517,7 +3245,7 @@ function updateUILanguage() {
     // Plugin Manager h2 (preserve emoji)
     const pluginH2 = document.querySelector('.plugin-manager h2');
     if (pluginH2) pluginH2.textContent = '🔌 ' + t('plugins.title');
-    
+
     // Presets h2 (preserve info icon)
     const presetsH2 = document.querySelector('.presets h2');
     if (presetsH2) {
@@ -2540,7 +3268,9 @@ function updateUILanguage() {
         'label[for="details"]': t('presence.details'),
         'label[for="state"]': t('presence.state'),
         'label[for="largeImageText"]': t('presence.largeImageText'),
+        'label[for="largeImageLink"]': t('presence.largeImageLink'),
         'label[for="smallImageText"]': t('presence.smallImageText'),
+        'label[for="smallImageLink"]': t('presence.smallImageLink'),
         'label[for="button1Label"]': t('presence.button1Label'),
         'label[for="button1Url"]': t('presence.button1Url'),
         'label[for="button2Label"]': t('presence.button2Label'),
@@ -2578,8 +3308,10 @@ function updateUILanguage() {
         '#state': t('presence.statePlaceholder'),
         '#largeImage': t('presence.largeImagePlaceholder'),
         '#largeImageText': t('presence.largeImageTextPlaceholder'),
+        '#largeImageLink': t('presence.largeImageLinkPlaceholder'),
         '#smallImage': t('presence.smallImagePlaceholder'),
         '#smallImageText': t('presence.smallImageTextPlaceholder'),
+        '#smallImageLink': t('presence.smallImageLinkPlaceholder'),
         '#presetName': t('presets.namePlaceholder'),
         '#defDetails': t('fallback.detailsPlaceholder'),
         '#defState': t('fallback.statePlaceholder'),
@@ -2858,6 +3590,15 @@ ipcRenderer.on('language-changed', async (event, lang) => {
 const themeBtns = document.querySelectorAll('.theme-btn');
 
 function setTheme(theme) {
+    // If Eco Mode is active and the requested theme is not default, block and notify
+    if (document.body.classList.contains('eco-mode') && theme !== 'default') {
+        const warningText = t('toasts.ecoThemeLock') !== 'toasts.ecoThemeLock' 
+            ? t('toasts.ecoThemeLock') 
+            : 'Desative o Modo Eco para alterar o tema!';
+        showToast('⚠️', warningText, 'warning');
+        return;
+    }
+
     // Remove theme attribute for default theme
     if (theme === 'default') {
         document.documentElement.removeAttribute('data-theme');
@@ -2883,35 +3624,211 @@ themeBtns.forEach(btn => {
 
 // Load saved theme
 ipcRenderer.on('theme-loaded', (event, theme) => {
-    if (theme) setTheme(theme);
+    if (document.body.classList.contains('eco-mode')) {
+        if (theme && theme !== 'default') {
+            localStorage.setItem('solari_theme_before_eco', theme);
+        }
+        setTheme('default');
+    } else {
+        if (theme) setTheme(theme);
+    }
 });
 
 // Request saved theme on load
 ipcRenderer.send('get-theme');
 
+// ===== THEME MENU POPUP =====
+const themeMenuBtn = document.getElementById('themeMenuBtn');
+const themeMenuPopup = document.getElementById('themeMenuPopup');
+const themeMenuCustomCssBtn = document.getElementById('themeMenuCustomCssBtn');
+
+console.log('[ThemeMenu] Elements initialized:', {
+    themeMenuBtn: !!themeMenuBtn,
+    themeMenuPopup: !!themeMenuPopup,
+    themeMenuCustomCssBtn: !!themeMenuCustomCssBtn
+});
+
+if (themeMenuBtn && themeMenuPopup) {
+    themeMenuBtn.addEventListener('click', (e) => {
+        console.log('[ThemeMenu] Button clicked!');
+        e.stopPropagation();
+        const isOpen = themeMenuPopup.style.display === 'flex';
+        console.log('[ThemeMenu] Toggle display. Current isOpen:', isOpen);
+        themeMenuPopup.style.display = isOpen ? 'none' : 'flex';
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!themeMenuPopup.contains(e.target) && !themeMenuBtn.contains(e.target)) {
+            themeMenuPopup.style.display = 'none';
+        }
+    });
+}
+
+if (themeMenuCustomCssBtn) {
+    themeMenuCustomCssBtn.addEventListener('click', () => {
+        if (themeMenuPopup) {
+            themeMenuPopup.style.display = 'none';
+        }
+        document.getElementById('customCssBtn')?.click();
+    });
+}
+
+// ===== THEME GALLERY MODAL =====
+const themeMenuMoreThemesBtn = document.getElementById('themeMenuMoreThemesBtn');
+const themeGalleryModal = document.getElementById('themeGalleryModal');
+const closeThemeGalleryBtn = document.getElementById('closeThemeGalleryBtn');
+
+if (themeMenuMoreThemesBtn && themeGalleryModal) {
+    themeMenuMoreThemesBtn.addEventListener('click', () => {
+        if (themeMenuPopup) {
+            themeMenuPopup.style.display = 'none';
+        }
+        themeGalleryModal.classList.add('active');
+    });
+}
+
+if (closeThemeGalleryBtn && themeGalleryModal) {
+    closeThemeGalleryBtn.addEventListener('click', () => {
+        themeGalleryModal.classList.remove('active');
+    });
+
+    themeGalleryModal.addEventListener('click', (e) => {
+        if (e.target === themeGalleryModal) {
+            themeGalleryModal.classList.remove('active');
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && themeGalleryModal.classList.contains('active')) {
+            themeGalleryModal.classList.remove('active');
+        }
+    });
+}
+
 // ===== TOAST NOTIFICATIONS =====
 const toastContainer = document.getElementById('toastContainer');
 
-function showToast(title, message, type = 'info') {
+function showToast(title, message, type = 'info', duration = 3700) {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
+    toast.style.pointerEvents = 'none';
+
+    let iconHtml = '';
+    let titleText = title;
+
+    // Detect if title is a single emoji or short status icon string
+    const isEmoji = title && [...title].length <= 2;
+
+    if (isEmoji) {
+        iconHtml = `<span class="toast-icon-emoji" style="font-size: 1.4rem; filter: drop-shadow(0 0 6px currentColor);">${title}</span>`;
+        const typeTitles = {
+            success: t('toasts.success') || 'Sucesso',
+            error: t('toasts.error') || 'Erro',
+            danger: t('toasts.error') || 'Erro',
+            warning: t('modal.confirmTitle') || 'Aviso',
+            info: 'Solari'
+        };
+        titleText = typeTitles[type] || 'Solari';
+    } else {
+        iconHtml = getToastSvgIcon(type);
+    }
+
     toast.innerHTML = `
-        <div class="toast-title">${title}</div>
-        <div class="toast-message">${message}</div>
+        <div style="display: flex; gap: 14px; align-items: flex-start; width: 100%;">
+            <div class="toast-icon-container" style="flex-shrink: 0; display: flex; align-items: center; justify-content: center; height: 100%;">
+                ${iconHtml}
+            </div>
+            <div class="toast-body" style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                <div class="toast-title" style="margin: 0 0 2px 0; font-weight: 700; font-family: 'Space Grotesk', sans-serif; font-size: 0.95rem; color: #fff;">${titleText}</div>
+                <div class="toast-message" style="margin: 0; font-size: 0.82rem; color: rgba(255, 255, 255, 0.65); line-height: 1.4; font-family: 'Space Grotesk', sans-serif; word-break: break-word;">${message}</div>
+            </div>
+        </div>
+        <div class="toast-progress-bar" style="position: absolute; bottom: 0; left: 0; height: 3px; width: 100%; transform-origin: left; transform: scaleX(1); transition: transform ${duration}ms linear;"></div>
     `;
+
     toastContainer.appendChild(toast);
 
-    // Remove after animation completes
+    // Animate progress bar scale down
+    requestAnimationFrame(() => {
+        const bar = toast.querySelector('.toast-progress-bar');
+        if (bar) {
+            bar.style.transform = 'scaleX(0)';
+        }
+    });
+
+    // Remove toast with slide out transition
     setTimeout(() => {
-        toast.remove();
-    }, 4000);
+        toast.classList.add('removing');
+        toast.style.setProperty('opacity', '0', 'important');
+        toast.style.setProperty('transform', 'translateX(50px) scale(0.98)', 'important');
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, duration);
+}
+
+// Hover detection for intangible toasts (reduces opacity on hover)
+document.addEventListener('mousemove', (e) => {
+    const toasts = document.querySelectorAll('.toast:not(.removing)');
+    if (toasts.length === 0) return;
+
+    toasts.forEach(toast => {
+        const rect = toast.getBoundingClientRect();
+        const isHovered = e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom;
+        if (isHovered) {
+            toast.style.setProperty('opacity', '0.15', 'important');
+        } else {
+            toast.style.removeProperty('opacity');
+        }
+    });
+});
+
+function getToastSvgIcon(type) {
+    switch (type) {
+        case 'success':
+            return `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 6px rgba(34, 197, 94, 0.4));">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            `;
+        case 'error':
+        case 'danger':
+            return `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.4));">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+            `;
+        case 'warning':
+            return `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.4));">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            `;
+        case 'info':
+        default:
+            return `
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.4));">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+            `;
+    }
 }
 
 // Listen for toast from main process
 ipcRenderer.on('show-toast', (event, data) => {
     // Support both direct message and translation key
     const message = data.messageKey ? t(data.messageKey) : data.message;
-    showToast(data.title, message, data.type || 'info');
+    const title = data.titleKey ? t(data.titleKey) : (data.title || 'Solari');
+    showToast(title, message, data.type || 'info');
 });
 
 // Hide browser extension ad banner when the extension connects
@@ -3470,12 +4387,20 @@ function createSettingElement(item, config, pluginName = 'spotify') {
             sliderInput.step = item.step || 1;
             sliderInput.value = config[item.key] || item.defaultValue || 0;
 
+            let saveDebounceTimer = null;
             sliderInput?.addEventListener('input', () => {
                 const valEl = document.getElementById(`val-${item.key}`);
                 if (valEl) valEl.textContent = `${sliderInput.value}${item.suffix || ''}`;
+
+                // Debounce real-time dragging updates
+                if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+                saveDebounceTimer = setTimeout(() => {
+                    ipcRenderer.send(ipcChannel, { [item.key]: parseInt(sliderInput.value) });
+                }, 250);
             });
 
             sliderInput?.addEventListener('change', () => {
+                if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
                 ipcRenderer.send(ipcChannel, { [item.key]: parseInt(sliderInput.value) });
             });
 
@@ -3586,7 +4511,24 @@ var PluginsTabManager = {
         }
     },
 
+    async updateConnectionStatus() {
+        try {
+            const rtStatus = await ipcRenderer.invoke('bd:get-runtime-status');
+            if (rtStatus) {
+                if (rtStatus.active) {
+                    this._handleBDRuntimeStatus(rtStatus);
+                } else {
+                    this._updateSolariManagerCardStatus(false);
+                }
+            }
+        } catch (e) {
+            console.error('[Plugins] Error checking manager status:', e);
+        }
+    },
+
     async init() {
+        this.updateConnectionStatus();
+
         if (this.initialized) return;
 
         const refreshBtn = document.getElementById('plugins-refresh-btn');
@@ -3953,7 +4895,7 @@ var PluginsTabManager = {
                 // Discord downloaded an update but user hasn't installed it yet
                 // Auto-repair is paused to prevent infinite loop
                 if (pendingBanner) pendingBanner.style.display = 'flex';
-                
+
                 if (indicator) {
                     indicator.classList.add('bd-status-broken');
                     indicator.title = 'Discord update pending — Auto-Repair paused';
@@ -4074,7 +5016,7 @@ var PluginsTabManager = {
                 }
                 if (headerBtn) headerBtn.disabled = false;
             }
-            
+
             // Sync SolariManager card with the new BD status
             this._updateSolariManagerCardStatus(result.sm_connected, result.discord_running);
 
@@ -4127,14 +5069,17 @@ var PluginsTabManager = {
                             text.innerHTML = t('pluginStore.bdManagerDiscordClosed') || 'Discord fechado';
                             text.style.color = ''; // reset
                         } else {
-                            // Check if BD is the one broken/incompatible
                             if (this.lastBDStatus === 'incompatible' || this.lastBDStatus === 'incompatible_update') {
                                 text.setAttribute('data-i18n', 'pluginStore.bdStatusIncompatible');
                                 text.innerHTML = t('pluginStore.bdStatusIncompatible') || 'Incompatível';
                                 text.style.color = '#ef4444'; // error red
-                            } else if (this.lastBDStatus === 'broken' || this.lastBDStatus === 'not_installed') {
+                            } else if (this.lastBDStatus === 'not_installed') {
+                                text.setAttribute('data-i18n', 'pluginStore.bdStatusMissing');
+                                text.innerHTML = t('pluginStore.bdStatusMissing') || 'Não Instalado';
+                                text.style.color = '#ef4444'; // error red
+                            } else if (this.lastBDStatus === 'broken') {
                                 text.setAttribute('data-i18n', 'pluginStore.bdStatusBroken');
-                                text.innerHTML = t('pluginStore.bdStatusBroken') || 'Broken / Não Instalado';
+                                text.innerHTML = t('pluginStore.bdStatusBroken') || 'Quebrado';
                                 text.style.color = '#ef4444'; // error red
                             } else {
                                 text.setAttribute('data-i18n', 'pluginStore.bdManagerInstalledInactive');
@@ -4296,6 +5241,9 @@ var PluginsTabManager = {
             if (errorEl) errorEl.style.display = 'none';
         }
 
+        // Check/update manager connection status instantly at the very start of loadPlugins
+        this.updateConnectionStatus();
+
         // v1.11.1 Opt: Use cached metadata if fresh and not a forced refresh
         if (!forceRefresh && this.metaData && (Date.now() - this._lastFetch) < this._CACHE_TTL) {
             if (!isBackground) {
@@ -4421,6 +5369,8 @@ var PluginsTabManager = {
         const gridEl = document.getElementById('plugins-grid');
         gridEl.innerHTML = '';
 
+        const bdDirExists = await ipcRenderer.invoke('plugin:dir-exists');
+
         const downloadSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
         const checkSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`;
 
@@ -4485,6 +5435,8 @@ var PluginsTabManager = {
 
             let buttonLabel = downloadSvg + ' ' + installLabel;
             let buttonClass = 'btn-plugin-install';
+            let isDisabled = '';
+            let btnTitle = '';
 
             if (isInstalled) {
                 if (isNewer(plugin.version, installedVersion)) {
@@ -4494,6 +5446,9 @@ var PluginsTabManager = {
                     buttonLabel = checkSvg + ' ' + installedLabel;
                     buttonClass += ' installed';
                 }
+            } else if (!bdDirExists) {
+                isDisabled = 'disabled';
+                btnTitle = t('pluginStore.bdDirNotFoundTooltip') || 'Pasta de plugins do BetterDiscord não encontrada. Instale o BetterDiscord primeiro.';
             }
 
             const deleteSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
@@ -4503,14 +5458,27 @@ var PluginsTabManager = {
             if (key.toLowerCase() === 'spotifysync') panelId = 'configSpotifySync';
             if (key.toLowerCase() === 'solarinotes') panelId = 'configSolariNotes';
             if (key.toLowerCase() === 'solarimessagetools') panelId = 'configSolariMessageTools';
-            const hasConfig = !!document.getElementById(panelId);
 
-                        // v1.11.1 Opt: Pre-apply cached toggle state if available
+            let hasConfig = !!document.getElementById(panelId);
+            if (!hasConfig) {
+                try {
+                    const configPath = getPluginConfigPath(key, data);
+                    if (fs.existsSync(configPath)) {
+                        const raw = fs.readFileSync(configPath, 'utf8');
+                        const parsed = JSON.parse(raw);
+                        hasConfig = parsed && Array.isArray(parsed.schema) && parsed.schema.length > 0;
+                    }
+                } catch (e) {
+                    hasConfig = false;
+                }
+            }
+
+            // v1.11.1 Opt: Pre-apply cached toggle state if available
             const cleanFileName = plugin.fileName.replace('.plugin.js', '');
             const stateCache = this._pluginStateCache || {};
             const isCached = stateCache.hasOwnProperty(cleanFileName);
             const isEnabled = isCached ? stateCache[cleanFileName] : false;
-            
+
             const toggleDisabled = isCached ? '' : 'disabled';
             const toggleOpacity = isCached ? '1' : '0.35';
             const togglePointer = isCached ? 'auto' : 'none';
@@ -4528,7 +5496,7 @@ var PluginsTabManager = {
                 <div class="plugin-requirements-badge">🔧 Requires: ${info.requires}</div>
                 <ul class="plugin-features-list">${featuresHtml}</ul>
                 <div class="plugin-card-actions">
-                    <button class="${buttonClass}"
+                    <button class="${buttonClass}" ${isDisabled} title="${btnTitle}"
                             data-url="${plugin.downloadUrl}" data-filename="${plugin.fileName}">
                         ${buttonLabel}
                     </button>
@@ -4630,8 +5598,16 @@ var PluginsTabManager = {
             if (result.success) {
                 btnElement.className = 'btn-plugin-install installed';
                 btnElement.innerHTML = `${checkSvg} ${installedLabel}`;
-                const msg = t('pluginStore.activateNotice') !== 'pluginStore.activateNotice' ? t('pluginStore.activateNotice') : 'Ative o plugin nas configurações do BetterDiscord!';
-                showToast('✅', msg, 'success');
+                
+                const bdStatusResult = await ipcRenderer.invoke('plugin:check-bd');
+                if (bdStatusResult && bdStatusResult.status === 'not_installed') {
+                    const warnMsg = t('pluginStore.bdNotInstalledInstallNotice') || 'Plugin instalado! Porém, o BetterDiscord está desinstalado. Você precisa instalar o BetterDiscord para que o plugin funcione, e ativá-lo no painel de configurações do BetterDiscord.';
+                    showToast('⚠️', warnMsg, 'warning', 10000);
+                } else {
+                    const msg = t('pluginStore.activateNotice') !== 'pluginStore.activateNotice' ? t('pluginStore.activateNotice') : 'Ative o plugin nas configurações do BetterDiscord!';
+                    showToast('✅', msg, 'success');
+                }
+                
                 // Refresh cards to instantly show the blue toggle
                 await this.loadPlugins(true);
 
@@ -4853,6 +5829,7 @@ const pluginsTabBtn = document.querySelector('.tab-btn[data-tab="plugins-tab"]')
 if (pluginsTabBtn) {
     pluginsTabBtn?.addEventListener('click', () => {
         PluginsTabManager.init();
+        PluginsTabManager.updateConnectionStatus();
     });
 }
 
@@ -4887,16 +5864,20 @@ const neonModeKey = 'solari_neon_mode';
 const neonModeEnabled = localStorage.getItem(neonModeKey) !== 'false';
 if (neonModeEnabled) {
     document.body.classList.add('neon-mode');
-    if (neonToggle) neonToggle.classList.add('active');
+    if (neonToggle) neonToggle.checked = true;
 } else {
     document.body.classList.remove('neon-mode');
-    if (neonToggle) neonToggle.classList.remove('active');
+    if (neonToggle) neonToggle.checked = false;
 }
 
 if (neonToggle) {
-    neonToggle?.addEventListener('click', () => {
-        const isEnabled = document.body.classList.toggle('neon-mode');
-        neonToggle.classList.toggle('active', isEnabled);
+    neonToggle.addEventListener('change', () => {
+        const isEnabled = neonToggle.checked;
+        if (isEnabled) {
+            document.body.classList.add('neon-mode');
+        } else {
+            document.body.classList.remove('neon-mode');
+        }
         localStorage.setItem(neonModeKey, isEnabled);
     });
 }
@@ -4910,6 +5891,9 @@ async function loadIdentities() {
         identities = await ipcRenderer.invoke('get-identities');
         renderIdentities();
         populatePresetClientIdDropdown();
+        if (window.ExtensionTabManager && typeof window.ExtensionTabManager.renderMappings === 'function') {
+            window.ExtensionTabManager.renderMappings();
+        }
     } catch (e) {
         console.error('[Solari] Failed to load identities:', e);
     }
@@ -4926,31 +5910,24 @@ function renderIdentities() {
     if (!container) return;
 
     let html = '';
-    const useDefault = appSettings.useDefaultExtensionClientIds !== false;
 
-    if (useDefault) {
-        const defaultProfiles = [
-            { name: `YouTube (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461859944390332496' },
-            { name: `Twitch (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461860225765347472' },
-            { name: `Netflix (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461881250498482409' },
-            { name: `Prime Video (${t('app.themeDefault') || 'Padrão'})`, clientId: '1511842632240730112' }
-        ];
+    const defaultProfiles = [
+        { name: `YouTube (${t('identities.factoryClientIds') || 'Extensão'})`, clientId: '1461859944390332496' },
+        { name: `YouTube Music (${t('identities.factoryClientIds') || 'Extensão'})`, clientId: '1520432295255871498' },
+        { name: `Twitch (${t('identities.factoryClientIds') || 'Extensão'})`, clientId: '1461860225765347472' },
+        { name: `Netflix (${t('identities.factoryClientIds') || 'Extensão'})`, clientId: '1461881250498482409' },
+        { name: `Prime Video (${t('identities.factoryClientIds') || 'Extensão'})`, clientId: '1511842632240730112' }
+    ];
 
-        html += defaultProfiles.map(profile => `
-            <div class="identity-item default-identity" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(16,185,129,0.08); border: 1px dashed rgba(16,185,129,0.2); border-radius: 8px; margin-bottom: 6px;">
-                <span style="flex: 1; font-weight: 500; color: #10b981;">🛡️ ${profile.name}</span>
-                <span style="color: rgba(255,255,255,0.4); font-size: 0.8em; font-family: monospace;">${maskClientId(profile.clientId)}</span>
-                <div style="font-size: 0.75em; color: #10b981; padding: 2px 6px; background: rgba(16,185,129,0.1); border-radius: 4px; font-weight: bold;">Ativo</div>
-            </div>
-        `).join('');
-    }
+    html += defaultProfiles.map(profile => `
+        <div class="identity-item default-identity" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(16,185,129,0.08); border: 1px dashed rgba(16,185,129,0.2); border-radius: 8px; margin-bottom: 6px;">
+            <span style="flex: 1; font-weight: 500; color: #10b981;">🔌 ${profile.name}</span>
+            <span style="color: rgba(255,255,255,0.4); font-size: 0.8em; font-family: monospace;">${maskClientId(profile.clientId)}</span>
+            <div style="font-size: 0.75em; color: #10b981; padding: 2px 6px; background: rgba(16,185,129,0.1); border-radius: 4px; font-weight: bold;">Ativo</div>
+        </div>
+    `).join('');
 
-    if (identities.length === 0) {
-        if (!useDefault) {
-            container.innerHTML = '<p style="color: rgba(255,255,255,0.4); font-size: 0.85em;">Nenhum perfil cadastrado. Adicione abaixo.</p>';
-            return;
-        }
-    } else {
+    if (identities.length > 0) {
         html += identities.map(identity => `
             <div class="identity-item" data-id="${identity.id}" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 6px;">
                 <span style="flex: 1; font-weight: 500;">${identity.name}</span>
@@ -5011,37 +5988,36 @@ function populatePresetClientIdDropdown() {
     const defaultOptionText = (globalDefaultText && !globalDefaultText.includes('identities.'))
         ? globalDefaultText
         : fallbackText;
-    
-    // Clear dropdown and start with Global Default option
-    select.innerHTML = `<option value="">${defaultOptionText}</option>`;
 
-    const useDefault = appSettings.useDefaultExtensionClientIds !== false;
+    // Clear dropdown and start with Global Default and Search options
+    select.innerHTML = `
+        <option value="">${defaultOptionText}</option>
+        <option value="search_client_id">🔍 ${t('identities.searchOption') || 'Pesquisar Client ID...'}</option>
+    `;
 
-    // Add Factory Client IDs group ONLY if enabled
-    if (useDefault) {
-        const defaultProfiles = [
-            { name: `YouTube (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461859944390332496' },
-            { name: `Twitch (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461860225765347472' },
-            { name: `Netflix (${t('app.themeDefault') || 'Padrão'})`, clientId: '1461881250498482409' },
-            { name: `Prime Video (${t('app.themeDefault') || 'Padrão'})`, clientId: '1511842632240730112' }
-        ];
+    // 1. Add Extension Client IDs group
+    const defaultProfiles = [
+        { name: 'YouTube', clientId: '1461859944390332496' },
+        { name: 'Twitch', clientId: '1461860225765347472' },
+        { name: 'Netflix', clientId: '1461881250498482409' },
+        { name: 'Prime Video', clientId: '1511842632240730112' }
+    ];
 
-        const factoryGroup = document.createElement('optgroup');
-        factoryGroup.label = `🛡️ ${t('identities.factoryClientIds') || 'Client IDs de Fábrica'}`;
+    const factoryGroup = document.createElement('optgroup');
+    factoryGroup.label = `🔌 ${t('identities.factoryClientIds') || 'Extensão'}`;
 
-        defaultProfiles.forEach(profile => {
-            const option = document.createElement('option');
-            option.value = profile.clientId;
-            option.textContent = `🛡️ ${profile.name}`;
-            factoryGroup.appendChild(option);
-        });
-        select.appendChild(factoryGroup);
-    }
+    defaultProfiles.forEach(profile => {
+        const option = document.createElement('option');
+        option.value = profile.clientId;
+        option.textContent = `🔌 ${profile.name}`;
+        factoryGroup.appendChild(option);
+    });
+    select.appendChild(factoryGroup);
 
-    // Add Custom Profiles group (only if identities exist)
+    // 2. Add Custom Profiles group (only if identities exist)
     if (identities.length > 0) {
         const customGroup = document.createElement('optgroup');
-        customGroup.label = `📱 ${t('identities.customProfiles') || 'Perfis Personalizados'}`;
+        customGroup.label = `📱 ${t('identities.customProfiles') || 'Personalizados'}`;
 
         identities.forEach(identity => {
             const option = document.createElement('option');
@@ -5052,15 +6028,316 @@ function populatePresetClientIdDropdown() {
         select.appendChild(customGroup);
     }
 
+    // 3. Add Public Client IDs group (dynamically fetched if loaded, otherwise fallback)
+    // Filter out YouTube, Twitch, Netflix, and Prime Video since they belong to Extension group
+    const extensionIds = ['1461859944390332496', '1520432295255871498', '1461860225765347472', '1461881250498482409', '1511842632240730112'];
+    const cached = typeof uiPublicPresets !== 'undefined' ? uiPublicPresets.getCachedPresets() : null;
+    const publicProfiles = (cached && Array.isArray(cached))
+        ? cached.map(p => ({ name: p.name, clientId: p.clientId })).filter(p => !extensionIds.includes(p.clientId))
+        : [
+            { name: 'Minecraft', clientId: '1511612772889264168' },
+            { name: 'Visual Studio Code', clientId: '1461859764106428518' },
+            { name: 'Spotify', clientId: '1511611871533465790' },
+            { name: 'Valorant', clientId: '1511612121727635496' },
+            { name: 'Albion Online', clientId: '1494704354614181948' },
+            { name: 'Call of Duty: Warzone', clientId: '1478926742830841998' },
+            { name: 'League of Legends', clientId: '1512115961367367681' },
+            { name: 'Counter-Strike 2', clientId: '1512116350758162523' },
+            { name: 'Roblox', clientId: '1512116652903239830' },
+            { name: 'GTA RP', clientId: '1512117014104375346' },
+            { name: 'Figma', clientId: '1512117570080210964' }
+        ];
+
+    const publicGroup = document.createElement('optgroup');
+    publicGroup.label = `🌍 ${t('identities.publicClientIds') || 'Público'}`;
+
+    publicProfiles.forEach(profile => {
+        if (profile.clientId && profile.name) {
+            const option = document.createElement('option');
+            option.value = profile.clientId;
+            option.textContent = `🌍 ${profile.name}`;
+            publicGroup.appendChild(option);
+        }
+    });
+    select.appendChild(publicGroup);
+
     // Restore selected value
     if (currentValue) {
         select.value = currentValue;
+        select.dataset.lastValue = currentValue;
+    } else {
+        select.dataset.lastValue = '';
     }
 
     // Add change listener to update preview when Client ID changes
     select.onchange = () => {
-        updatePreviewAppNameFromDropdown();
+        if (select.value === 'search_client_id') {
+            // Restore previous value so select doesn't stay on "search_client_id"
+            select.value = select.dataset.lastValue || '';
+            showClientIdSearchModal();
+        } else {
+            select.dataset.lastValue = select.value;
+            updatePreviewAppNameFromDropdown();
+        }
     };
+}
+
+function buildClientIdOptions(platform, currentValue) {
+    const recommendedClientIds = {
+        youtube: '1461859944390332496',
+        youtubemusic: '1520432295255871498',
+        netflix: '1461881250498482409',
+        twitch: '1461860225765347472',
+        primevideo: '1511842632240730112'
+    };
+
+    let html = '';
+
+    // First group: Extensão
+    const defaultProfiles = [
+        { name: 'YouTube', clientId: '1461859944390332496' },
+        { name: 'YouTube Music', clientId: '1520432295255871498' },
+        { name: 'Twitch', clientId: '1461860225765347472' },
+        { name: 'Netflix', clientId: '1461881250498482409' },
+        { name: 'Prime Video', clientId: '1511842632240730112' }
+    ];
+
+    html += `<optgroup label="🔌 ${t('identities.factoryClientIds') || 'Extensão'}">`;
+    defaultProfiles.forEach(profile => {
+        const selectedAttr = profile.clientId === currentValue ? 'selected' : '';
+        html += `<option value="${profile.clientId}" ${selectedAttr}>🔌 ${profile.name}</option>`;
+    });
+    html += `</optgroup>`;
+
+    // Second group: Personalizados
+    if (identities && identities.length > 0) {
+        html += `<optgroup label="📱 ${t('identities.customProfiles') || 'Personalizados'}">`;
+        identities.forEach(identity => {
+            const selectedAttr = identity.id === currentValue ? 'selected' : '';
+            html += `<option value="${identity.id}" ${selectedAttr}>📱 ${identity.name}</option>`;
+        });
+        html += `</optgroup>`;
+    }
+
+    // Third group: Público
+    const extensionIds = ['1461859944390332496', '1461860225765347472', '1461881250498482409', '1511842632240730112'];
+    const cached = typeof uiPublicPresets !== 'undefined' ? uiPublicPresets.getCachedPresets() : null;
+    const publicProfiles = (cached && Array.isArray(cached))
+        ? cached.map(p => ({ name: p.name, clientId: p.clientId })).filter(p => !extensionIds.includes(p.clientId))
+        : [
+            { name: 'Minecraft', clientId: '1511612772889264168' },
+            { name: 'Visual Studio Code', clientId: '1461859764106428518' },
+            { name: 'Spotify', clientId: '1511611871533465790' },
+            { name: 'Valorant', clientId: '1511612121727635496' },
+            { name: 'Albion Online', clientId: '1494704354614181948' },
+            { name: 'Call of Duty: Warzone', clientId: '1478926742830841998' },
+            { name: 'League of Legends', clientId: '1512115961367367681' },
+            { name: 'Counter-Strike 2', clientId: '1512116350758162523' },
+            { name: 'Roblox', clientId: '1512116652903239830' },
+            { name: 'GTA RP', clientId: '1512117014104375346' },
+            { name: 'Figma', clientId: '1512117570080210964' }
+        ];
+
+    html += `<optgroup label="🌍 ${t('identities.publicClientIds') || 'Público'}">`;
+    publicProfiles.forEach(profile => {
+        if (profile.clientId && profile.name) {
+            const selectedAttr = profile.clientId === currentValue ? 'selected' : '';
+            html += `<option value="${profile.clientId}" ${selectedAttr}>🌍 ${profile.name}</option>`;
+        }
+    });
+    html += `</optgroup>`;
+
+    return html;
+}
+
+function showClientIdSearchModal() {
+    let existing = document.getElementById('clientIdSearchModal');
+    if (existing) existing.remove();
+
+    const select = document.getElementById('presetClientId');
+    const lastValue = select ? select.dataset.lastValue || '' : '';
+
+    // Build the items list
+    const extensionProfiles = [
+        { name: 'YouTube', clientId: '1461859944390332496', type: 'extension', icon: '🔌' },
+        { name: 'YouTube Music', clientId: '1520432295255871498', type: 'extension', icon: '🔌' },
+        { name: 'Twitch', clientId: '1461860225765347472', type: 'extension', icon: '🔌' },
+        { name: 'Netflix', clientId: '1461881250498482409', type: 'extension', icon: '🔌' },
+        { name: 'Prime Video', clientId: '1511842632240730112', type: 'extension', icon: '🔌' }
+    ];
+
+    const customProfiles = identities.map(i => ({
+        name: i.name,
+        clientId: i.id, // option value is id (UUID)
+        actualClientId: i.clientId, // real numeric ID
+        type: 'custom',
+        icon: '📱'
+    }));
+
+    const extensionIds = ['1461859944390332496', '1520432295255871498', '1461860225765347472', '1461881250498482409', '1511842632240730112'];
+    const cached = typeof uiPublicPresets !== 'undefined' ? uiPublicPresets.getCachedPresets() : null;
+    const rawPublic = (cached && Array.isArray(cached))
+        ? cached.map(p => ({ name: p.name, clientId: p.clientId }))
+        : [
+            { name: 'Minecraft', clientId: '1511612772889264168' },
+            { name: 'Visual Studio Code', clientId: '1461859764106428518' },
+            { name: 'Spotify', clientId: '1511611871533465790' },
+            { name: 'Valorant', clientId: '1511612121727635496' },
+            { name: 'Albion Online', clientId: '1494704354614181948' },
+            { name: 'Call of Duty: Warzone', clientId: '1478926742830841998' },
+            { name: 'League of Legends', clientId: '1512115961367367681' },
+            { name: 'Counter-Strike 2', clientId: '1512116350758162523' },
+            { name: 'Roblox', clientId: '1512116652903239830' },
+            { name: 'GTA RP', clientId: '1512117014104375346' },
+            { name: 'Figma', clientId: '1512117570080210964' }
+        ];
+    const publicProfiles = rawPublic
+        .filter(p => !extensionIds.includes(p.clientId))
+        .map(p => ({
+            name: p.name,
+            clientId: p.clientId, // option value is the numeric ID
+            type: 'public',
+            icon: '🌍'
+        }));
+
+    let allItems = [];
+    allItems = allItems.concat(extensionProfiles);
+    allItems = allItems.concat(customProfiles);
+    allItems = allItems.concat(publicProfiles);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'clientIdSearchModal';
+    overlay.className = 'modal active';
+    overlay.style.zIndex = '9999';
+
+    const modalTitle = t('identities.searchModalTitle') || 'Pesquisar Client ID';
+
+    overlay.innerHTML = `
+        <div class="modal-content" style="max-width: 450px; text-align: center;">
+            <style>
+                .search-modal-item {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 10px 14px;
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.05);
+                    border-radius: 8px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .search-modal-item:hover {
+                    background: rgba(255,255,255,0.08) !important;
+                    border-color: rgba(255,255,255,0.12) !important;
+                    transform: translateY(-1px);
+                }
+                .search-modal-item.selected {
+                    background: rgba(96,165,250,0.1) !important;
+                    border-color: rgba(96,165,250,0.3) !important;
+                }
+                .search-badge {
+                    font-size: 0.72em;
+                    font-weight: bold;
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    text-transform: uppercase;
+                }
+                .search-badge.extension {
+                    background: rgba(16,185,129,0.15);
+                    color: #10b981;
+                }
+                .search-badge.custom {
+                    background: rgba(96,165,250,0.15);
+                    color: #60a5fa;
+                }
+                .search-badge.public {
+                    background: rgba(245,158,11,0.15);
+                    color: #f59e0b;
+                }
+            </style>
+            <h2 style="margin-bottom: 12px; font-size: 1.25rem; background: var(--text-gradient, linear-gradient(135deg, #fff, #a1a1aa)); -webkit-background-clip: text; color: transparent;">${modalTitle}</h2>
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="clientIdSearchInput" class="preset-input" style="width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 8px;" placeholder="${t('search.placeholder') || 'Digite o nome do app ou ID...'}">
+            </div>
+            <div id="clientIdSearchList" style="max-height: 280px; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; margin-bottom: 20px;">
+                <!-- items rendered dynamically -->
+            </div>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="btn btn-secondary" id="clientIdSearchCancelBtn" style="flex: 1;">${t('modal.cancel') || 'Cancelar'}</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const searchInput = document.getElementById('clientIdSearchInput');
+    const searchList = document.getElementById('clientIdSearchList');
+    const cancelBtn = document.getElementById('clientIdSearchCancelBtn');
+
+    // Function to render items
+    const renderList = (filterText = '') => {
+        const query = filterText.toLowerCase().trim();
+        const filtered = allItems.filter(item => 
+            item.name.toLowerCase().includes(query) || 
+            item.clientId.toLowerCase().includes(query) ||
+            (item.actualClientId && item.actualClientId.toLowerCase().includes(query))
+        );
+
+        if (filtered.length === 0) {
+            searchList.innerHTML = `<p style="text-align: center; color: rgba(255,255,255,0.4); margin: 20px 0;">${t('search.noResults') || 'Nenhum aplicativo encontrado'}</p>`;
+            return;
+        }
+
+        searchList.innerHTML = filtered.map(item => {
+            const isSelected = item.clientId === lastValue;
+            const badgeClass = item.type;
+            const badgeLabel = item.type === 'extension' ? (t('identities.factoryClientIds') || 'Extensão') :
+                               item.type === 'custom' ? (t('identities.customProfiles') || 'Personalizado') :
+                               (t('identities.publicClientIds') || 'Público');
+            
+            return `
+                <div class="search-modal-item ${isSelected ? 'selected' : ''}" data-value="${item.clientId}">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.1em;">${item.icon}</span>
+                        <div style="display: flex; flex-direction: column;">
+                            <span style="font-weight: 500; font-size: 0.95rem;">${item.name}</span>
+                            <span style="font-size: 0.78em; color: rgba(255,255,255,0.3); font-family: monospace;">${maskClientId(item.actualClientId || item.clientId)}</span>
+                        </div>
+                    </div>
+                    <span class="search-badge ${badgeClass}">${badgeLabel}</span>
+                </div>
+            `;
+        }).join('');
+
+        // Attach click events
+        searchList.querySelectorAll('.search-modal-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const val = el.dataset.value;
+                if (select) {
+                    select.value = val;
+                    select.dataset.lastValue = val;
+                    updatePreviewAppNameFromDropdown();
+                }
+                overlay.remove();
+            });
+        });
+    };
+
+    // Initial render
+    renderList();
+
+    // Input listener with simple debounce/immediate change handler
+    searchInput.addEventListener('input', (e) => {
+        renderList(e.target.value);
+    });
+
+    // Close handlers
+    const close = () => overlay.remove();
+    cancelBtn.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    // Focus input on load
+    setTimeout(() => searchInput.focus(), 100);
 }
 
 // Update preview app name based on selected Client ID in dropdown
@@ -5071,18 +6348,49 @@ function updatePreviewAppNameFromDropdown() {
     const selectedValue = select.value;
 
     if (selectedValue) {
-        // Find the identity by ID
+        // Find the identity by ID (custom profile)
         const selectedIdentity = identities.find(i => i.id === selectedValue);
         if (selectedIdentity) {
             discordAppName = selectedIdentity.name;
         } else {
-            // Check if it's one of the factory Client IDs
+            // Check if it's one of the extension or public Client IDs
             const defaults = {
+                // Extension (Factory)
                 '1461859944390332496': 'YouTube',
+                '1520432295255871498': 'YouTube Music',
                 '1461860225765347472': 'Twitch',
                 '1461881250498482409': 'Netflix',
                 '1511842632240730112': 'Prime Video'
             };
+
+            // Dynamically populate defaults mapping from public presets if available
+            const cached = typeof uiPublicPresets !== 'undefined' ? uiPublicPresets.getCachedPresets() : null;
+            if (cached && Array.isArray(cached)) {
+                cached.forEach(p => {
+                    if (p.clientId && p.name) {
+                        defaults[p.clientId] = p.name;
+                    }
+                });
+            } else {
+                // Fallback public mappings
+                const fallbackPublic = [
+                    { name: 'Minecraft', clientId: '1511612772889264168' },
+                    { name: 'Visual Studio Code', clientId: '1461859764106428518' },
+                    { name: 'Spotify', clientId: '1511611871533465790' },
+                    { name: 'Valorant', clientId: '1511612121727635496' },
+                    { name: 'Albion Online', clientId: '1494704354614181948' },
+                    { name: 'Call of Duty: Warzone', clientId: '1478926742830841998' },
+                    { name: 'League of Legends', clientId: '1512115961367367681' },
+                    { name: 'Counter-Strike 2', clientId: '1512116350758162523' },
+                    { name: 'Roblox', clientId: '1512116652903239830' },
+                    { name: 'GTA RP', clientId: '1512117014104375346' },
+                    { name: 'Figma', clientId: '1512117570080210964' }
+                ];
+                fallbackPublic.forEach(p => {
+                    defaults[p.clientId] = p.name;
+                });
+            }
+
             if (defaults[selectedValue]) {
                 discordAppName = defaults[selectedValue];
             } else {
@@ -5213,58 +6521,203 @@ function resetIdentityForm() {
 // QUICK SETUP WIZARD IMPLEMENTATION
 // ==========================================
 
-const wizardOverlay = document.getElementById('setupWizard');
-const wizardSlides = document.querySelectorAll('.wizard-slide');
-const wizardNextBtn = document.getElementById('wizardNextBtn');
-const wizardBackBtn = document.getElementById('wizardBackBtn');
-const stepDots = document.querySelectorAll('.step-dot');
+let wizardOverlay = document.getElementById('setupWizard');
+let wizardSlides = document.querySelectorAll('.wizard-slide');
+let wizardNextBtn = document.getElementById('wizardNextBtn');
+let wizardBackBtn = document.getElementById('wizardBackBtn');
+let stepDots = document.querySelectorAll('.step-dot');
 let currentWizardSlide = 1;
-const totalWizardSlides = 7;
+const totalWizardSlides = 8;
+
+function updateMockupThemeStyle() {
+    try {
+        const mockup = document.getElementById('wizardDiscordMockup');
+        if (!mockup) return;
+        
+        // Clear any theme class
+        mockup.className = 'discord-mockup-card';
+        
+        // Get current active theme
+        const activeTheme = document.documentElement.getAttribute('data-theme') || 'default';
+        mockup.classList.add(`theme-${activeTheme}`);
+        
+        // Neon mode check
+        const isNeonActive = document.body.classList.contains('neon-mode');
+        if (isNeonActive) {
+            mockup.classList.add('neon-active');
+        }
+    } catch (e) {
+        console.error('[Solari] Error in updateMockupThemeStyle:', e);
+    }
+}
+
+function populateWizardSummary() {
+    try {
+        const summaryList = document.getElementById('wizardSummaryList');
+        if (!summaryList) return;
+        
+        summaryList.innerHTML = '';
+        
+        // 1. Language
+        const activeLangCard = document.querySelector('.lang-card.active');
+        const langName = activeLangCard ? activeLangCard.querySelector('span:not(.flag)').textContent : 'English';
+        const langFlag = activeLangCard ? activeLangCard.querySelector('.flag').textContent : '🇺🇸';
+        
+        // 2. Theme
+        const activeThemeCard = document.querySelector('.theme-card-premium.active');
+        const themeName = activeThemeCard ? activeThemeCard.querySelector('.theme-preview-label').textContent : 'Original';
+        const isNeon = document.getElementById('wizardNeonToggleBtn')?.classList.contains('active') ? ' (+ Neon)' : '';
+        
+        // 3. Settings Toggles
+        const toggles = [];
+        if (document.getElementById('wizardToggleStartWindows')?.checked) toggles.push(t('wizard.startWithWindows') || 'Start with Windows');
+        if (document.getElementById('wizardToggleStartMinimized')?.checked) toggles.push(t('wizard.startMinimized') || 'Start Minimized');
+        if (document.getElementById('wizardToggleMinimizeToTray')?.checked) toggles.push(t('wizard.minimizeToTray') || 'Minimize on Close');
+        if (document.getElementById('wizardToggleAutoUpdates')?.checked) toggles.push(t('wizard.autoUpdates') || 'Auto-Check Updates');
+        
+        // 4. Features Toggles
+        const features = [];
+        if (document.getElementById('wizardToggleManager')?.checked) features.push(t('wizard.pluginSolariManagerTitle') || 'Solari Manager');
+        if (document.getElementById('wizardToggleMotion')?.checked) features.push(t('wizard.pluginSolariMotionTitle') || 'Solari Motion');
+        if (document.getElementById('wizardToggleSpotify')?.checked) features.push(t('wizard.pluginSpotifySyncTitle') || 'Spotify Sync');
+        if (document.getElementById('wizardToggleMessageTools')?.checked) features.push(t('wizard.pluginSolariMessageToolsTitle') || 'Solari MessageTools');
+        if (document.getElementById('wizardTogglePlayer')?.checked) features.push(t('wizard.pluginSolariPlayerTitle') || 'Solari Player');
+        
+        // Build HTML
+        let html = `
+            <li><span class="summary-check">✓</span> <span><strong>${t('wizard.summaryLang') || 'Language'}:</strong> ${langFlag} ${langName}</span></li>
+            <li><span class="summary-check">✓</span> <span><strong>${t('wizard.summaryTheme') || 'Theme'}:</strong> 🎨 ${themeName}${isNeon}</span></li>
+        `;
+        
+        if (toggles.length > 0) {
+            html += `<li><span class="summary-check">✓</span> <span><strong>${t('wizard.summarySettings') || 'Settings'}:</strong> ${toggles.join(', ')}</span></li>`;
+        } else {
+            html += `<li><span class="summary-check">✓</span> <span><strong>${t('wizard.summarySettings') || 'Settings'}:</strong> Nenhuma</span></li>`;
+        }
+        
+        if (features.length > 0) {
+            html += `<li><span class="summary-check">✓</span> <span><strong>${t('wizard.summaryFeatures') || 'Features'}:</strong> ${features.join(', ')}</span></li>`;
+        } else {
+            html += `<li><span class="summary-check">✓</span> <span><strong>${t('wizard.summaryFeatures') || 'Features'}:</strong> Nenhuma</span></li>`;
+        }
+        
+        summaryList.innerHTML = html;
+    } catch (e) {
+        console.error('[Solari] Error in populateWizardSummary:', e);
+    }
+}
 
 function showSetupWizard() {
-    if (!wizardOverlay) {
-        return;
-    }
-    wizardOverlay.style.display = 'flex';
-    wizardOverlay.style.opacity = '1';
+    try {
+        // Re-query in case DOM elements were loaded dynamically or not ready initially
+        if (!wizardOverlay) wizardOverlay = document.getElementById('setupWizard');
+        if (!wizardSlides || wizardSlides.length === 0) wizardSlides = document.querySelectorAll('.wizard-slide');
+        if (!wizardNextBtn) wizardNextBtn = document.getElementById('wizardNextBtn');
+        if (!wizardBackBtn) wizardBackBtn = document.getElementById('wizardBackBtn');
+        if (!stepDots || stepDots.length === 0) stepDots = document.querySelectorAll('.step-dot');
 
-    // Sync wizard checkboxes with current actual app settings
-    if (typeof appSettings !== 'undefined') {
-        const tw = document.getElementById('wizardToggleStartWindows');
-        if (tw) tw.checked = appSettings.startWithWindows || false;
+        if (!wizardOverlay) {
+            console.error('[Solari] wizardOverlay element is null!');
+            showToast('❌', 'Contêiner do assistente não encontrado!', 'error');
+            return;
+        }
 
-        const tm = document.getElementById('wizardToggleStartMinimized');
-        if (tm) tm.checked = appSettings.startMinimized || false;
+        wizardOverlay.style.display = 'flex';
+        wizardOverlay.style.opacity = '1';
 
-        const tc = document.getElementById('wizardToggleMinimizeToTray');
-        if (tc) tc.checked = appSettings.closeToTray || false;
+        // Sync wizard checkboxes with current actual app settings
+        if (typeof appSettings !== 'undefined') {
+            const tw = document.getElementById('wizardToggleStartWindows');
+            if (tw) tw.checked = appSettings.startWithWindows || false;
 
-        const ta = document.getElementById('wizardToggleAutoUpdates');
-        if (ta) ta.checked = appSettings.autoCheckAppUpdates || false;
-    }
+            const tm = document.getElementById('wizardToggleStartMinimized');
+            if (tm) tm.checked = appSettings.startMinimized || false;
 
-    // Sync plugins
-    const ts = document.getElementById('wizardToggleSmartAfk');
-    if (ts && typeof smartAfkConnected !== 'undefined') ts.checked = smartAfkConnected;
-    const tsp = document.getElementById('wizardToggleSpotify');
-    if (tsp && typeof spotifyConnected !== 'undefined') tsp.checked = spotifyConnected;
+            const tc = document.getElementById('wizardToggleMinimizeToTray');
+            if (tc) tc.checked = appSettings.closeToTray || false;
 
-    currentWizardSlide = 1;
-    updateWizardUI();
+            const ta = document.getElementById('wizardToggleAutoUpdates');
+            if (ta) ta.checked = appSettings.autoCheckAppUpdates || false;
+        }
 
-    // Premium: Auto-detect language (Support 20 languages)
-    const userLang = navigator.language.split('-')[0].toLowerCase();
-    const map = {
-        'pt': 'pt-BR', 'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it',
-        'ja': 'ja', 'ko': 'ko', 'ru': 'ru', 'zh': 'zh-CN', 'tr': 'tr',
-        'pl': 'pl', 'nl': 'nl', 'sv': 'sv-SE', 'vi': 'vi', 'th': 'th',
-        'id': 'id', 'he': 'he', 'hi': 'hi', 'bn': 'bn'
-    };
+        // Sync plugins
+        const ts = document.getElementById('wizardToggleSmartAfk');
+        if (ts && typeof smartAfkConnected !== 'undefined') ts.checked = smartAfkConnected;
+        const tsp = document.getElementById('wizardToggleSpotify');
+        if (tsp && typeof spotifyConnected !== 'undefined') tsp.checked = spotifyConnected;
 
-    if (map[userLang]) {
-        setWizardLanguage(map[userLang]);
-    } else {
-        setWizardLanguage('en');
+        // Sync Client ID Setup Page initial highlight
+        const currentId = document.getElementById('wizardClientId');
+        const publicIdCards = document.querySelectorAll('.public-id-card');
+        const customContainer = document.getElementById('wizardCustomIdContainer');
+        
+        if (currentId && customContainer) {
+            const savedId = typeof appSettings !== 'undefined' ? (appSettings.clientId || '') : '';
+            currentId.value = savedId;
+            
+            let foundPublic = false;
+            if (publicIdCards) {
+                publicIdCards.forEach(card => {
+                    card.classList.remove('active');
+                    if (card.dataset.publicId === savedId && savedId !== '') {
+                        card.classList.add('active');
+                        foundPublic = true;
+                    }
+                });
+            }
+            
+            if (foundPublic) {
+                customContainer.classList.remove('active');
+                currentId.disabled = true;
+                currentId.style.opacity = '0.5';
+            } else {
+                if (publicIdCards) {
+                    const customCard = Array.from(publicIdCards).find(c => c.dataset.publicId === 'custom');
+                    if (customCard) customCard.classList.add('active');
+                }
+                customContainer.classList.add('active');
+                currentId.disabled = false;
+                currentId.style.opacity = '1';
+            }
+        }
+
+        // Neon Toggle status check
+        const wizardNeonToggleBtn = document.getElementById('wizardNeonToggleBtn');
+        if (wizardNeonToggleBtn) {
+            const isNeonActive = document.body.classList.contains('neon-mode');
+            wizardNeonToggleBtn.classList.toggle('active', isNeonActive);
+        }
+
+        // Sync Premium Theme active status check
+        const activeTheme = document.documentElement.getAttribute('data-theme') || 'default';
+        const themeCards = document.querySelectorAll('.theme-card-premium:not(.neon-toggle-premium)');
+        if (themeCards) {
+            themeCards.forEach(card => {
+                card.classList.toggle('active', card.dataset.themePreview === activeTheme);
+            });
+        }
+
+        currentWizardSlide = 1;
+        updateWizardUI();
+        updateMockupThemeStyle();
+
+        // Premium: Auto-detect language (Support 20 languages)
+        const userLang = navigator.language.split('-')[0].toLowerCase();
+        const map = {
+            'pt': 'pt-BR', 'es': 'es', 'fr': 'fr', 'de': 'de', 'it': 'it',
+            'ja': 'ja', 'ko': 'ko', 'ru': 'ru', 'zh': 'zh-CN', 'tr': 'tr',
+            'pl': 'pl', 'nl': 'nl', 'sv': 'sv-SE', 'vi': 'vi', 'th': 'th',
+            'id': 'id', 'he': 'he', 'hi': 'hi', 'bn': 'bn'
+        };
+
+        if (map[userLang]) {
+            setWizardLanguage(map[userLang]);
+        } else {
+            setWizardLanguage('en');
+        }
+    } catch (e) {
+        console.error('[Solari] Error in showSetupWizard:', e);
+        showToast('❌', 'Erro no assistente: ' + e.message, 'error');
     }
 }
 
@@ -5279,66 +6732,111 @@ document.addEventListener('keydown', (e) => {
 });
 
 function updateWizardUI() {
-    // Update Slides
-    wizardSlides.forEach(slide => {
-        const slideNum = parseInt(slide.dataset.slide);
-        slide.classList.remove('active', 'exit-left');
+    try {
+        if (!wizardOverlay) {
+            wizardOverlay = document.getElementById('setupWizard');
+            if (!wizardOverlay) return;
+        }
 
-        if (slideNum === currentWizardSlide) {
-            slide.classList.add('active');
-            applyTranslations();
+        // Remove previous background gradient classes
+        for (let i = 1; i <= totalWizardSlides; i++) {
+            wizardOverlay.classList.remove(`gradient-slide-${i}`);
+        }
+        // Add current slide gradient
+        wizardOverlay.classList.add(`gradient-slide-${currentWizardSlide}`);
 
-            // Explicitly find i18n elements in this slide to double-check
-            slide.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                const translation = t(key);
-                if (translation && translation !== key) el.textContent = translation;
+        // Update Slides
+        if (!wizardSlides || wizardSlides.length === 0) {
+            wizardSlides = document.querySelectorAll('.wizard-slide');
+        }
+        if (wizardSlides) {
+            wizardSlides.forEach(slide => {
+                const slideNum = parseInt(slide.dataset.slide);
+                slide.classList.remove('active', 'exit-left');
+
+                if (slideNum === currentWizardSlide) {
+                    slide.classList.add('active');
+                    applyTranslations();
+                } else if (slideNum < currentWizardSlide) {
+                    slide.classList.add('exit-left');
+                }
             });
-        } else if (slideNum < currentWizardSlide) {
-            slide.classList.add('exit-left');
         }
-    });
 
-    // Update Controls
-    if (currentWizardSlide === 1) {
-        wizardBackBtn.style.visibility = 'hidden';
-    } else {
-        wizardBackBtn.style.visibility = 'visible';
-    }
-
-    if (currentWizardSlide === totalWizardSlides) {
-        const startText = t('wizard.start') || 'Start Solari!';
-        wizardNextBtn.textContent = startText;
-
-        // Trigger confetti on last slide
-        uiWizard.confetti();
-    } else {
-        const nextText = t('wizard.next') || 'Next';
-        wizardNextBtn.textContent = nextText;
-    }
-
-    // Update Dots
-    stepDots.forEach((dot, index) => {
-        if (index + 1 === currentWizardSlide) dot.classList.add('active');
-        else dot.classList.remove('active');
-    });
-
-    // Toggle Preview Mode for Theme Slide (Slide 2)
-    if (currentWizardSlide === 2) {
-        wizardOverlay.classList.add('preview-mode');
-    } else {
-        wizardOverlay.classList.remove('preview-mode');
-
-        // RESET DRAG POSITIONING if user moved it
-        const wizardContainer = document.querySelector('.wizard-containerglass');
-        if (wizardContainer) {
-            wizardContainer.style.position = '';
-            wizardContainer.style.left = '';
-            wizardContainer.style.top = '';
-            wizardContainer.style.margin = '';
-            wizardContainer.style.transform = '';
-            wizardContainer.style.cursor = ''; // Reset cursor
+        // Update Stepper Progress track & badges
+        const progressPercent = ((currentWizardSlide - 1) / (totalWizardSlides - 1)) * 100;
+        const progressTrack = document.getElementById('stepperProgress');
+        if (progressTrack) {
+            progressTrack.style.width = `${progressPercent}%`;
         }
+        
+        const stepBadges = document.querySelectorAll('.step-badge');
+        if (stepBadges) {
+            stepBadges.forEach(badge => {
+                const stepNum = parseInt(badge.dataset.step);
+                badge.classList.remove('active', 'completed');
+                if (stepNum === currentWizardSlide) {
+                    badge.classList.add('active');
+                } else if (stepNum < currentWizardSlide) {
+                    badge.classList.add('completed');
+                }
+            });
+        }
+
+        // Update Controls
+        if (!wizardBackBtn) wizardBackBtn = document.getElementById('wizardBackBtn');
+        if (wizardBackBtn) {
+            if (currentWizardSlide === 1) {
+                wizardBackBtn.style.display = 'none';
+            } else {
+                wizardBackBtn.style.display = 'inline-block';
+            }
+        }
+
+        if (!wizardNextBtn) wizardNextBtn = document.getElementById('wizardNextBtn');
+        if (wizardNextBtn) {
+            if (currentWizardSlide === totalWizardSlides) {
+                const startText = t('wizard.start') || 'Start Solari!';
+                wizardNextBtn.textContent = startText;
+
+                // Trigger dynamic summary populate
+                populateWizardSummary();
+
+                // Trigger initial confetti on last slide
+                if (uiWizard && typeof uiWizard.confetti === 'function') {
+                    uiWizard.confetti();
+                }
+            } else {
+                const nextText = t('wizard.next') || 'Next';
+                wizardNextBtn.textContent = nextText;
+            }
+        }
+
+        // Toggle Preview Mode for Theme Slide (Slide 2)
+        if (currentWizardSlide === 2) {
+            wizardOverlay.classList.add('preview-mode');
+            updateMockupThemeStyle();
+        } else {
+            wizardOverlay.classList.remove('preview-mode');
+
+            // Check BetterDiscord status if slide 6
+            if (currentWizardSlide === 6) {
+                checkWizardBdStatus();
+            }
+
+            // RESET DRAG POSITIONING if user moved it
+            const wizardContainer = document.querySelector('.wizard-containerglass');
+            if (wizardContainer) {
+                wizardContainer.style.position = '';
+                wizardContainer.style.left = '';
+                wizardContainer.style.top = '';
+                wizardContainer.style.margin = '';
+                wizardContainer.style.transform = '';
+                wizardContainer.style.cursor = ''; // Reset cursor
+            }
+        }
+    } catch (e) {
+        console.error('[Solari] Error in updateWizardUI:', e);
     }
 }
 
@@ -5359,6 +6857,12 @@ function prevWizardSlide() {
 }
 
 function finishWizard() {
+    // Save Client ID
+    const currentIdInput = document.getElementById('wizardClientId');
+    if (currentIdInput) {
+        ipcRenderer.send('set-setting', 'clientId', currentIdInput.value.trim());
+    }
+
     // Save all explicitly toggled settings from Slide 4 and Slide 6 to ensure defaults hold
     const toggleStartWindows = document.getElementById('wizardToggleStartWindows');
     if (toggleStartWindows) ipcRenderer.send('set-setting', 'startWithWindows', toggleStartWindows.checked);
@@ -5372,11 +6876,20 @@ function finishWizard() {
     const toggleAutoUpdates = document.getElementById('wizardToggleAutoUpdates');
     if (toggleAutoUpdates) ipcRenderer.send('set-setting', 'autoCheckAppUpdates', toggleAutoUpdates.checked);
 
-    const toggleSmartAfk = document.getElementById('wizardToggleSmartAfk');
-    if (toggleSmartAfk) ipcRenderer.send('plugin:toggle', 'smartAfk', toggleSmartAfk.checked);
+    const toggleManager = document.getElementById('wizardToggleManager');
+    if (toggleManager) ipcRenderer.invoke('bd:toggle-plugin', { pluginName: 'SolariManager', enabled: toggleManager.checked }).catch(() => {});
+
+    const toggleMotion = document.getElementById('wizardToggleMotion');
+    if (toggleMotion) ipcRenderer.invoke('bd:toggle-plugin', { pluginName: 'SolariMotion', enabled: toggleMotion.checked }).catch(() => {});
 
     const toggleSpotify = document.getElementById('wizardToggleSpotify');
-    if (toggleSpotify) ipcRenderer.send('plugin:toggle', 'spotify', toggleSpotify.checked);
+    if (toggleSpotify) ipcRenderer.invoke('bd:toggle-plugin', { pluginName: 'SpotifySync', enabled: toggleSpotify.checked }).catch(() => {});
+
+    const toggleMessageTools = document.getElementById('wizardToggleMessageTools');
+    if (toggleMessageTools) ipcRenderer.invoke('bd:toggle-plugin', { pluginName: 'SolariMessageTools', enabled: toggleMessageTools.checked }).catch(() => {});
+
+    const togglePlayer = document.getElementById('wizardTogglePlayer');
+    if (togglePlayer) ipcRenderer.invoke('bd:toggle-plugin', { pluginName: 'SolariPlayer', enabled: togglePlayer.checked }).catch(() => {});
 
     // Save completion state
     ipcRenderer.send('complete-setup');
@@ -5386,13 +6899,30 @@ function finishWizard() {
         ipcRenderer.send('get-data');
     }, 100);
 
-    // Fade out
-    wizardOverlay.style.transition = 'opacity 0.5s';
-    wizardOverlay.style.opacity = '0';
+    // Trigger launching animation on the rocket
+    const rocket = document.getElementById('wizardRocket');
+    if (rocket) {
+        rocket.classList.add('launching');
+        
+        // Continuously fire confetti bursts during launch
+        let burstsCount = 0;
+        const burstInterval = setInterval(() => {
+            if (typeof uiWizard !== 'undefined') uiWizard.confetti();
+            burstsCount++;
+            if (burstsCount >= 3) clearInterval(burstInterval);
+        }, 200);
+    }
+
+    // Fade out with delay to let rocket launch
     setTimeout(() => {
-        wizardOverlay.style.display = 'none';
-        wizardOverlay.style.opacity = '1'; // Reset for next time
-    }, 500);
+        wizardOverlay.style.transition = 'opacity 0.5s';
+        wizardOverlay.style.opacity = '0';
+        setTimeout(() => {
+            wizardOverlay.style.display = 'none';
+            wizardOverlay.style.opacity = '1'; // Reset for next time
+            if (rocket) rocket.classList.remove('launching'); // Reset rocket class
+        }, 500);
+    }, 800);
 }
 
 // Wizard Event Listeners
@@ -5401,7 +6931,6 @@ if (wizardBackBtn) wizardBackBtn?.addEventListener('click', prevWizardSlide);
 
 // Step 1: Language
 document.querySelectorAll('.lang-card').forEach(card => {
-    // Mouse tracking for ripple effect
     card?.addEventListener('mousemove', e => {
         const rect = card.getBoundingClientRect();
         const x = ((e.clientX - rect.left) / rect.width) * 100;
@@ -5416,86 +6945,70 @@ document.querySelectorAll('.lang-card').forEach(card => {
 });
 
 function setWizardLanguage(code) {
-    // Update UI selection
     document.querySelectorAll('.lang-card').forEach(c => {
         c.classList.toggle('active', c.dataset.lang === code);
     });
 
-    // Apply strict language settings to app
     initI18n(code).then(() => {
         updateUILanguage();
         updateWizardUI();
-
-        // Trigger centralized update
         handleGlobalLanguageChange(code);
-
-        ipcRenderer.send('save-language', code); // Save immediately
+        ipcRenderer.send('save-language', code);
     });
 }
 
-// Step 2: Theme
-document.querySelectorAll('.theme-card').forEach(card => {
+// Step 2: Themes Click handler (Premium Grid)
+document.querySelectorAll('.theme-card-premium:not(.neon-toggle-premium)').forEach(card => {
     card?.addEventListener('click', () => {
+        document.querySelectorAll('.theme-card-premium:not(.neon-toggle-premium)').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        
         const theme = card.dataset.themePreview;
+        setTheme(theme);
+        updateMockupThemeStyle();
+    });
+});
 
-        if (theme === 'neon') {
-            // Toggle Neon
-            card.classList.toggle('active');
+// Neon toggle button in wizard
+const wizardNeonToggleBtn = document.getElementById('wizardNeonToggleBtn');
+if (wizardNeonToggleBtn) {
+    wizardNeonToggleBtn.addEventListener('click', () => {
+        wizardNeonToggleBtn.classList.toggle('active');
+        const neonToggle = document.getElementById('neonToggle');
+        if (neonToggle) {
+            neonToggle.checked = wizardNeonToggleBtn.classList.contains('active');
+            neonToggle.dispatchEvent(new Event('change'));
+        }
+        updateMockupThemeStyle();
+    });
+}
 
-            // Toggle actual Neon mode settings
-            document.getElementById('neonToggle')?.click();
-
-            // Ensure visual consistency if click didn't sync
-            const isNeonActive = document.body.classList.contains('neon-mode');
-            if (card.classList.contains('active') !== isNeonActive) {
-                if (card.classList.contains('active') && !isNeonActive) document.getElementById('neonToggle')?.click();
-                if (!card.classList.contains('active') && isNeonActive) document.getElementById('neonToggle')?.click();
-            }
-
+// Step 5: Public Client ID selectors
+document.querySelectorAll('.public-id-card').forEach(card => {
+    card?.addEventListener('click', () => {
+        document.querySelectorAll('.public-id-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        
+        const selectedId = card.dataset.publicId;
+        const customContainer = document.getElementById('wizardCustomIdContainer');
+        const input = document.getElementById('wizardClientId');
+        
+        if (selectedId === 'custom') {
+            customContainer.classList.add('active');
+            input.disabled = false;
+            input.style.opacity = '1';
+            input.value = '';
+            input.focus();
         } else {
-            // Base Themes (Default, Dark, Light)
-            document.querySelectorAll('.theme-card:not([data-theme-preview="neon"])').forEach(c => c.classList.remove('active'));
-            card.classList.add('active');
-
-            // Apply Base Theme
-            const wasNeon = document.body.classList.contains('neon-mode');
-
-            if (theme === 'dark') {
-                document.querySelector('[data-theme="dark"]')?.click();
-            } else if (theme === 'light') {
-                const lightBtn = document.querySelector('[data-theme="light"]');
-                if (lightBtn) lightBtn.click();
-                else document.querySelector('[data-theme="default"]')?.click(); // Fallback
-            } else {
-                document.querySelector('[data-theme="default"]')?.click();
-            }
-
-            // Restore Neon if it was wiped by base theme change
-            if (wasNeon && !document.body.classList.contains('neon-mode')) {
-                document.body.classList.add('neon-mode');
-            }
+            customContainer.classList.remove('active');
+            input.value = selectedId;
+            input.disabled = true;
+            input.style.opacity = '0.5';
         }
     });
 });
 
-// Step 4: Client ID Skipped?
-const wizardSkipClientId = document.getElementById('wizardSkipClientId');
-if (wizardSkipClientId) {
-    wizardSkipClientId?.addEventListener('change', (e) => {
-        const input = document.getElementById('wizardClientId');
-        if (e.target.checked) {
-            input.value = '';
-            input.disabled = true;
-            input.style.opacity = '0.5';
-        } else {
-            input.disabled = false;
-            input.style.opacity = '1';
-            input.focus();
-        }
-    });
-}
-
-// Step 4: Client ID Helper Link
+// Step 5: Client ID Helper Link
 const wizardPortalLink = document.getElementById('wizardPortalLink');
 if (wizardPortalLink) {
     wizardPortalLink?.addEventListener('click', (e) => {
@@ -5504,34 +7017,139 @@ if (wizardPortalLink) {
     });
 }
 
-// Step 5: Plugins
-// Step 5: Plugins Auto-Download Logic
-const wizardToggleSmartAfk = document.getElementById('wizardToggleSmartAfk');
-const wizardToggleSpotify = document.getElementById('wizardToggleSpotify');
-
+// Step 6: Plugins Auto-Download Logic
 const WIZARD_PLUGINS = {
-    'smartAfk': {
-        fileName: 'SmartAFKDetector.plugin.js',
-        url: 'https://solarirpc.com/downloads/SmartAFKDetector.plugin.js',
-        toggle: wizardToggleSmartAfk
+    'manager': {
+        fileName: 'SolariManager.plugin.js',
+        url: 'https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariManager.plugin.js',
+        toggleId: 'wizardToggleManager'
+    },
+    'motion': {
+        fileName: 'SolariMotion.plugin.js',
+        url: 'https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMotion.plugin.js',
+        toggleId: 'wizardToggleMotion'
     },
     'spotify': {
         fileName: 'SpotifySync.plugin.js',
-        url: 'https://solarirpc.com/downloads/SpotifySync.plugin.js',
-        toggle: wizardToggleSpotify
+        url: 'https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js',
+        toggleId: 'wizardToggleSpotify'
+    },
+    'messageTools': {
+        fileName: 'SolariMessageTools.plugin.js',
+        url: 'https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMessageTools.plugin.js',
+        toggleId: 'wizardToggleMessageTools'
+    },
+    'player': {
+        fileName: 'SolariPlayer.plugin.js',
+        url: 'https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariPlayer.plugin.js',
+        toggleId: 'wizardTogglePlayer'
     }
 };
 
+async function checkWizardBdStatus() {
+    const badge = document.getElementById('wizardBdStatusBadge');
+    const actionBtn = document.getElementById('wizardBdActionBtn');
+    const uninstallBtn = document.getElementById('wizardBdUninstallBtn');
+    if (!badge || !actionBtn) return;
+
+    try {
+        badge.className = 'wizard-bd-status-badge status-loading';
+        badge.textContent = t('wizard.bdStatusDetecting') || 'Detectando...';
+        
+        const result = await ipcRenderer.invoke('plugin:check-bd');
+        const status = result?.status || 'not_installed';
+        const version = result?.bdVersion || '';
+
+        // Remove status classes
+        badge.classList.remove('status-loading', 'status-ok', 'status-missing', 'status-broken');
+
+        const btnLabel = actionBtn.querySelector('.btn-label');
+
+        if (status === 'ok') {
+            badge.classList.add('status-ok');
+            badge.textContent = `${t('wizard.bdStatusInstalled') || 'Instalado e Ativo'} ${version ? `(v${version})` : ''}`;
+            
+            if (btnLabel) {
+                btnLabel.setAttribute('data-i18n', 'wizard.bdBtnReinstall');
+                btnLabel.textContent = t('wizard.bdBtnReinstall') || 'Reinstalar / Reparar';
+            }
+            if (uninstallBtn) uninstallBtn.classList.remove('hidden');
+        } else if (status === 'broken' || status === 'incompatible' || status === 'incompatible_update') {
+            badge.classList.add('status-broken');
+            badge.textContent = t('wizard.bdStatusBroken') || 'Danificado / Incompatível';
+            
+            if (btnLabel) {
+                btnLabel.setAttribute('data-i18n', 'wizard.bdBtnRepair');
+                btnLabel.textContent = t('wizard.bdBtnRepair') || 'Reparar BetterDiscord';
+            }
+            if (uninstallBtn) uninstallBtn.classList.add('hidden');
+        } else if (status === 'uninstalling') {
+            badge.classList.add('status-loading');
+            badge.textContent = t('wizard.bdStatusUninstalling') || 'Desinstalando...';
+            if (uninstallBtn) uninstallBtn.classList.add('hidden');
+        } else if (status === 'pending_update' || status === 'outdated') {
+            badge.classList.add('status-broken');
+            badge.textContent = t('wizard.bdStatusOutdated') || 'Atualização Pendente';
+            
+            if (btnLabel) {
+                btnLabel.setAttribute('data-i18n', 'wizard.bdBtnUpdate');
+                btnLabel.textContent = t('wizard.bdBtnUpdate') || 'Atualizar BetterDiscord';
+            }
+            if (uninstallBtn) uninstallBtn.classList.remove('hidden');
+        } else {
+            // not_installed or fallback
+            badge.classList.add('status-missing');
+            badge.textContent = t('wizard.bdStatusNotInstalled') || 'Não Instalado ❌';
+            
+            if (btnLabel) {
+                btnLabel.setAttribute('data-i18n', 'wizard.bdBtnInstall');
+                btnLabel.textContent = t('wizard.bdBtnInstall') || 'Instalar BetterDiscord';
+            }
+            if (uninstallBtn) uninstallBtn.classList.add('hidden');
+        }
+
+        // Toggle state of plugins toggles based on BD status
+        const isBDInstalled = (status === 'ok' || status === 'pending_update' || status === 'outdated');
+        
+        for (const [key, config] of Object.entries(WIZARD_PLUGINS)) {
+            const toggle = document.getElementById(config.toggleId);
+            if (toggle) {
+                toggle.disabled = !isBDInstalled;
+                const item = toggle.closest('.plugin-toggle-item');
+                if (item) {
+                    if (!isBDInstalled) {
+                        item.style.opacity = '0.4';
+                        item.style.pointerEvents = 'none';
+                        toggle.checked = false;
+                    } else {
+                        item.style.opacity = '1';
+                        item.style.pointerEvents = 'auto';
+                        
+                        // Sync with actual installed state
+                        const isInstalled = await ipcRenderer.invoke('plugin:check-installed', config.fileName);
+                        toggle.checked = isInstalled;
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.error('[Wizard] Error checking BD status:', err);
+        badge.className = 'wizard-bd-status-badge status-broken';
+        badge.textContent = 'Erro de Verificação';
+    }
+}
+
 async function handleWizardPluginToggle(key, isChecked) {
     const config = WIZARD_PLUGINS[key];
-    if (!config || !config.toggle) return;
+    if (!config) return;
+    const toggle = document.getElementById(config.toggleId);
+    if (!toggle) return;
 
     if (isChecked) {
-        // User turned ON -> Check install
         const isInstalled = await ipcRenderer.invoke('plugin:check-installed', config.fileName);
 
         if (!isInstalled) {
-            config.toggle.disabled = true;
+            toggle.disabled = true;
 
             const result = await ipcRenderer.invoke('plugin:download', {
                 url: config.url,
@@ -5539,17 +7157,30 @@ async function handleWizardPluginToggle(key, isChecked) {
             });
 
             if (result && result.success) {
-                showToast('🚀', `wizard.pluginEnabled`, 'success');
+                showToast('🚀', t('wizard.pluginEnabled'), 'success');
             } else {
-                showToast('❌', `wizard.pluginError`, 'error');
-                config.toggle.checked = false;
+                showToast('❌', t('wizard.pluginError'), 'error');
+                toggle.checked = false;
             }
-            config.toggle.disabled = false;
+            toggle.disabled = false;
+        }
+    } else {
+        const isInstalled = await ipcRenderer.invoke('plugin:check-installed', config.fileName);
+        if (isInstalled) {
+            toggle.disabled = true;
+            const result = await ipcRenderer.invoke('plugin:delete', config.fileName);
+            if (result && result.success) {
+                showToast('🗑️', t('wizard.pluginDisabled'), 'success');
+            } else {
+                showToast('❌', t('wizard.pluginError'), 'error');
+                toggle.checked = true;
+            }
+            toggle.disabled = false;
         }
     }
 }
 
-// Multi-toggle handling for Slide 4 (Behavior) and Slide 6 (Auto-Detect)
+// Multi-toggle handling for Slide 4 (Behavior)
 document.getElementById('wizardToggleStartWindows')?.addEventListener('change', (e) => {
     ipcRenderer.send('set-setting', 'startWithWindows', e.target.checked);
 });
@@ -5563,17 +7194,81 @@ document.getElementById('wizardToggleAutoUpdates')?.addEventListener('change', (
     ipcRenderer.send('set-setting', 'autoCheckAppUpdates', e.target.checked);
 });
 
+document.getElementById('wizardToggleManager')?.addEventListener('change', (e) => handleWizardPluginToggle('manager', e.target.checked));
+document.getElementById('wizardToggleMotion')?.addEventListener('change', (e) => handleWizardPluginToggle('motion', e.target.checked));
+document.getElementById('wizardToggleSpotify')?.addEventListener('change', (e) => handleWizardPluginToggle('spotify', e.target.checked));
+document.getElementById('wizardToggleMessageTools')?.addEventListener('change', (e) => handleWizardPluginToggle('messageTools', e.target.checked));
+document.getElementById('wizardTogglePlayer')?.addEventListener('change', (e) => handleWizardPluginToggle('player', e.target.checked));
 
+document.getElementById('wizardExtensionDownloadBtn')?.addEventListener('click', () => {
+    ipcRenderer.send('open-external-url', 'https://solarirpc.com/extension');
+});
 
-if (wizardToggleSmartAfk) {
-    wizardToggleSmartAfk?.addEventListener('change', (e) => handleWizardPluginToggle('smartAfk', e.target.checked));
+// BetterDiscord install/uninstall listeners inside the Wizard
+const wizardBdActionBtn = document.getElementById('wizardBdActionBtn');
+const wizardBdUninstallBtn = document.getElementById('wizardBdUninstallBtn');
+
+if (wizardBdActionBtn) {
+    wizardBdActionBtn.addEventListener('click', async () => {
+        const btnLabel = wizardBdActionBtn.querySelector('.btn-label');
+        const spinner = wizardBdActionBtn.querySelector('.btn-spinner');
+        
+        wizardBdActionBtn.disabled = true;
+        if (spinner) spinner.classList.remove('hidden');
+        if (btnLabel) btnLabel.textContent = t('wizard.bdBtnInstalling') || 'Processando...';
+
+        try {
+            const statusResult = await ipcRenderer.invoke('plugin:check-bd');
+            const status = statusResult?.status || 'not_installed';
+            
+            let result;
+            if (status === 'ok' || status === 'broken' || status === 'incompatible' || status === 'incompatible_update' || status === 'pending_update' || status === 'outdated') {
+                result = await ipcRenderer.invoke('plugin:install-bd');
+            } else {
+                result = await ipcRenderer.invoke('plugin:install-bd');
+            }
+
+            if (result && result.success) {
+                showToast('✅', t('pluginStore.bdSuccess') || 'BetterDiscord instalado com sucesso!', 'success');
+            } else {
+                showToast('❌', `Erro: ${result?.error || 'Falha'}`, 'error');
+            }
+        } catch (e) {
+            showToast('❌', `Erro: ${e.message}`, 'error');
+        }
+
+        if (spinner) spinner.classList.add('hidden');
+        wizardBdActionBtn.disabled = false;
+        
+        // Re-check status
+        checkWizardBdStatus();
+    });
 }
-if (wizardToggleSpotify) {
-    wizardToggleSpotify?.addEventListener('change', (e) => handleWizardPluginToggle('spotify', e.target.checked));
+
+if (wizardBdUninstallBtn) {
+    wizardBdUninstallBtn.addEventListener('click', async () => {
+        wizardBdUninstallBtn.disabled = true;
+
+        try {
+            const result = await ipcRenderer.invoke('plugin:uninstall-bd');
+            if (result && result.success) {
+                showToast('✅', 'BetterDiscord desinstalado com sucesso!', 'success');
+            } else {
+                showToast('❌', `Erro: ${result?.error || 'Falha'}`, 'error');
+            }
+        } catch (e) {
+            showToast('❌', `Erro: ${e.message}`, 'error');
+        }
+
+        wizardBdUninstallBtn.disabled = false;
+        // Re-check status
+        checkWizardBdStatus();
+    });
 }
 
 // --- CONFETTI + WIZARD DRAG (extracted to module) ---
 const uiWizard = require('./modules/ui-wizard');
+uiWizard.init();
 
 
 // (wizard drag listeners registered in uiWizard.init() below)
@@ -5795,20 +7490,20 @@ function closeModal(modalId) {
  */
 function initMagneticButtons() {
     const magneticBtns = document.querySelectorAll('.btn-primary, .update-available-btn, .btn-secondary, .btn-primary-large');
-    
+
     magneticBtns.forEach(btn => {
         btn.addEventListener('mousemove', (e) => {
             // Desativa se o modo eco estiver ativo para economizar recursos
             if (document.body.classList.contains('eco-mode')) return;
-            
+
             const rect = btn.getBoundingClientRect();
             const x = e.clientX - rect.left - rect.width / 2;
             const y = e.clientY - rect.top - rect.height / 2;
-            
+
             // Suavidade calculada para não ser agressivo
             btn.style.transform = `translate(${x * 0.2}px, ${y * 0.2}px) scale(1.02)`;
         });
-        
+
         btn.addEventListener('mouseleave', () => {
             btn.style.transform = 'translate(0px, 0px) scale(1)';
         });
@@ -5816,9 +7511,9 @@ function initMagneticButtons() {
 }
 
 // ===== RICH PRESENCE UX MODULES (v1.12.0) =====
-const uiValidator   = require('./modules/ui-validator');
-const uiPreviewMap  = require('./modules/ui-preview-map');
-const uiContext     = require('./modules/ui-context');
+const uiValidator = require('./modules/ui-validator');
+const uiPreviewMap = require('./modules/ui-preview-map');
+const uiContext = require('./modules/ui-context');
 
 // ===== LATE INIT (after all modules are defined) =====
 (function lateInit() {
@@ -5868,7 +7563,7 @@ const uiContext     = require('./modules/ui-context');
         let left = r.left + r.width / 2 - tipW / 2;
         left = Math.max(8, Math.min(left, window.innerWidth - tipW - 8));
 
-        _tip.style.top  = `${top}px`;
+        _tip.style.top = `${top}px`;
         _tip.style.left = `${left}px`;
         _tip.style.width = `${tipW}px`;
     }
@@ -5905,12 +7600,12 @@ const uiContext     = require('./modules/ui-context');
         settingsSearch.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase();
             const cards = document.querySelectorAll('.settings-card');
-            
+
             cards.forEach(card => {
                 const title = card.querySelector('h3')?.textContent.toLowerCase() || '';
                 const desc = card.querySelector('p')?.textContent.toLowerCase() || '';
                 const labels = Array.from(card.querySelectorAll('span')).map(s => s.textContent.toLowerCase()).join(' ');
-                
+
                 if (title.includes(query) || desc.includes(query) || labels.includes(query)) {
                     card.style.display = '';
                     card.classList.add('search-match');
@@ -5933,7 +7628,7 @@ ipcRenderer.on('rpc-status', (_, data) => {
 // This runs AFTER all startup data is ready, preventing any flash effect.
 ipcRenderer.on('data-loaded', (_, data) => {
     uiContext.setGlobalClientId(data && data.globalClientId);
-    
+
     // Sync current detected preset name to context bar
     uiContext.setDetectedPreset(data ? data.autoDetectPreset : null);
 
@@ -5946,6 +7641,143 @@ ipcRenderer.on('data-loaded', (_, data) => {
 
 
 
+
+// --- GENERIC PLUGIN CONFIG MANAGEMENT ---
+function getPluginConfigPath(pluginKey, pluginsList = null) {
+    const appData = process.env.APPDATA || (process.platform === 'darwin' ? process.env.HOME + '/Library/Application Support' : process.env.HOME + '/.config');
+    let fileName = null;
+
+    // Try to get fileName from list
+    if (pluginsList && pluginsList[pluginKey]) {
+        fileName = pluginsList[pluginKey].fileName;
+    }
+    if (!fileName && typeof PluginsTabManager !== 'undefined' && PluginsTabManager.metaData && PluginsTabManager.metaData[pluginKey]) {
+        fileName = PluginsTabManager.metaData[pluginKey].fileName;
+    }
+
+    if (!fileName) {
+        if (pluginKey.toLowerCase() === 'solarimessagetools') fileName = 'SolariMessageTools.plugin.js';
+        else if (pluginKey.toLowerCase() === 'solarimotion') fileName = 'SolariMotion.plugin.js';
+        else if (pluginKey.toLowerCase() === 'solarinotes') fileName = 'SolariNotes.plugin.js';
+        else if (pluginKey.toLowerCase() === 'smartafk') fileName = 'SmartAFKDetector.plugin.js';
+        else if (pluginKey.toLowerCase() === 'spotifysync') fileName = 'SpotifySync.plugin.js';
+        else {
+            const name = pluginKey.charAt(0).toUpperCase() + pluginKey.slice(1);
+            fileName = `${name}.plugin.js`;
+        }
+    }
+
+    const configName = fileName.replace('.plugin.js', '.config.json');
+    return path.join(appData, 'BetterDiscord', 'plugins', configName);
+}
+
+function loadGenericPluginConfig(pluginKey) {
+    try {
+        const configPath = getPluginConfigPath(pluginKey);
+        const panelId = `config${pluginKey.replace(/\s/g, '')}`;
+        let panel = document.getElementById(panelId);
+
+        if (fs.existsSync(configPath)) {
+            const raw = fs.readFileSync(configPath, 'utf8');
+            let data = null;
+            try {
+                data = JSON.parse(raw);
+            } catch (jsonErr) {
+                console.error(`[GenericConfig] Config corruption detected for ${pluginKey}:`, jsonErr);
+                showToast('⚠️', 'Arquivo de configuração corrompido! Exibindo alerta...', 'danger');
+                if (!panel) {
+                    panel = document.createElement('div');
+                    panel.id = panelId;
+                    panel.className = 'plugin-config-panel';
+                    const area = document.getElementById('pluginConfigArea');
+                    if (area) area.appendChild(panel);
+                }
+                panel.innerHTML = `
+                    <div style="color: #ef4444; padding: 20px; text-align: center;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">⚠️</div>
+                        <h3>Erro: Arquivo Corrompido</h3>
+                        <p style="margin-top: 10px; color: rgba(255,255,255,0.7); line-height: 1.5;">
+                            O arquivo de configuração do plugin <b>${pluginKey}</b> foi corrompido.<br><br>
+                            O Solari APP detectou a corrupção do arquivo JSON. Por favor, <b>reinicie o Discord</b> ou tente reabilitar o plugin para restaurar os padrões de fábrica.
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (data && data.settings && data.schema) {
+                if (!panel) {
+                    panel = document.createElement('div');
+                    panel.id = panelId;
+                    panel.className = 'plugin-config-panel';
+                    panel.style.display = 'none';
+
+                    let icon = '⚙️';
+                    let displayName = pluginKey;
+
+                    // Retrieve metadata
+                    try {
+                        const meta = PluginsTabManager.metaData;
+                        if (meta && meta[pluginKey]) {
+                            displayName = meta[pluginKey].title || displayName;
+                        }
+                        const info = PluginsTabManager.pluginInfo[pluginKey];
+                        if (info) {
+                            displayName = info.displayName || displayName;
+                            icon = info.icon || icon;
+                        }
+                    } catch (e) { }
+
+                    const header = document.createElement('div');
+                    header.style.cssText = 'display: flex; align-items: center; gap: 12px; margin-bottom: 20px;';
+                    header.innerHTML = `
+                        <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(255, 126, 95, 0.4);">
+                            <span style="font-size: 1.5em;">${icon}</span>
+                        </div>
+                        <div>
+                            <h2 style="margin: 0; padding: 0; font-size: 1.3em; background: linear-gradient(90deg, #ff7e5f, #feb47b); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                                ${displayName}
+                            </h2>
+                            <p style="margin: 2px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.5);">Configurações Dinâmicas</p>
+                        </div>
+                    `;
+                    panel.appendChild(header);
+
+                    const container = document.createElement('div');
+                    container.id = `${pluginKey.toLowerCase()}-settings-container`;
+                    panel.appendChild(container);
+
+                    const area = document.getElementById('pluginConfigArea');
+                    if (area) area.appendChild(panel);
+                }
+
+                const containerId = `${pluginKey.toLowerCase()}-settings-container`;
+                renderPluginSettings(data.schema, data.settings, pluginKey.toLowerCase(), containerId);
+            }
+        } else {
+            if (!panel) {
+                panel = document.createElement('div');
+                panel.id = panelId;
+                panel.className = 'plugin-config-panel';
+                panel.style.display = 'none';
+                const area = document.getElementById('pluginConfigArea');
+                if (area) area.appendChild(panel);
+            }
+            panel.innerHTML = `
+                <div style="color: #ef4444; padding: 20px; text-align: center;">
+                    <div style="font-size: 3em; margin-bottom: 15px;">⚠️</div>
+                    <h3>Arquivo de Configurações Não Encontrado</h3>
+                    <p style="margin-top: 10px; color: rgba(255,255,255,0.7); line-height: 1.5;">
+                        O arquivo de configurações do plugin <b>${pluginKey}</b> não foi gerado pelo BetterDiscord.<br><br>
+                        <b>Abra e habilite o plugin "${pluginKey}" dentro do Discord pelo menos 1 vez</b> para gerar o arquivo de link do Solari.
+                    </p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error(`[GenericConfig] Error loading dynamic config schema for ${pluginKey}:`, error);
+    }
+}
 
 // --- SOLARI MESSAGETOOLS IPC & CONFIG MANAGEMENT ---
 function getMessageToolsConfigPath() {
@@ -5989,4 +7821,557 @@ uiPublicPresets.init({
     setIdentities: (val) => { identities = val; },
     getDiscordAppName: () => discordAppName,
     setDiscordAppName: (val) => { discordAppName = val; }
+});
+
+// Listen to community presets updates to keep Client ID dropdown dynamic in real-time
+document.addEventListener('public-presets-updated', () => {
+    console.log('[Solari] Dynamic community presets loaded, updating Client ID dropdown...');
+    populatePresetClientIdDropdown();
+});
+
+// Silently trigger background fetch for community presets catalog on startup
+setTimeout(() => {
+    uiPublicPresets.fetchPresetsCatalog(true);
+}, 1000);
+
+// ============================================================================
+// ==================== BROWSER EXTENSION TAB MANAGER =========================
+// ============================================================================
+let extensionConnected = false;
+let extensionVersion = null;
+let lastSessionStats = null;
+let statsTickerInterval = null;
+let extListenersRegistered = false;
+
+const ExtensionTabManager = {
+    init() {
+        this.registerListeners();
+        this.queryStatus();
+    },
+
+    renderMappings() {
+        const container = document.getElementById('ext-mappings-container');
+        if (!container) return;
+
+        const platforms = ['youtube', 'youtubemusic', 'netflix', 'twitch', 'primevideo'];
+        const platformMetadata = {
+            youtube: { label: 'YouTube', icon: '🎥' },
+            youtubemusic: { label: 'YouTube Music', icon: '🎵' },
+            netflix: { label: 'Netflix', icon: '🎬' },
+            twitch: { label: 'Twitch', icon: '🎮' },
+            primevideo: { label: 'Prime Video', icon: '🍿' }
+        };
+        const recommendedClientIds = {
+            youtube: '1461859944390332496',
+            youtubemusic: '1520432295255871498',
+            netflix: '1461881250498482409',
+            twitch: '1461860225765347472',
+            primevideo: '1511842632240730112'
+        };
+
+        const mappings = appSettings.extensionMappings || {};
+
+        let html = '';
+
+        platforms.forEach(platform => {
+            const meta = platformMetadata[platform];
+            const platformMapping = mappings[platform] || {};
+            const currentPresetId = platformMapping.presetId || '';
+            const currentClientId = platformMapping.clientId || recommendedClientIds[platform];
+
+            const isRecommended = currentClientId === recommendedClientIds[platform];
+
+            // Build Preset options
+            let presetOptions = `<option value="">${t('extensionTab.nonePreset') || '-- Nenhum (Padrão) --'}</option>`;
+            localPresets.forEach(preset => {
+                const selectedAttr = preset.name === currentPresetId ? 'selected' : '';
+                presetOptions += `<option value="${preset.name}" ${selectedAttr}>🎮 ${preset.name}</option>`;
+            });
+
+            // Build Client ID options
+            const clientIdOptions = buildClientIdOptions(platform, currentClientId);
+
+            // Badge html
+            let badgeHtml = '';
+            if (isRecommended) {
+                badgeHtml = `
+                    <span style="font-size: 0.75rem; color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                        <span>✔️</span> ${t('extensionTab.recommended') || 'Recomendado'}
+                    </span>
+                `;
+            } else {
+                badgeHtml = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 0.75rem; color: #fbbf24; font-weight: 600;" title="Não recomendado">⚠️</span>
+                        <button class="btn-restore-recommended" data-platform="${platform}" style="padding: 2px 6px; font-size: 0.7rem; border-radius: 4px; background: rgba(96,165,250,0.15); color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); cursor: pointer; transition: all 0.2s;">
+                            ${t('extensionTab.useRecommended') || 'Usar Recomendado'}
+                        </button>
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="ext-mapping-row" style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle); border-radius: 10px;">
+                    <!-- Header -->
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600; font-size: 0.95rem;">${meta.icon} ${meta.label}</span>
+                        <div class="mapping-badge-container-${platform}">
+                            ${badgeHtml}
+                        </div>
+                    </div>
+                    <!-- Fields -->
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <!-- Preset Dropdown -->
+                        <div style="flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 0.75rem; color: var(--text-dim);">${t('presets.title') || 'Preset'}</label>
+                            <select class="form-select ext-preset-select" data-platform="${platform}" style="width: 100%; padding: 6px 10px; border-radius: 8px; background: var(--bg-hover); color: var(--text); border: 1px solid var(--border-default);">
+                                ${presetOptions}
+                            </select>
+                        </div>
+                        <!-- Client ID Dropdown -->
+                        <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
+                            <label style="font-size: 0.75rem; color: var(--text-dim);">Client ID</label>
+                            <select class="form-select ext-client-id-select" data-platform="${platform}" style="width: 100%; padding: 6px 10px; border-radius: 8px; background: var(--bg-hover); color: var(--text); border: 1px solid var(--border-default);">
+                                ${clientIdOptions}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+
+        // Set lastValue dataset and bind event listeners
+        platforms.forEach(platform => {
+            const presetSelect = container.querySelector(`.ext-preset-select[data-platform="${platform}"]`);
+            const clientIdSelect = container.querySelector(`.ext-client-id-select[data-platform="${platform}"]`);
+            const restoreBtn = container.querySelector(`.btn-restore-recommended[data-platform="${platform}"]`);
+
+            if (presetSelect) {
+                presetSelect.dataset.lastValue = presetSelect.value;
+                presetSelect.addEventListener('change', () => {
+                    this.handlePresetChange(platform, presetSelect);
+                });
+            }
+
+            if (clientIdSelect) {
+                clientIdSelect.dataset.lastValue = clientIdSelect.value;
+                clientIdSelect.addEventListener('change', () => {
+                    this.handleClientIdChange(platform, clientIdSelect);
+                });
+            }
+
+            if (restoreBtn) {
+                restoreBtn.addEventListener('click', () => {
+                    const recommendedClientId = recommendedClientIds[platform];
+                    if (clientIdSelect) {
+                        clientIdSelect.value = recommendedClientId;
+                        this.handleClientIdChange(platform, clientIdSelect);
+                    }
+                });
+            }
+        });
+    },
+
+    handlePresetChange(platform, select) {
+        const selectedPresetName = select.value;
+
+        // If no preset chosen, it's always valid
+        if (!selectedPresetName) {
+            this.saveMapping(platform, selectedPresetName, null);
+            select.dataset.lastValue = selectedPresetName;
+            return;
+        }
+
+        // Find the preset object to validate
+        const preset = localPresets.find(p => p.name === selectedPresetName);
+        if (!preset) {
+            // Preset not found (defensive check)
+            this.saveMapping(platform, selectedPresetName, null);
+            select.dataset.lastValue = selectedPresetName;
+            return;
+        }
+
+        // Validate activity type constraint
+        const activityType = parseInt(preset.type);
+        let isValid = false;
+        let expectedVerb = '';
+
+        if (platform === 'youtube') {
+            isValid = (activityType === 2 || activityType === 3);
+            expectedVerb = `${t('presence.listening') || 'Listening'} / ${t('presence.watching') || 'Watching'}`;
+        } else if (platform === 'youtubemusic') {
+            isValid = (activityType === 2);
+            expectedVerb = t('presence.listening') || 'Listening';
+        } else {
+            isValid = (activityType === 3);
+            expectedVerb = t('presence.watching') || 'Watching';
+        }
+
+        if (!isValid) {
+            const platformLabel = {
+                youtube: 'YouTube',
+                youtubemusic: 'YouTube Music',
+                netflix: 'Netflix',
+                twitch: 'Twitch',
+                primevideo: 'Prime Video'
+            }[platform];
+
+            const errorMsg = (t('extensionTab.invalidActivityDesc') || "For the platform {platform}, the preset must be configured as '{expected}'.")
+                .replace('{platform}', platformLabel)
+                .replace('{expected}', expectedVerb);
+
+            showToast('⚠️', errorMsg, 'warning');
+            
+            // Revert selection
+            select.value = select.dataset.lastValue || '';
+            return;
+        }
+
+        // If valid, save
+        this.saveMapping(platform, selectedPresetName, null);
+        select.dataset.lastValue = selectedPresetName;
+    },
+
+    handleClientIdChange(platform, select) {
+        const selectedClientId = select.value;
+        this.saveMapping(platform, null, selectedClientId);
+        select.dataset.lastValue = selectedClientId;
+    },
+
+    saveMapping(platform, presetId, clientId) {
+        if (!appSettings.extensionMappings) {
+            appSettings.extensionMappings = {
+                youtube: { presetId: '', clientId: '1461859944390332496' },
+                youtubemusic: { presetId: '', clientId: '1520432295255871498' },
+                netflix: { presetId: '', clientId: '1461881250498482409' },
+                twitch: { presetId: '', clientId: '1461860225765347472' },
+                primevideo: { presetId: '', clientId: '1511842632240730112' }
+            };
+        }
+
+        if (!appSettings.extensionMappings[platform]) {
+            appSettings.extensionMappings[platform] = {
+                presetId: '',
+                clientId: {
+                    youtube: '1461859944390332496',
+                    youtubemusic: '1520432295255871498',
+                    netflix: '1461881250498482409',
+                    twitch: '1461860225765347472',
+                    primevideo: '1511842632240730112'
+                }[platform]
+            };
+        }
+
+        if (presetId !== null) {
+            appSettings.extensionMappings[platform].presetId = presetId;
+        }
+
+        if (clientId !== null) {
+            appSettings.extensionMappings[platform].clientId = clientId;
+        }
+
+        // Send save IPC event
+        ipcRenderer.send('save-app-settings', { extensionMappings: appSettings.extensionMappings });
+
+        // Re-render to update badges/UI state
+        this.renderMappings();
+    },
+
+    registerListeners() {
+        if (extListenersRegistered) return;
+
+        const extTabMode = document.getElementById('ext-tab-mode');
+        const extToggleIncognito = document.getElementById('ext-toggle-incognito');
+        const platforms = ['youtube', 'youtubemusic', 'netflix', 'twitch', 'primevideo'];
+
+        if (extTabMode) {
+            extTabMode.addEventListener('change', () => {
+                ipcRenderer.send('control-extension', { action: 'set_tab_mode', mode: extTabMode.value });
+            });
+        }
+
+        if (extToggleIncognito) {
+            extToggleIncognito.addEventListener('change', () => {
+                ipcRenderer.send('control-extension', { action: 'set_incognito_mode', enabled: extToggleIncognito.checked });
+            });
+        }
+
+        platforms.forEach(plat => {
+            const toggle = document.getElementById(`ext-track-${plat}`);
+            if (toggle) {
+                toggle.addEventListener('change', () => {
+                    ipcRenderer.send('control-extension', {
+                        action: 'toggle_platform',
+                        platform: plat,
+                        enabled: toggle.checked
+                    });
+                });
+            }
+        });
+
+        // Download and tutorial buttons event listeners
+        const extDownloadBtn = document.getElementById('ext-download-btn');
+        const extGuideBtn = document.getElementById('ext-guide-btn');
+        if (extDownloadBtn) {
+            extDownloadBtn.addEventListener('click', () => {
+                ipcRenderer.send('open-external-url', 'https://chromewebstore.google.com/detail/ekhlmpampeikcibfdmokiibgdcfendgp');
+            });
+        }
+        if (extGuideBtn) {
+            extGuideBtn.addEventListener('click', () => {
+                ipcRenderer.send('open-external-url', 'https://solarirpc.com/guides#plugins-ext-pt');
+            });
+        }
+
+        extListenersRegistered = true;
+    },
+
+    queryStatus() {
+        ipcRenderer.send('control-extension', { action: 'get_status' });
+    },
+
+    update(data) {
+        extensionConnected = true;
+        if (data && data.version) {
+            extensionVersion = data.version;
+        }
+
+        // Update connection status visual
+        const statusCard = document.getElementById('ext-status-card');
+        const statusDesc = document.getElementById('ext-status-desc');
+        const connBadge = document.getElementById('ext-connection-badge');
+        const mainGrid = document.getElementById('ext-main-grid');
+        const disconnectedState = document.getElementById('ext-disconnected-state');
+
+        if (statusCard) statusCard.classList.add('connected');
+
+        if (connBadge) {
+            connBadge.className = 'bd-status-badge bd-status-installed';
+            const dot = connBadge.querySelector('.bd-status-dot');
+            const txt = connBadge.querySelector('.bd-status-text');
+            if (dot) dot.style.background = '#4ade80';
+            if (txt) {
+                txt.setAttribute('data-i18n', 'app.connected');
+                txt.textContent = t('app.connected');
+            }
+        }
+
+        if (statusDesc) {
+            // Remove data-i18n to prevent applyTranslations from overwriting the dynamically formatted string
+            statusDesc.removeAttribute('data-i18n');
+            statusDesc.textContent = t('extensionTab.statusConnected').replace('{version}', extensionVersion || '2.2.0');
+        }
+
+        if (mainGrid) mainGrid.style.display = 'grid';
+        if (disconnectedState) disconnectedState.style.display = 'none';
+
+        // Update form elements
+        const extTabMode = document.getElementById('ext-tab-mode');
+        const extToggleIncognito = document.getElementById('ext-toggle-incognito');
+
+        if (extTabMode && document.activeElement !== extTabMode) {
+            extTabMode.value = data.tabMode || 'auto';
+        }
+
+        if (extToggleIncognito && document.activeElement !== extToggleIncognito) {
+            extToggleIncognito.checked = !!data.incognitoMode;
+        }
+
+        // Platforms checkbox state
+        if (data.platforms) {
+            Object.keys(data.platforms).forEach(plat => {
+                const toggle = document.getElementById(`ext-track-${plat}`);
+                if (toggle && document.activeElement !== toggle) {
+                    toggle.checked = !!data.platforms[plat].enabled;
+                }
+            });
+        }
+
+        // Available tabs rendering
+        const listContainer = document.getElementById('ext-tabs-list-container');
+        if (listContainer) {
+            listContainer.innerHTML = '';
+            const available = data.availableTabs || [];
+
+            if (available.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="ext-empty-tabs">
+                        <span class="ext-empty-tabs-icon">🌐</span>
+                        <span data-i18n="extensionTab.noActiveTabs">${t('extensionTab.noActiveTabs')}</span>
+                    </div>
+                `;
+            } else {
+                available.forEach(tab => {
+                    const item = document.createElement('div');
+                    item.className = 'ext-tab-item';
+                    const isPrimary = data.primaryTabId == tab.tabId;
+                    if (isPrimary) item.classList.add('active');
+
+                    // Determine icon
+                    const icons = { youtube: '🎥', youtubemusic: '🎵', netflix: '🎬', twitch: '🎮', primevideo: '🍿' };
+                    const icon = icons[tab.platform] || '🌐';
+
+                    item.innerHTML = `
+                        <div class="ext-tab-icon">${icon}</div>
+                        <div class="ext-tab-details">
+                            <div class="ext-tab-title" title="${tab.title}">${tab.title}</div>
+                            <div class="ext-tab-subtitle">${tab.platform.toUpperCase()}</div>
+                        </div>
+                        <span class="ext-tab-badge ${isPrimary ? 'active' : 'inactive'}">
+                            ${isPrimary ? t('extensionTab.activeLabel') : t('extensionTab.inactiveLabel')}
+                        </span>
+                    `;
+
+                    // Handle manual switch click
+                    item.addEventListener('click', () => {
+                        if (data.tabMode === 'manual' && !isPrimary) {
+                            ipcRenderer.send('control-extension', {
+                                action: 'set_primary_tab',
+                                tabId: tab.tabId
+                            });
+                        }
+                    });
+
+                    listContainer.appendChild(item);
+                });
+            }
+        }
+
+        // Session Stats processing
+        lastSessionStats = data.sessionStats;
+        this.renderStats();
+        this.startTicking();
+        this.renderMappings();
+    },
+
+    renderStats() {
+        const statsContainer = document.getElementById('ext-stats-container');
+        if (!statsContainer || !lastSessionStats) return;
+
+        statsContainer.innerHTML = '';
+        const platformTime = lastSessionStats.platformTime || {};
+        const platforms = [
+            { id: 'youtube', label: 'YouTube', icon: '🎥' },
+            { id: 'youtubemusic', label: 'YouTube Music', icon: '🎵' },
+            { id: 'netflix', label: 'Netflix', icon: '🎬' },
+            { id: 'twitch', label: 'Twitch', icon: '🎮' },
+            { id: 'primevideo', label: 'Prime Video', icon: '🍿' }
+        ];
+
+        // Calc total time
+        let totalTime = 0;
+        platforms.forEach(p => {
+            totalTime += platformTime[p.id] || 0;
+        });
+
+        platforms.forEach(p => {
+            const time = platformTime[p.id] || 0;
+            const pct = totalTime > 0 ? (time / totalTime) * 100 : 0;
+            const item = document.createElement('div');
+            item.className = 'ext-stat-item';
+            item.innerHTML = `
+                <div class="ext-stat-header">
+                    <div class="ext-stat-label"><span>${p.icon}</span> ${p.label}</div>
+                    <div class="ext-stat-time">${formatDuration(time)}</div>
+                </div>
+                <div class="ext-stat-track">
+                    <div class="ext-stat-fill" style="width: ${pct}%"></div>
+                </div>
+            `;
+            statsContainer.appendChild(item);
+        });
+    },
+
+    startTicking() {
+        if (statsTickerInterval) return;
+
+        statsTickerInterval = setInterval(() => {
+            if (lastSessionStats && lastSessionStats.currentPlatform) {
+                const cur = lastSessionStats.currentPlatform;
+                if (!lastSessionStats.platformTime) lastSessionStats.platformTime = {};
+                lastSessionStats.platformTime[cur] = (lastSessionStats.platformTime[cur] || 0) + 1000;
+                this.renderStats();
+            }
+        }, 1000);
+    },
+
+    stopTicking() {
+        if (statsTickerInterval) {
+            clearInterval(statsTickerInterval);
+            statsTickerInterval = null;
+        }
+    },
+
+    disconnect() {
+        extensionConnected = false;
+        extensionVersion = null;
+        this.stopTicking();
+        lastSessionStats = null;
+
+        const statusCard = document.getElementById('ext-status-card');
+        const statusDesc = document.getElementById('ext-status-desc');
+        const connBadge = document.getElementById('ext-connection-badge');
+        const mainGrid = document.getElementById('ext-main-grid');
+        const disconnectedState = document.getElementById('ext-disconnected-state');
+
+        if (statusCard) statusCard.classList.remove('connected');
+
+        if (connBadge) {
+            connBadge.className = 'bd-status-badge bd-status-missing';
+            const dot = connBadge.querySelector('.bd-status-dot');
+            const txt = connBadge.querySelector('.bd-status-text');
+            if (dot) dot.style.background = '#ef4444';
+            if (txt) {
+                txt.setAttribute('data-i18n', 'app.disconnected');
+                txt.textContent = t('app.disconnected');
+            }
+        }
+
+        if (statusDesc) {
+            statusDesc.setAttribute('data-i18n', 'extensionTab.statusDisconnected');
+            statusDesc.textContent = t('extensionTab.statusDisconnected');
+        }
+
+        if (mainGrid) mainGrid.style.display = 'none';
+        if (disconnectedState) disconnectedState.style.display = 'flex';
+    }
+};
+
+window.ExtensionTabManager = ExtensionTabManager;
+
+function formatDuration(ms) {
+    if (!ms || ms < 0) return '0s';
+    const totalSecs = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSecs / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+
+    const parts = [];
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0 || hours > 0) parts.push(`${minutes}m`);
+    parts.push(`${seconds}s`);
+    return parts.join(' ');
+}
+
+// IPC Listeners
+ipcRenderer.on('extension-status-update', (event, data) => {
+    ExtensionTabManager.update(data);
+});
+
+ipcRenderer.on('extension-connected-event', () => {
+    ExtensionTabManager.queryStatus();
+});
+
+ipcRenderer.on('extension-disconnected-event', () => {
+    ExtensionTabManager.disconnect();
+});
+
+document.addEventListener('languageChanged', () => {
+    if (extensionConnected) {
+        ExtensionTabManager.queryStatus();
+    } else {
+        ExtensionTabManager.disconnect();
+    }
 });
