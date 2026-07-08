@@ -32,10 +32,15 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 
 ## 🚀 Features
 
-- **🧩 Browser Extension**: Detects Netflix, YouTube, Twitch, and Crunchyroll automatically.
-- **🎨 Unlimited Presets**: Create and save configurations for different activities.
-- **🔄 Multi-Client IDs**: Assign specific Discord Client IDs to individual presets.
-- **🎮 Auto-Detect**: Solari identifies what you are playing or using and switches status automatically.
+- **🧩 Browser Extension**: Detects Netflix, YouTube, YouTube Music, Twitch, Prime Video, and Crunchyroll automatically.
+- **🎨 8 Premium Custom Themes**: Sakura Breeze, Retro Amber, Swiss Brutalist, Aero Glass, E-Ink, Cyber-Noir, Polaroid 70s, and Aurora Polaris.
+- **🔄 Browser Extension ID Mappings**: Customize presets and Client IDs dynamically for each platform.
+- **✨ Setup Wizard Redesign**: Overhauled onboarding experience with interactive BetterDiscord plugin and browser extension controls.
+- **🎵 YouTube Music Integration**: Dedicated extension integration with Listening status and real-time progress bar.
+- **🔍 Quick-Search Client ID Modal**: Live search overlay to filter and select Client IDs instantly.
+- **🖱️ Clickable Presence Images**: Link Large and Small images directly to URLs, making profile images interactive inside Discord.
+- **🛡️ Fsync-Safe Atomic File Writes**: Prevents zero-byte file corruption on sudden power loss.
+- **🔋 Eco Mode & Performance Overhaul**: Dynamically throttles background resource usage when minimized or in tray.
 - **😴 Smart AFK**: Automatically switches to away status when you leave your PC.
 - **🎵 Spotify Sync**: Control your music directly from Discord with our dedicated plugin.
 - **🌐 Multi-Language**: Fully localized in English, Portuguese (Brazil), and Spanish.
