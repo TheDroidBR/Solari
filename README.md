@@ -32,7 +32,7 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 
 ## 🚀 Features
 
-- **🧩 Browser Extension**: Detects Netflix, YouTube, YouTube Music, Twitch, Prime Video, and Crunchyroll automatically.
+- **🧩 Browser Extension**: Detects YouTube, YouTube Music, Netflix, Twitch, and Prime Video automatically.
 - **🎨 8 Premium Custom Themes**: Sakura Breeze, Retro Amber, Swiss Brutalist, Aero Glass, E-Ink, Cyber-Noir, Polaroid 70s, and Aurora Polaris.
 - **🔄 Browser Extension ID Mappings**: Customize presets and Client IDs dynamically for each platform.
 - **✨ Setup Wizard Redesign**: Overhauled onboarding experience with interactive BetterDiscord plugin and browser extension controls.
@@ -43,7 +43,7 @@ With a modern interface, unlimited presets, and a plugin system, you can show ex
 - **🔋 Eco Mode & Performance Overhaul**: Dynamically throttles background resource usage when minimized or in tray.
 - **😴 Smart AFK**: Automatically switches to away status when you leave your PC.
 - **🎵 Spotify Sync**: Control your music directly from Discord with our dedicated plugin.
-- **🌐 Multi-Language**: Fully localized in English, Portuguese (Brazil), and Spanish.
+- **🌐 Multi-Language**: Fully localized in English, Portuguese (Brazil), Spanish, and German.
 - **🔌 Plugins**: Expandable system via BetterDiscord plugins.
 - **💎 Premium Design**: Interface inspired by Cyberpunk/Glassmorphism.
 
@@ -68,20 +68,40 @@ To use Solari, you need a Discord Application Client ID. Here is how to get one:
 
 ## 🧩 Plugins (BetterDiscord)
 
-Solari integrates with Discord via BetterDiscord plugins to enable advanced features.
+Solari integrates with Discord via BetterDiscord plugins to enable advanced features. You can toggle and manage these plugins directly from the **Plugins** tab in the Solari App.
 
 ### 🔌 SmartAFK (Auto-Away)
-Patches Discord's native idle detection to ensure perfect synchronization across all devices.
-1. Download **`SmartAFKDetector.plugin.js`**.
-2. Place it in your BetterDiscord **plugins** folder.
-3. Enable it in Discord settings.
+Patches Discord's native idle detection to ensure perfect inactivity/away status synchronization across all your devices.
+*   **Filename**: `SmartAFKDetector.plugin.js`
 
 ### 🎵 Spotify Sync
-Adds playback controls (Play/Pause/Next) and status synchronization.
-1. Download **`SpotifySync.plugin.js`**.
-2. Place it in your BetterDiscord **plugins** folder.
-3. Enable it.
-4. You can now control Spotify directly from your Discord profile!
+Integrates full playback controls (Play/Pause/Next/Previous), active lyrics viewer with auto-scroll, device picker, and real-time volume slider directly on your Discord profile. *(Requires Spotify Premium for full interactive controls)*.
+*   **Filename**: `SpotifySync.plugin.js`
+
+### 👑 Solari Manager (Core)
+The core bridge plugin of the Solari ecosystem. Confirms BetterDiscord is running in real-time, displays connection status, and enables the desktop app to remotely toggle other plugins.
+*   **Filename**: `SolariManager.plugin.js`
+
+### 🎨 Solari Motion
+The ultimate animation system for Discord. Features 28 animation types across 22 UI categories, stagger list entries cascades, a global intensity slider, cubic-bezier visual easing editor, and active FPS guard protection.
+*   **Filename**: `SolariMotion.plugin.js`
+
+### 📝 Solari Notes
+A premium, glassmorphic floating notepad mounted cleanly into Discord's interface, allowing you to write notes that sync and save securely to your local PC.
+*   **Filename**: `SolariNotes.plugin.js`
+
+### ⚡ Solari MessageTools
+Adds text macros (e.g., `/shrug`), active on-the-fly context menu message translation, quick double-click message edit, and incognito anti-typing mode.
+*   **Filename**: `SolariMessageTools.plugin.js`
+
+### 🎞️ Solari Player
+Cinematic video player for Discord. Adds Theater Mode, Picture-in-Picture, speed controls, double-tap seek with ripple effects, and screenshot bypass capability.
+*   **Filename**: `SolariPlayer.plugin.js`
+
+### 🛠️ How to Install Plugins:
+1. Move the `.plugin.js` files to your BetterDiscord **plugins** folder:
+   - **Windows**: `%APPDATA%\BetterDiscord\plugins`
+2. Enable them in Discord Settings under **Plugins**.
 
 
 ## 🛡️ Security
@@ -94,7 +114,7 @@ The code is fully transparent and available on GitHub under the GPL v2.0 license
 Solari features a **Hybrid Telemetry Model** designed with your privacy in mind:
 
 - **Basic Telemetry (Mandatory):** Collects minimal data to help us count active users, detect BetterDiscord installation health, and track extension usage history.
-  - ✅ App version (e.g., "1.11.1")
+  - ✅ App version (e.g., "2.0.0")
   - ✅ Random ID (not tied to your identity)
   - ✅ BetterDiscord installation health status
   - ✅ Extension ever used history
