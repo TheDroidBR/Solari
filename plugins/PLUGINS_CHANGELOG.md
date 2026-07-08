@@ -1,5 +1,8 @@
 # Plugins Changelog
 
+## SolariMotion v1.0.3 (2026-07-08)
+- 🛡️ **Fix Native Controls Overlap**: Narrowed imageViewer animation selectors to target only the image and video wrapper elements. This prevents CSS transforms on the parent modal from breaking the absolute positioning of Discord's native close, download, and share buttons, keeping them aligned at the edges rather than centered.
+
 ## SolariMotion v1.0.2 (2026-06-14)
 - ⚙️ **Dynamic Configuration**: Fully integrated with the Solari APP's dynamic settings panel via local configuration schema export.
 - 🔄 **Real-Time Synchronization**: Implemented a background file watcher to monitor settings changes from Solari APP and apply them instantly inside Discord.
@@ -37,6 +40,9 @@
 ## SolariNotes v1.0.1 (2026-03-24)
 - 🛡️ **Critical Fix: Discord UI Crash**: Relocated panel injection from `#app-mount` to `document.body`. This prevents a React 18 rendering conflict that caused the Discord interface to "cut off" and show black areas when opening user profiles.
 - 🎯 **Fixed Icon Injection**: Updated toolbar selectors to prevent accidental injection into user profile modals.
+
+## SolariPlayer v1.0.3 (2026-07-08)
+- 🛡️ **Fix Overlap on Avatars**: Added strict asset URL filters to prevent the video player from attaching to animated user avatars, guild icons, custom banners, custom status emojis, and stickers inside the chat area and media viewer popups.
 
 ## SolariPlayer v1.0.2 (2026-05-29)
 - 🚀 **Auto-Updater System**: Integrated a premium, fully-translated confirmation modal to notify you on update availability.

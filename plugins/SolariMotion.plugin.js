@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description The most advanced animation system for Discord — 22 UI categories, 28 animation types, Stagger system, Global Intensity, visual Cubic-Bézier editor, Live DOM Preview. Powered by Solari.
- * @version 1.0.2
+ * @version 1.0.3
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariMotion.plugin.js
@@ -15,7 +15,7 @@ module.exports = class SolariMotion {
     // CONSTANTS
     // ═══════════════════════════════════════════════════════════════════════
 
-    static VERSION = '1.0.2';
+    static VERSION = '1.0.3';
     static CONFIG_VERSION = 2;
     static ID = 'SolariMotion';
 
@@ -873,7 +873,7 @@ module.exports = class SolariMotion {
 
     getSettingsSchema() {
         return [
-            { type: 'custom_header', title: 'Solari Motion', icon: '✨', version: 'v1.0.2' },
+            { type: 'custom_header', title: 'Solari Motion', icon: '✨', version: 'v1.0.3' },
             {
                 type: 'select',
                 key: 'globalPreset',
@@ -1219,17 +1219,17 @@ module.exports = class SolariMotion {
             @keyframes sm-slide-right { from{opacity:0;transform:translateX(calc(-18px*${i}))} to{opacity:1;transform:none} }
             @keyframes sm-scale       { from{opacity:0;transform:scale(calc(1 - 0.15*${i}))} to{opacity:1;transform:none} }
             @keyframes sm-scale-up    { from{opacity:0;transform:scale(calc(1 + 0.12*${i}))} to{opacity:1;transform:none} }
-            @keyframes sm-pop         { 0%{opacity:0;transform:scale(0)} 70%{opacity:1;transform:scale(calc(1 + 0.08*${i}))} 85%{transform:scale(calc(1 - 0.04*${i}))} 100%{transform:scale(1)} }
-            @keyframes sm-spring      { 0%{opacity:0;transform:scale(calc(1 - 0.18*${i}))} 55%{opacity:1;transform:scale(calc(1 + 0.04*${i}))} 75%{transform:scale(calc(1 - 0.02*${i}))} 100%{transform:scale(1)} }
-            @keyframes sm-bounce      { 0%{opacity:0;transform:scale(calc(1 - 0.25*${i}))} 60%{opacity:1;transform:scale(calc(1 + 0.06*${i}))} 80%{transform:scale(calc(1 - 0.03*${i}))} 100%{transform:scale(1)} }
-            @keyframes sm-elastic     { 0%{opacity:0;transform:scale(calc(1 - 0.5*${i}))} 60%{opacity:1;transform:scale(calc(1 + 0.09*${i}))} 80%{transform:scale(calc(1 - 0.04*${i}))} 100%{transform:scale(1)} }
-            @keyframes sm-zoom-bounce { 0%{opacity:0;transform:scale(calc(1 - 0.4*${i}))} 65%{transform:scale(calc(1 + 0.07*${i}))} 82%{transform:scale(calc(1 - 0.03*${i}))} 100%{opacity:1;transform:scale(1)} }
-            @keyframes sm-snap        { 0%{opacity:0;transform:scale(calc(1 - 0.12*${i}))} 55%{transform:scale(calc(1 + 0.03*${i}))} 100%{opacity:1;transform:scale(1)} }
-            @keyframes sm-blur-in     { from{opacity:0;filter:blur(calc(12px*${i}))} to{opacity:1;filter:blur(0)} }
-            @keyframes sm-flip-x      { from{opacity:0;transform:perspective(600px) rotateY(calc(-20deg*${i}))} to{opacity:1;transform:perspective(600px) rotateY(0)} }
-            @keyframes sm-flip-y      { from{opacity:0;transform:perspective(600px) rotateX(calc(-20deg*${i}))} to{opacity:1;transform:perspective(600px) rotateX(0)} }
+            @keyframes sm-pop         { 0%{opacity:0;transform:scale(0)} 70%{opacity:1;transform:scale(calc(1 + 0.08*${i}))} 85%{transform:scale(calc(1 - 0.04*${i}))} 100%{transform:none} }
+            @keyframes sm-spring      { 0%{opacity:0;transform:scale(calc(1 - 0.18*${i}))} 55%{opacity:1;transform:scale(calc(1 + 0.04*${i}))} 75%{transform:scale(calc(1 - 0.02*${i}))} 100%{transform:none} }
+            @keyframes sm-bounce      { 0%{opacity:0;transform:scale(calc(1 - 0.25*${i}))} 60%{opacity:1;transform:scale(calc(1 + 0.06*${i}))} 80%{transform:scale(calc(1 - 0.03*${i}))} 100%{transform:none} }
+            @keyframes sm-elastic     { 0%{opacity:0;transform:scale(calc(1 - 0.5*${i}))} 60%{opacity:1;transform:scale(calc(1 + 0.09*${i}))} 80%{transform:scale(calc(1 - 0.04*${i}))} 100%{transform:none} }
+            @keyframes sm-zoom-bounce { 0%{opacity:0;transform:scale(calc(1 - 0.4*${i}))} 65%{transform:scale(calc(1 + 0.07*${i}))} 82%{transform:scale(calc(1 - 0.03*${i}))} 100%{opacity:1;transform:none} }
+            @keyframes sm-snap        { 0%{opacity:0;transform:scale(calc(1 - 0.12*${i}))} 55%{transform:scale(calc(1 + 0.03*${i}))} 100%{opacity:1;transform:none} }
+            @keyframes sm-blur-in     { from{opacity:0;filter:blur(calc(12px*${i}))} to{opacity:1;filter:none} }
+            @keyframes sm-flip-x      { from{opacity:0;transform:perspective(600px) rotateY(calc(-20deg*${i}))} to{opacity:1;transform:none} }
+            @keyframes sm-flip-y      { from{opacity:0;transform:perspective(600px) rotateX(calc(-20deg*${i}))} to{opacity:1;transform:none} }
             @keyframes sm-rotate-in   { from{opacity:0;transform:rotate(calc(-5deg*${i})) scale(calc(1 - 0.07*${i}))} to{opacity:1;transform:none} }
-            @keyframes sm-swing       { 0%{opacity:0;transform:perspective(600px) rotateY(calc(-22deg*${i}))} 60%{transform:perspective(600px) rotateY(calc(6deg*${i}))} 80%{transform:perspective(600px) rotateY(calc(-3deg*${i}))} 100%{opacity:1;transform:perspective(600px) rotateY(0)} }
+            @keyframes sm-swing       { 0%{opacity:0;transform:perspective(600px) rotateY(calc(-22deg*${i}))} 60%{transform:perspective(600px) rotateY(calc(6deg*${i}))} 80%{transform:perspective(600px) rotateY(calc(-3deg*${i}))} 100%{opacity:1;transform:none} }
             @keyframes sm-wipe-right  { from{clip-path:inset(0 100% 0 0);opacity:1} to{clip-path:inset(0 0% 0 0);opacity:1} }
             @keyframes sm-wipe-up     { from{clip-path:inset(100% 0 0 0);opacity:1} to{clip-path:inset(0);opacity:1} }
             @keyframes sm-clip-circle { from{clip-path:circle(0% at 50% 50%);opacity:1} to{clip-path:circle(150% at 50% 50%);opacity:1} }
@@ -1403,11 +1403,21 @@ module.exports = class SolariMotion {
         rules.push(this._buildRule('serverSwitch', ['[class*="sidebar_"]>[class*="listScroller_"]']));
         rules.push(this._buildRule('settings', ['[class*="contentRegionScroller_"]', '[class*="standardSidebarView_"] [class*="contentRegion_"]']));
         rules.push(this._buildRule('contextMenu', ['[class*="menu_"][class*="styleFlexible_"]', 'nav[class*="menu_"]']));
-        rules.push(this._buildRule('modals', ['[class*="modal_"] [class*="root_"]', '[class*="layerContainer_"]>[class*="layer_"] [class*="focusLock_"]']));
+        rules.push(this._buildRule('modals', [
+            '[class*="modal_"] [class*="root_"]:not([class*="mediaViewer_"]):not([class*="carouselModal_"])',
+            '[class*="layerContainer_"]>[class*="layer_"] [class*="focusLock_"]:not(:has([class*="mediaViewer_"])):not(:has([class*="carouselModal_"]))'
+        ]));
         rules.push(this._buildRule('userPopout', ['[class*="userPopout_"]', '[class*="layer_"] [class*="userCard_"]']));
         rules.push(this._buildRule('emojiPicker', ['[class*="emojiPicker_"]', '[class*="expressionPickerSidebar_"]', '[class*="contentWrapper_"][class*="picker_"]']));
         rules.push(this._buildRule('autoComplete', ['[class*="autocomplete_"]']));
-        rules.push(this._buildRule('imageViewer', ['[class*="mediaViewer_"]', '[class*="carouselModal_"]']));
+        rules.push(this._buildRule('imageViewer', [
+            '[class*="mediaViewer_"] img',
+            '[class*="mediaViewer_"] video',
+            '[class*="mediaViewer_"] [class*="imageWrapper_"]',
+            '[class*="carouselModal_"] img',
+            '[class*="carouselModal_"] video',
+            '[class*="carouselModal_"] [class*="imageWrapper_"]'
+        ]));
         rules.push(this._buildRule('callOverlay', ['[class*="callContainer_"]']));
         rules.push(this._buildRule('uploadPreview', ['[class*="uploadModal_"]', '[class*="attachment_"][class*="uploading_"]']));
         rules.push(this._buildRule('memberList', ['[class*="members_"]']));

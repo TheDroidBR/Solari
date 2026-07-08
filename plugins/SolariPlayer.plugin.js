@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Video Player for Discord. Features Theater Mode, Glassmorphism UI, Picture-in-Picture, Speed Control, and Screenshot Bypass.
- * @version 1.0.2
+ * @version 1.0.3
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SolariPlayer.plugin.js
@@ -13,7 +13,7 @@ class SolariPlayer {
 
     getName() { return "SolariPlayer"; }
     getDescription() { return "Premium Video Player for Discord. Features Theater Mode, Glassmorphism UI, Picture-in-Picture, Speed Control, and Screenshot Bypass."; }
-    getVersion() { return "1.0.2"; }
+    getVersion() { return "1.0.3"; }
     getAuthor() { return "TheDroid"; }
 
     static PLUGIN_ID = "SolariPlayer";
@@ -224,7 +224,7 @@ class SolariPlayer {
 
     start() {
         console.log(`[${SolariPlayer.PLUGIN_ID}] Iniciando v${this.getVersion()} (Hardcore Edition)`);
-        
+
         // Check if we just updated to show the changelog
         this.checkChangelog();
 
@@ -304,10 +304,10 @@ class SolariPlayer {
             '[aria-label*="Download"]', '[title*="Download"]',
             'a[href*="discordapp.net/attachments/"]'
         ];
-        
+
         // Apenas buscar elementos de UI nativa a serem limpos se estiverem dentro do nosso wrapper
         const wrapperSelectors = selectors.map(s => `.solari-video-wrapper ${s}`);
-        
+
         root.querySelectorAll(wrapperSelectors.join(',')).forEach(el => {
             if (!el.closest('.solari-video-overlay')) {
                 el.style.setProperty('display', 'none', 'important');
@@ -329,21 +329,35 @@ class SolariPlayer {
             return;
         }
 
-        // 0.2 Filtrar GIFs (Tenor, Giphy ou qualquer contêiner com classe de gif)
-        const isGif = videoNode.src.toLowerCase().includes('tenor') || 
-                      videoNode.src.toLowerCase().includes('giphy') || 
-                      videoNode.closest('[class*="gif"]') ||
-                      videoNode.closest('[class*="gifFavoriteButton_"]');
+        // 0.2 Adicional: Evitar avatares, banners, ícones de servidores, stickers ou emojis
+        const srcLower = videoNode.src.toLowerCase();
+        if (srcLower.includes('/avatars/') || 
+            srcLower.includes('/banners/') || 
+            srcLower.includes('/icons/') || 
+            srcLower.includes('/emojis/') || 
+            srcLower.includes('/stickers/') || 
+            srcLower.includes('/avatar-decorations/')) {
+            return;
+        }
+
+        // 0.4 Filtrar GIFs (Tenor, Giphy ou qualquer contêiner com classe de gif)
+        const isGif = videoNode.src.toLowerCase().includes('tenor') ||
+            videoNode.src.toLowerCase().includes('giphy') ||
+            videoNode.closest('[class*="gif"]') ||
+            videoNode.closest('[class*="gifFavoriteButton_"]');
         if (isGif) return;
 
-        // 1. Filtro Agressivo (Proibir UI fora de mensagens e em contêineres de chamadas)
+        // 1. Filtro Agressivo (Proibir UI fora de mensagens e em contêineres de chamadas/customização/configurações)
         const isInvalidArea = videoNode.closest(`
             [class*="avatar"], [class*="panels_"], [class*="members_"], 
             [class*="sidebar_"], [class*="banner_"], [class*="profile"],
             [class*="emoji"], [class*="sticker"],
             [class*="callContainer_"], [class*="videoGrid_"], [class*="videoWrapper_"],
             [class*="streamWrapper_"], [class*="voiceChannel_"], [class*="rtcConnection_"],
-            [class*="callWrapper_"], [class*="videoGridWrapper_"], [class*="pictureInPictureVideo_"]
+            [class*="callWrapper_"], [class*="videoGridWrapper_"], [class*="pictureInPictureVideo_"],
+            [class*="gifPlayer"], [class*="welcomeCard"], [class*="joinCard"],
+            [class*="settings"], [class*="customization"], [class*="customize"], 
+            [class*="shop"], [class*="collectible"], [class*="nameplate"], [class*="clan"]
         `);
         if (isInvalidArea) return;
 
