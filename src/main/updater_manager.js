@@ -217,21 +217,23 @@ async function checkUpdateSilent() {
         }
         return { hasUpdate: false, latestVersion: currentVersion, currentVersion };
     } catch (err) {
-        console.warn('[Solari Updater] Silent check failed on primary, trying fallback...');
-        try {
-            autoUpdater.setFeedURL({
-                provider: 'generic',
-                url: CONSTANTS.UPDATE_URL_FALLBACK,
-                useMultipleRangeRequest: false
-            });
-            const result = await autoUpdater.checkForUpdates();
-            if (result && result.updateInfo) {
-                const latestVersion = result.updateInfo.version;
-                const hasUpdate = latestVersion !== currentVersion;
-                return { hasUpdate, latestVersion, currentVersion };
+        if (CONSTANTS.UPDATE_URL_FALLBACK) {
+            console.warn('[Solari Updater] Silent check failed on primary, trying fallback...');
+            try {
+                autoUpdater.setFeedURL({
+                    provider: 'generic',
+                    url: CONSTANTS.UPDATE_URL_FALLBACK,
+                    useMultipleRangeRequest: false
+                });
+                const result = await autoUpdater.checkForUpdates();
+                if (result && result.updateInfo) {
+                    const latestVersion = result.updateInfo.version;
+                    const hasUpdate = latestVersion !== currentVersion;
+                    return { hasUpdate, latestVersion, currentVersion };
+                }
+            } catch (fallbackErr) {
+                console.error('[Solari Updater] Silent check fallback also failed:', fallbackErr.message);
             }
-        } catch (fallbackErr) {
-            console.error('[Solari Updater] Silent check fallback also failed:', fallbackErr.message);
         }
         return { hasUpdate: false, latestVersion: currentVersion, currentVersion };
     }

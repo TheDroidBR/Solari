@@ -21,6 +21,8 @@ convert-icon.js
 download-assets.js
 UsersGabrielDesktopItensAntigravityCustomRP2icon.png
 *.exe
+latest.yml
+latest-mac.yml
 
 # Experimental BetterDiscord plugin
 plugins/SolariExperiment.plugin.js

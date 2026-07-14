@@ -82,7 +82,7 @@ module.exports = {
 
     // Auto-Updater URLs (electron-updater Generic Provider)
     UPDATE_URL_PRIMARY: 'https://github.com/TheDroidBR/Solari/releases/latest/download',
-    UPDATE_URL_FALLBACK: 'https://gitlab.com/TheDroidBR/solari/-/raw/main/',
+    UPDATE_URL_FALLBACK: null, // Temporarily disabled. Will be replaced by our website fallback.
 
     // Default Values
     DEFAULT_ACTIVITY_TYPE: 0, // Playing
