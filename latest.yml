@@ -1,8 +1,0 @@
-version: 2.0.0
-files:
-  - url: Solari-Setup.exe
-    sha512: hYhAesg5SzYBYJavQl/y0kTQ9tt4640F8YTAhIXE21pvHry5rntpT0SDfxRp3n+wcoY0+MEadu+9uEuyGI8mUg==
-    size: 107085796
-path: Solari-Setup.exe
-sha512: hYhAesg5SzYBYJavQl/y0kTQ9tt4640F8YTAhIXE21pvHry5rntpT0SDfxRp3n+wcoY0+MEadu+9uEuyGI8mUg==
-releaseDate: '2026-07-08T17:31:02.398Z'
