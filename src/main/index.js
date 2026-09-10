@@ -52,13 +52,14 @@ let SoundServer = null;
 let soundServer = null;
 let telemetry = null; // v1.11.1
 const soundboardToken = crypto.randomBytes(32).toString('hex'); // v1.11.1: Security token
-let activeTasklistProcess = null; // v1.11.1: Track child processes
-let activeNvidiaSmiProcess = null; // v1.11.1: Track child processes
+let activeTasklistProcess = null; // Track child process for tasklist
+let activeBrowserProcess = null; // Track child process for browser window titles
 
 // ── Managers (modularization) ────────────────────────────────────────────
 const WindowManager = require('./managers/windowManager');
 const DataManager = require('./managers/dataManager');
 const HWMonitor = require('./managers/hwMonitor');
+const ProfileCardManager = require('./managers/profileCardManager');
 
 // v1.10: --debug CLI flag support
 if (process.argv.includes('--debug')) {
@@ -79,8 +80,37 @@ let autoDetectWindow = null;
 let tray = null;
 let rpcClient;
 let rpcConnected = false; // Track if RPC is actually connected
+let profileCardUpdateTimer = null; // v2.0.1: Track pending Profile Card updates
 let extensionWsId = null;
 let extensionVersion = '0.0.0';
+
+function sendToMainWindow(channel, ...args) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        try {
+            mainWindow.webContents.send(channel, ...args);
+            return true;
+        } catch (e) {
+            console.warn(`[Solari] Failed to send to mainWindow on channel ${channel}:`, e.message);
+        }
+    }
+    return false;
+}
+
+function broadcastToWebSocketClients(payload) {
+    if (!wss) return;
+    const msg = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            try {
+                client.send(msg, (err) => {
+                    if (err) console.warn('[Solari WS] Client send error:', err.message);
+                });
+            } catch (e) {
+                console.warn('[Solari WS] Client send exception:', e.message);
+            }
+        }
+    });
+}
 
 function getRpcStatusPayload(additionalFields = {}) {
     const base = { connected: rpcConnected, ...additionalFields };
@@ -94,14 +124,28 @@ function getRpcStatusPayload(additionalFields = {}) {
         const ext = isAnimated ? 'gif' : 'png';
         avatarUrl = `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.${ext}?size=256`;
     }
+    const loggedId = discordUser.id || '';
+    const isProfileCardAllowed = crypto.createHash('sha256').update(loggedId).digest('hex') === '9057badc1bc821a44b122ebf1c10654b891874b0780656b465753cf0b100338e';
+
     return {
         ...base,
+        isProfileCardAllowed,
         user: {
             id: discordUser.id,
             username: discordUser.username,
             globalName: discordUser.globalName || discordUser.global_name || discordUser.username,
             avatar: avatarUrl
         }
+    };
+}
+
+function getProfileCardStore() {
+    return {
+        presets: presets || [],
+        identities: identities || [],
+        clientId: clientId || '',
+        extensionStats: extensionStats || {},
+        discordUserId: rpcClient && rpcClient.user ? rpcClient.user.id : null
     };
 }
 
@@ -446,6 +490,19 @@ ipcMain.handle('plugins:fetch-bypass', async (event, url) => {
 });
 
 async function handleFetchResource(url) {
+    if (!url || typeof url !== 'string') {
+        throw new Error('Invalid URL parameter');
+    }
+    let parsedUrl;
+    try {
+        parsedUrl = new URL(url);
+    } catch {
+        throw new Error('Malformed URL: ' + url);
+    }
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        throw new Error(`Forbidden protocol: ${parsedUrl.protocol}. Only http: and https: are permitted.`);
+    }
+
     console.log('[Solari Net] Fetching native:', url);
     return new Promise((resolve, reject) => {
         const request = net.request({
@@ -458,20 +515,40 @@ async function handleFetchResource(url) {
             }
         });
 
+        // 15s timeout to prevent hanging sockets
+        const timeout = setTimeout(() => {
+            try { request.abort(); } catch { }
+            reject(new Error('Network request timed out'));
+        }, 15000);
+
         request.on('response', (response) => {
             if (response.statusCode === 200) {
                 const chunks = [];
-                response.on('data', (chunk) => chunks.push(chunk));
+                let totalSize = 0;
+                const MAX_RESOURCE_SIZE = 5 * 1024 * 1024; // 5MB limit
+                response.on('data', (chunk) => {
+                    totalSize += chunk.length;
+                    if (totalSize > MAX_RESOURCE_SIZE) {
+                        clearTimeout(timeout);
+                        try { request.abort(); } catch { }
+                        reject(new Error('Resource exceeds maximum size limit (5MB)'));
+                        return;
+                    }
+                    chunks.push(chunk);
+                });
                 response.on('end', () => {
+                    clearTimeout(timeout);
                     const body = Buffer.concat(chunks).toString('utf-8');
                     resolve(body);
                 });
             } else {
+                clearTimeout(timeout);
                 reject(new Error(`Fetch failed: HTTP Status ${response.statusCode}`));
             }
         });
 
         request.on('error', (error) => {
+            clearTimeout(timeout);
             console.error('[Solari Net] Error:', error.message);
             reject(error);
         });
@@ -508,14 +585,24 @@ ipcMain.on('window-close', (event) => {
 
 // IPC handler for Spotify status
 ipcMain.handle('get-spotify-status', () => {
-    // Return current local state + check plugin if possible?
-    // Actually, renderer listens for 'spotify-data-loaded' which comes from plugin.
-    // But this handler is used for initial sync.
     return {
         connected: !!(spotifyTokens.accessToken && spotifyTokens.refreshToken),
         accessToken: spotifyTokens.accessToken,
         clientId: spotifyClientId || clientId // Use specific or global
     };
+});
+
+// IPC handler for initial Spotify data request from renderer
+ipcMain.on('get-spotify-data', () => {
+    sendToMainWindow('spotify-data-loaded', {
+        settings: {
+            spotifyClientId: spotifyClientId || '',
+            enabled: true,
+            showInRichPresence: true
+        },
+        prioritySettings: prioritySettings,
+        track: (presenceSources && presenceSources.spotify) ? presenceSources.spotify.track : null
+    });
 });
 
 // IPC: Set Spotify Client ID
@@ -525,76 +612,50 @@ ipcMain.on('set-spotify-client-id', (event, id) => {
     console.log('[Solari] Spotify Client ID updated:', id);
 
     // Broadcast to plugins
-    if (wss) {
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                    type: 'update_spotify_settings',
-                    settings: { spotifyClientId: id }
-                }));
-            }
-        });
-    }
+    broadcastToWebSocketClients({
+        type: 'update_spotify_settings',
+        settings: { spotifyClientId: id }
+    });
 });
 
 // IPC: Spotify Login (Trigger Auth in Plugin)
 ipcMain.on('spotify-login', () => {
     console.log('[Solari] Triggering Spotify Login in Plugin...');
-    if (wss) {
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                    type: 'start_spotify_auth'
-                }));
-            }
-        });
-    }
+    broadcastToWebSocketClients({
+        type: 'start_spotify_auth'
+    });
 });
 
 // IPC: Spotify Finish Auth
 ipcMain.on('spotify-finish-auth', (event, codeOrUrl) => {
     console.log('[Solari] Finishing Spotify Auth in Plugin...');
-    if (wss) {
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                    type: 'finish_spotify_auth',
-                    code: codeOrUrl
-                }));
-            }
-        });
-    }
+    broadcastToWebSocketClients({
+        type: 'finish_spotify_auth',
+        code: codeOrUrl
+    });
 });
 
 // IPC: Spotify Logout
 ipcMain.on('spotify-logout', () => {
     console.log('[Solari] Spotify Logout...');
     spotifyTokens = { accessToken: null, refreshToken: null, tokenExpiry: 0 };
-    saveData(); // You might want to persist tokens? Usually no for security/freshness, but refresh token yes.
+    saveData();
 
     // Tell plugin to clear tokens
-    if (wss) {
-        wss.clients.forEach(client => {
-            if (client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify({
-                    type: 'update_spotify_settings',
-                    settings: {
-                        spotifyAccessToken: '',
-                        spotifyRefreshToken: '',
-                        spotifyTokenExpiry: 0
-                    }
-                }));
-            }
-        });
-    }
+    broadcastToWebSocketClients({
+        type: 'update_spotify_settings',
+        settings: {
+            spotifyAccessToken: '',
+            spotifyRefreshToken: '',
+            spotifyTokenExpiry: 0
+        }
+    });
 
     // Notify renderer
-    if (mainWindow) {
-        mainWindow.webContents.send('spotify-status-update', {
-            loggedIn: false,
-            clientId: spotifyClientId
-        });
-    }
+    sendToMainWindow('spotify-status-update', {
+        loggedIn: false,
+        clientId: spotifyClientId
+    });
 });
 
 // ===== IDENTITIES (App Profiles) IPC HANDLERS =====
@@ -659,6 +720,10 @@ ipcMain.on('save-eco-mode', (event, enabled) => {
     saveData();
     startBDBackgroundPolling();
     startHWMonitor();
+    if (autoDetectEnabled && autoDetectInterval) {
+        stopAutoDetection();
+        startAutoDetection();
+    }
 });
 
 ipcMain.on('complete-setup', () => {
@@ -788,7 +853,7 @@ function showRendererDialog(options) {
             activeDialogPromise.resolve({ response: -1, checkboxChecked: false });
         }
         activeDialogPromise = { resolve };
-        mainWindow.webContents.send('show-custom-dialog', options);
+        sendToMainWindow('show-custom-dialog', options);
     });
 }
 
@@ -1256,6 +1321,15 @@ const MAX_PLUGIN_SIZE = 2 * 1024 * 1024; // 2MB
 
 function downloadPluginToString(url) {
     return new Promise(resolve => {
+        let settled = false;
+        let timeout = null;
+        const finish = (val) => {
+            if (settled) return;
+            settled = true;
+            if (timeout) clearTimeout(timeout);
+            resolve(val);
+        };
+
         const request = net.request({
             url: url,
             method: 'GET',
@@ -1266,24 +1340,29 @@ function downloadPluginToString(url) {
             }
         });
 
+        timeout = setTimeout(() => {
+            try { request.abort(); } catch { }
+            finish(null);
+        }, 15000);
+
         request.on('response', (res) => {
-            if (res.statusCode !== 200) { resolve(null); return; }
+            if (res.statusCode !== 200) { finish(null); return; }
             let data = '';
             let size = 0;
             res.on('data', c => {
                 size += c.length;
                 if (size > MAX_PLUGIN_SIZE) {
                     console.error('[Solari] Plugin download exceeds 2MB limit, aborting.');
-                    request.abort();
-                    resolve(null);
+                    try { request.abort(); } catch { }
+                    finish(null);
                     return;
                 }
                 data += c.toString('utf8');
             });
-            res.on('end', () => resolve(data));
+            res.on('end', () => finish(data));
         });
 
-        request.on('error', () => resolve(null));
+        request.on('error', () => finish(null));
         request.end();
     });
 }
@@ -1562,13 +1641,11 @@ function updateTrayMenu() {
 }
 
 function toggleConsoleWindow(show) {
-    consoleVisible = show;
+    if (process.platform !== 'win32') return;
 
-    // Use PowerShell to show/hide the console window by finding it by title
+    consoleVisible = show;
     const showState = show ? 5 : 0; // 5 = SW_SHOW, 0 = SW_HIDE
 
-    // Create a temporary PowerShell script file
-    const tempScriptPath = path.join(app.getPath('temp'), 'solari_console_toggle.ps1');
     const psScript = `
 Add-Type @"
 using System;
@@ -1591,7 +1668,6 @@ public class ConsoleHelper {
 }
 "@
 
-$found = $false
 $callback = {
     param($hwnd, $lparam)
     $length = [ConsoleHelper]::GetWindowTextLength($hwnd)
@@ -1601,7 +1677,6 @@ $callback = {
         $title = $sb.ToString()
         if ($title -like "*cmd.exe*" -or $title -like "*Administrador*cmd*") {
             [ConsoleHelper]::ShowWindow($hwnd, ${showState})
-            $script:found = $true
         }
     }
     return $true
@@ -1611,19 +1686,29 @@ $callback = {
 `;
 
     try {
-        fs.writeFileSync(tempScriptPath, psScript);
-        exec(`powershell -ExecutionPolicy Bypass -File "${tempScriptPath}"`, (error, stdout, stderr) => {
-            if (error) {
-                console.log('[Solari] Console toggle error:', stderr || error.message);
-            } else {
+        const encodedScript = Buffer.from(psScript, 'utf16le').toString('base64');
+        const child = spawn('powershell.exe', [
+            '-NoProfile',
+            '-NonInteractive',
+            '-ExecutionPolicy', 'Bypass',
+            '-EncodedCommand', encodedScript
+        ], { windowsHide: true });
+
+        child.on('close', (code) => {
+            if (code === 0) {
                 console.log(`[Solari] Console window ${show ? 'shown' : 'hidden'}`);
+            } else {
+                console.warn(`[Solari] Console toggle exited with code ${code}`);
             }
-            // Clean up temp file
-            try { fs.unlinkSync(tempScriptPath); } catch (e) { }
+            updateTrayMenu();
+        });
+
+        child.on('error', (err) => {
+            console.error('[Solari] Console toggle spawn error:', err);
             updateTrayMenu();
         });
     } catch (e) {
-        console.log('[Solari] Failed to create temp script:', e.message);
+        console.error('[Solari] Failed to execute console toggle:', e.message);
         updateTrayMenu();
     }
 }
@@ -1636,14 +1721,15 @@ function startExtensionStatsTracking() {
     extensionStatsInterval = setInterval(() => {
         if (presenceSources.browserExtension.active && presenceSources.browserExtension.platform) {
             const plat = presenceSources.browserExtension.platform.toLowerCase();
-            if (extensionStats[plat] !== undefined) {
-                extensionStats[plat] += 1000;
+            if (extensionStats[plat] === undefined) {
+                extensionStats[plat] = 0;
+            }
+            extensionStats[plat] += 1000;
 
-                extensionStatsSaveCounter++;
-                if (extensionStatsSaveCounter >= 10) {
-                    extensionStatsSaveCounter = 0;
-                    saveData();
-                }
+            extensionStatsSaveCounter++;
+            if (extensionStatsSaveCounter >= 10) {
+                extensionStatsSaveCounter = 0;
+                saveData();
             }
         }
     }, 1000);
@@ -1899,6 +1985,19 @@ function initializeDiscordRPC(targetClientId = null) {
                     mainWindow.webContents.send('rpc-status', getRpcStatusPayload());
                 }
 
+                // Auto-update Discord Profile Card 5s after connecting (only if user has permission)
+                if (profileCardUpdateTimer) {
+                    clearTimeout(profileCardUpdateTimer);
+                    profileCardUpdateTimer = null;
+                }
+                const rpcPayload = getRpcStatusPayload();
+                if (rpcPayload && rpcPayload.isProfileCardAllowed) {
+                    profileCardUpdateTimer = setTimeout(() => {
+                        ProfileCardManager.updateCard(getProfileCardStore(), CONSTANTS.APP_VERSION);
+                        profileCardUpdateTimer = null;
+                    }, 5000);
+                }
+
                 // Try to get app name from rpcClient or fetch from Discord API
                 let appName = rpcClient.application?.name;
                 if (!appName) {
@@ -1991,9 +2090,7 @@ function initializeDiscordRPC(targetClientId = null) {
                 isReconnecting = false; // Allow new reconnection attempt
                 connectionAttempts = 0; // Reset counter for fresh reconnection cycle
                 
-                if (mainWindow) {
-                    mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
-                }
+                sendToMainWindow('rpc-status', { connected: false, reconnecting: true });
 
                 // Cleanup failed client instance to release resource handles
                 try {
@@ -2033,9 +2130,7 @@ function initializeDiscordRPC(targetClientId = null) {
                 }
 
                 // ALWAYS send reconnecting status so UI never shows plain "Disconnected"
-                if (mainWindow) {
-                    mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
-                }
+                sendToMainWindow('rpc-status', { connected: false, reconnecting: true });
 
                 // Persistent Reconnection Logic — NEVER GIVE UP
                 if (connectionAttempts >= 10) {
@@ -2086,9 +2181,7 @@ function initializeDiscordRPC(targetClientId = null) {
                     console.log('[Solari] RPC health check: Connection appears dead, scheduling reconnect...');
                     rpcConnected = false;
                     isReconnecting = false;
-                    if (mainWindow) {
-                        mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
-                    }
+                    sendToMainWindow('rpc-status', { connected: false, reconnecting: true });
                     scheduleReconnect(CONSTANTS.RPC_RETRY_DELAY_MS);
                 }
             } catch (e) {
@@ -2122,13 +2215,11 @@ async function switchRpcClient(newClientId) {
     console.log('[Solari] Switching RPC from', currentClientId, 'to', newClientId);
 
     // Notify UI
-    if (mainWindow) {
-        mainWindow.webContents.send('show-toast', {
-            messageKey: 'rpc.switching',
-            title: '🔄',
-            type: 'info'
-        });
-    }
+    sendToMainWindow('show-toast', {
+        messageKey: 'rpc.switching',
+        title: '🔄',
+        type: 'info'
+    });
 
     // 1. Destroy current connection
     rpcConnected = false;
@@ -2225,9 +2316,7 @@ async function switchRpcClient(newClientId) {
                 currentActivity = {}; // Reset so next update forces refresh
 
                 // Notify UI
-                if (mainWindow) {
-                    mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: true });
-                }
+                sendToMainWindow('rpc-status', { connected: false, reconnecting: true });
 
                 // Clean up this client instance to avoid handle leaks
                 try {
@@ -2272,14 +2361,12 @@ async function switchRpcClient(newClientId) {
             }
 
             // Notify UI of success
-            if (mainWindow) {
-                mainWindow.webContents.send('rpc-status', getRpcStatusPayload());
-                mainWindow.webContents.send('show-toast', {
-                    messageKey: 'rpc.switched',
-                    title: '✅',
-                    type: 'success'
-                });
-            }
+            sendToMainWindow('rpc-status', getRpcStatusPayload());
+            sendToMainWindow('show-toast', {
+                messageKey: 'rpc.switched',
+                title: '✅',
+                type: 'success'
+            });
 
             return true;
 
@@ -2317,14 +2404,12 @@ async function switchRpcClient(newClientId) {
     isSwitching = false;
     switchingTargetClientId = null;
     rpcConnected = false;
-    if (mainWindow) {
-        mainWindow.webContents.send('show-toast', {
-            messageKey: 'rpc.switchFailed',
-            title: '❌',
-            type: 'danger'
-        });
-        mainWindow.webContents.send('rpc-status', { connected: false, reconnecting: false });
-    }
+    sendToMainWindow('show-toast', {
+        messageKey: 'rpc.switchFailed',
+        title: '❌',
+        type: 'danger'
+    });
+    sendToMainWindow('rpc-status', { connected: false, reconnecting: false });
     return false;
 }
 
@@ -2786,11 +2871,11 @@ async function updatePresence() {
         const sourceChanged = currentPrioritySource !== previousPrioritySource;
         const presetChanged = currentPresetName !== lastNotifiedPresetName;
 
-        if (mainWindow && notificationText && (sourceChanged || presetChanged)) {
+        if (notificationText && (sourceChanged || presetChanged)) {
             if (CONSTANTS.DEBUG_MODE) console.log(`[Solari-Core] Showing notification - Source changed: ${sourceChanged}, Preset changed: ${presetChanged} (${lastNotifiedPresetName} -> ${currentPresetName})`);
-            mainWindow.webContents.send('preset-auto-loaded', notificationText);
+            sendToMainWindow('preset-auto-loaded', notificationText);
             lastNotifiedPresetName = currentPresetName;
-        } else if (mainWindow && !sourceChanged && !presetChanged) {
+        } else if (!sourceChanged && !presetChanged) {
             if (CONSTANTS.DEBUG_MODE) console.log('[Solari-Core] Source and preset unchanged, skipping toast notification.');
         }
     }
@@ -2932,9 +3017,7 @@ function handleBrowserMediaUpdate(message, ws) {
                 updatePresence();
 
                 // Notify renderer
-                if (mainWindow) {
-                    mainWindow.webContents.send('extension-media-cleared', { platform });
-                }
+                sendToMainWindow('extension-media-cleared', { platform });
             }, 1000); // 1s grace period
         }
         return;
@@ -3144,18 +3227,14 @@ function broadcastPluginList() {
         .filter(p => !blockedPlugins.has(p.name))
         .filter(p => p.name !== 'Solari Extension') // Browser extension is not a plugin
         .map(p => ({ id: p.id, name: p.name }));
-    if (mainWindow) {
-        mainWindow.webContents.send('plugin-list-updated', plugins);
-        mainWindow.webContents.send('blocked-list-updated', Array.from(blockedPlugins));
-    }
+    sendToMainWindow('plugin-list-updated', plugins);
+    sendToMainWindow('blocked-list-updated', Array.from(blockedPlugins));
 }
 
 function broadcastAutoDetectState() {
-    if (mainWindow) {
-        mainWindow.webContents.send('auto-detect-result', {
-            presetName: presenceSources.autoDetect.presetName
-        });
-    }
+    sendToMainWindow('auto-detect-result', {
+        presetName: presenceSources.autoDetect.presetName
+    });
 }
 
 
@@ -3167,7 +3246,7 @@ ipcMain.on('update-activity', (event, activity) => {
     presenceSources.manualPreset.presetName = activity.presetName || "Manual Update";
 
     // Notify Renderer of manual mode state
-    if (mainWindow) mainWindow.webContents.send('manual-mode-changed', true);
+    sendToMainWindow('manual-mode-changed', true);
 
     // 2. Trigger Update
     if (isEnabled) {
@@ -3186,7 +3265,7 @@ ipcMain.on('exit-manual-mode', (event) => {
     presenceSources.manualPreset.presetName = null;
 
     console.log('[Solari] Exiting manual mode via UI request');
-    if (mainWindow) mainWindow.webContents.send('manual-mode-changed', false);
+    sendToMainWindow('manual-mode-changed', false);
 
     updatePresence();
 });
@@ -3198,7 +3277,7 @@ ipcMain.on('reset-activity', (event) => {
     presenceSources.manualPreset.clientId = null;
 
     updatePresence();
-    if (mainWindow) mainWindow.webContents.send('manual-mode-changed', false);
+    sendToMainWindow('manual-mode-changed', false);
     event.reply('activity-reset');
 });
 
@@ -3269,9 +3348,7 @@ ipcMain.on('control-extension', (event, cmdData) => {
 
 // Show toast to renderer
 function sendToast(title, message, type = 'info') {
-    if (mainWindow) {
-        mainWindow.webContents.send('show-toast', { title, message, type });
-    }
+    sendToMainWindow('show-toast', { title, message, type });
 }
 
 // Export debug logs
@@ -3357,7 +3434,7 @@ ipcMain.handle('import-presets', async () => {
             }
 
             saveData();
-            mainWindow.webContents.send('presets-updated', presets);
+            sendToMainWindow('presets-updated', presets);
             console.log('[Solari] Presets imported successfully');
             return { success: true };
         } catch (err) {
@@ -3514,7 +3591,9 @@ function cleanImgurUrl(url) {
     return url;
 }
 
-ipcMain.on('send-toast', (event, message) => { if (wss) wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'show_toast', message, toastType: 'info' })); }); });
+ipcMain.on('send-toast', (event, message) => {
+    broadcastToWebSocketClients({ type: 'show_toast', message, toastType: 'info' });
+});
 ipcMain.on('update-afk-settings', (event, settings) => {
     // Sync with Solari's system AFK
     if (settings.timeoutMinutes) {
@@ -3535,7 +3614,7 @@ ipcMain.on('update-afk-settings', (event, settings) => {
     saveData(); // v1.11.1: Persist settings!
 
     // Forward to all connected plugins
-    if (wss) wss.clients.forEach(client => { if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'update_afk_settings', settings })); });
+    broadcastToWebSocketClients({ type: 'update_afk_settings', settings });
 });
 ipcMain.on('save-default', (event, activity) => { defaultActivity = activity; saveData(); if (!currentActivity.details && !currentActivity.state) setActivity({}); event.reply('default-saved'); });
 ipcMain.on('save-preset', (event, preset) => { presets.push(preset); saveData(); event.reply('presets-updated', presets); });
@@ -3566,6 +3645,9 @@ ipcMain.on('delete-preset', (event, index) => {
 });
 ipcMain.on('get-data', (event) => {
     console.log(`[Solari DEBUG] Sending get-data reply. Presets: ${presets.length}, Mappings: ${autoDetectMappings.length}, Identities: ${identities.length}`);
+    const loggedId = rpcClient && rpcClient.user ? rpcClient.user.id : '';
+    const isProfileCardAllowed = crypto.createHash('sha256').update(loggedId).digest('hex') === '9057badc1bc821a44b122ebf1c10654b891874b0780656b465753cf0b100338e';
+
     event.reply('data-loaded', {
         defaultActivity,
         presets,
@@ -3581,24 +3663,53 @@ ipcMain.on('get-data', (event) => {
         appSettings: appSettings, // CRITICAL: Send full settings for Settings Tab
         identities: identities, // FIXED: Added missing identities list
         globalClientId: clientId, // v1.12.0: Used by onboarding banner
-        autoDetectPreset: presenceSources.autoDetect.presetName // v1.12.0: Current detected preset
+        autoDetectPreset: presenceSources.autoDetect.presetName, // v1.12.0: Current detected preset
+        isProfileCardAllowed: isProfileCardAllowed // Security check for owner
     });
     updateTrayMenu();
     Menu.setApplicationMenu(null); // Ensure top menu bar is disabled!
     broadcastPluginList();
+});
+
+// ── Discord Profile Card (Role Connections) IPC Handlers (Exclusive Developer Feature) ──
+function isProfileCardAuthorized() {
+    const loggedId = rpcClient && rpcClient.user ? rpcClient.user.id : '';
+    return crypto.createHash('sha256').update(loggedId).digest('hex') === '9057badc1bc821a44b122ebf1c10654b891874b0780656b465753cf0b100338e';
+}
+
+ipcMain.handle('profile-card-status', async () => {
+    if (!isProfileCardAuthorized()) return { linked: false };
+    const discordUserId = rpcClient && rpcClient.user ? rpcClient.user.id : null;
+    return await ProfileCardManager.isLinked(discordUserId);
+});
+
+ipcMain.on('profile-card-connect', () => {
+    if (!isProfileCardAuthorized()) return;
+    ProfileCardManager.openAuthFlow(shell);
+});
+
+ipcMain.handle('profile-card-unlink', async () => {
+    if (!isProfileCardAuthorized()) return false;
+    const discordUserId = rpcClient && rpcClient.user ? rpcClient.user.id : null;
+    if (discordUserId) {
+        await ProfileCardManager.unlink(discordUserId);
+        return true;
+    }
+    return false;
+});
+
+ipcMain.handle('profile-card-update', async () => {
+    if (!isProfileCardAuthorized()) return false;
+    return await ProfileCardManager.updateCard(getProfileCardStore(), CONSTANTS.APP_VERSION);
 });
 ipcMain.on('save-form-state', (event, formState) => { lastFormState = formState; saveData(); });
 ipcMain.on('block-plugin', (event, pluginName) => { blockedPlugins.add(pluginName); saveData(); broadcastPluginList(); });
 ipcMain.on('unblock-plugin', (event, pluginName) => { blockedPlugins.delete(pluginName); saveData(); broadcastPluginList(); });
 ipcMain.on('update-spotify-plugin-settings', (event, settings) => {
     // Forward to all connected SpotifySync plugins
-    if (wss) wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-                type: 'spotify_sync_settings_update',
-                settings: settings
-            }));
-        }
+    broadcastToWebSocketClients({
+        type: 'spotify_sync_settings_update',
+        settings: settings
     });
 });
 
@@ -3654,9 +3765,7 @@ ipcMain.on('update-notes-plugin-settings', (event, settings) => {
 // ===== SOUNDBOARD HOTKEY PLAYBACK HELPER =====
 // Play sound via IPC to renderer (called when global hotkey is pressed)
 function playSoundByIdFromHotkey(soundId) {
-    if (mainWindow && mainWindow.webContents) {
-        mainWindow.webContents.send('soundboard:play-from-hotkey', soundId);
-    }
+    sendToMainWindow('soundboard:play-from-hotkey', soundId);
 }
 
 // Callback for global shortcut - this is called when global hotkey is pressed
@@ -3674,19 +3783,13 @@ function handleShortcutPlay(soundId) {
     // soundBoard.addToHistory(soundId); 
 
     // Send to all connected plugins/renderers via WebSocket
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-                type: 'soundboard:play',
-                payload: { soundId, url, volume, loop }
-            }));
-        }
+    broadcastToWebSocketClients({
+        type: 'soundboard:play',
+        payload: { soundId, url, volume, loop }
     });
 
     // Also notify main window directly if desired (redundant if using WS everywhere)
-    if (mainWindow) {
-        mainWindow.webContents.send('soundboard:play-direct', { soundId, url, volume, loop });
-    }
+    sendToMainWindow('soundboard:play-direct', { soundId, url, volume, loop });
 }
 
 // Initialize soundboard shortcuts after app is ready
@@ -4077,22 +4180,20 @@ function semverGt(v1, v2) {
 
 // Check if Discord is currently running
 async function isDiscordRunning() {
-    const checkProcess = (exeName) => {
-        return new Promise((resolve) => {
-            exec(`tasklist /FI "IMAGENAME eq ${exeName}" /NH`, (err, stdout) => {
-                if (err) return resolve(false);
-                resolve(stdout.toLowerCase().includes(exeName.toLowerCase()));
-            });
-        });
-    };
+    // Optimization: If SolariManager or Discord client is actively connected, Discord is confirmed running!
+    if (solariManagerWsId || rpcConnected) {
+        return true;
+    }
 
     if (process.platform === 'win32') {
-        const results = await Promise.all([
-            checkProcess('Discord.exe'),
-            checkProcess('DiscordCanary.exe'),
-            checkProcess('DiscordPTB.exe')
-        ]);
-        return results.some(r => r === true);
+        return new Promise((resolve) => {
+            // Single command matching Discord.exe, DiscordCanary.exe, DiscordPTB.exe
+            exec('tasklist /FI "IMAGENAME eq Discord*" /NH', { timeout: 3000 }, (err, stdout) => {
+                if (err || !stdout) return resolve(false);
+                const out = stdout.toLowerCase();
+                resolve(out.includes('discord.exe') || out.includes('discordcanary.exe') || out.includes('discordptb.exe'));
+            });
+        });
     } else {
         return new Promise((resolve) => {
             exec('pgrep Discord || pgrep DiscordCanary || pgrep DiscordPTB', (err, stdout) => {
@@ -4279,9 +4380,10 @@ function startBDBackgroundPolling() {
 
         // Update runtime status (including discordRunning) periodically
         if (mainWindow && !mainWindow.isDestroyed()) {
-            const discordRunning = await isDiscordRunning();
+            const isManagerActive = !!solariManagerWsId;
+            const discordRunning = isManagerActive ? true : await isDiscordRunning();
             mainWindow.webContents.send('bd-runtime-status', {
-                active: !!solariManagerWsId,
+                active: isManagerActive,
                 discordRunning: discordRunning
             });
         }
@@ -4394,10 +4496,18 @@ async function actualInstallBDLogic() {
         }
 
         const localAppData = process.env.LOCALAPPDATA;
+        if (!localAppData) return { success: false, error: 'LOCALAPPDATA environment variable not found' };
         const discordBase = path.join(localAppData, 'Discord');
+        if (!fs.existsSync(discordBase)) return { success: false, error: 'Discord installation directory not found' };
         const appDirs = fs.readdirSync(discordBase).filter(d => d.startsWith('app-')).sort().reverse();
+        if (appDirs.length === 0) return { success: false, error: 'Discord application directory not found' };
         const latestAppDir = path.join(discordBase, appDirs[0]);
-        const coreSubDir = path.join(latestAppDir, 'modules', fs.readdirSync(path.join(latestAppDir, 'modules')).find(d => d.startsWith('discord_desktop_core')), 'discord_desktop_core');
+        const modulesDir = path.join(latestAppDir, 'modules');
+        if (!fs.existsSync(modulesDir)) return { success: false, error: 'Discord modules directory not found' };
+        const coreFolderName = fs.readdirSync(modulesDir).find(d => d.startsWith('discord_desktop_core'));
+        if (!coreFolderName) return { success: false, error: 'discord_desktop_core not found in Discord modules' };
+        const coreSubDir = path.join(modulesDir, coreFolderName, 'discord_desktop_core');
+        if (!fs.existsSync(coreSubDir)) return { success: false, error: 'discord_desktop_core subfolder not found' };
         const injectionTarget = path.join(coreSubDir, 'index.js');
 
         const { exec, spawn } = require('child_process');
@@ -4646,217 +4756,28 @@ function handleMainWindowVisibilityChange() {
 
 
 
-// Lightweight CPU usage calculation using built-in OS module (zero external process cost)
-function getCpuUsage() {
-    const cpus = os.cpus();
-    if (!cpus || cpus.length === 0) return 0;
-
-    let totalIdle = 0;
-    let totalTick = 0;
-
-    for (let currentCpu of cpus) {
-        for (let type in currentCpu.times) {
-            totalTick += currentCpu.times[type];
-        }
-        totalIdle += currentCpu.times.idle;
-    }
-
-    let usage = 0;
-    if (lastCpuInfo) {
-        const idleDifference = totalIdle - lastCpuInfo.idle;
-        const totalDifference = totalTick - lastCpuInfo.total;
-        usage = 100 - ~~(100 * idleDifference / totalDifference);
-    }
-
-    lastCpuInfo = { idle: totalIdle, total: totalTick };
-    return Math.max(0, Math.min(100, usage));
-}
-
-// Lightweight GPU check (only works for NVIDIA, but doesn't spawn expensive PowerShell)
-async function getGpuUsage() {
-    return new Promise((resolve) => {
-        // Use nvidia-smi if available (fastest C++ utility), otherwise return null
-        activeNvidiaSmiProcess = exec('nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits',
-            { timeout: 1000, windowsHide: true },
-            (error, stdout) => {
-                activeNvidiaSmiProcess = null;
-                if (error || !stdout) {
-                    resolve(null);
-                    return;
-                }
-                try {
-                    const parts = stdout.trim().split(',');
-                    if (parts.length >= 4) {
-                        resolve({
-                            name: 'NVIDIA GPU',
-                            usage: parseInt(parts[0].trim(), 10) || 0,
-                            temp: parseInt(parts[1].trim(), 10) || 0,
-                            vramUsedMB: parseInt(parts[2].trim(), 10) || 0,
-                            vramTotalMB: parseInt(parts[3].trim(), 10) || 0
-                        });
-                    } else {
-                        resolve(null);
-                    }
-                } catch (e) {
-                    resolve(null);
-                }
-            });
-    });
-}
-
-
-
-// Global cached GPU data to avoid launching processes too often
-let cachedGpuStats = null;
-let lastGpuPoll = 0;
-let lastHwRpcUpdate = 0;
-let lastHwRpcString = '';
-
-async function pollHardwareStats() {
-    try {
-        const results = {};
-
-        // CPU: Virtually zero-cost
-        if (hwMonitorSettings.showCPU) {
-            results.cpu = {
-                usage: getCpuUsage(),
-                cores: os.cpus() ? os.cpus().length : 0
-            };
-        }
-
-        // RAM: Virtually zero-cost
-        if (hwMonitorSettings.showRAM) {
-            const totalMem = os.totalmem();
-            const freeMem = os.freemem();
-            const usedMem = totalMem - freeMem;
-            results.ram = {
-                usedGB: Math.round((usedMem / 1073741824) * 10) / 10,  // bytes -> GB, 1 decimal
-                totalGB: Math.round((totalMem / 1073741824) * 10) / 10,
-                usagePercent: Math.round((usedMem / totalMem) * 1000) / 10
-            };
-        }
-
-        // GPU: Poll only every 6 seconds to save CPU, while CPU/RAM update every 2-3s
-        if (hwMonitorSettings.showGPU) {
-            if (hwGpuAvailable === false) {
-                results.gpu = null;
-            } else {
-                const now = Date.now();
-                if (!cachedGpuStats || (now - lastGpuPoll) > 6000) {
-                    const gpuResult = await getGpuUsage();
-                    if (gpuResult) {
-                        hwGpuAvailable = true;
-                        cachedGpuStats = gpuResult;
-                    } else {
-                        // If it fails once, maybe no NVIDIA driver. We'll disable it to prevent spamming process spawning.
-                        hwGpuAvailable = false;
-                        cachedGpuStats = null;
-                    }
-                    lastGpuPoll = now;
-                }
-                results.gpu = cachedGpuStats;
-            }
-        }
-
-        latestHwStats = results;
-
-        // Send to renderer for live UI
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('hw-stats-update', results);
-        }
-
-        // Trigger Discord RPC update if enabled and throttled (max once every HW_RPC_THROTTLE_MS)
-        if (rpcConnected && hwMonitorEnabled && isEnabled) {
-            const now = Date.now();
-            if (now - lastHwRpcUpdate > CONSTANTS.HW_RPC_THROTTLE_MS) {
-                const currentHwString = formatHWStatsForRPC();
-                if (currentHwString && currentHwString !== lastHwRpcString) {
-                    lastHwRpcString = currentHwString;
-                    lastHwRpcUpdate = now;
-                    updatePresence();
-                }
-            }
-        }
-
-    } catch (e) {
-        console.error('[HW Monitor] Poll error:', e.message);
-    }
-}
-
-function startHWMonitor() {
-    if (hwMonitorInterval) return; // Already running
-    if (!hwMonitorEnabled) return;
-
-    // We will poll every 2 seconds for CPU/RAM which is virtually zero-cost
-    const interval = hwMonitorSettings.intervalMs || 2000;
-    console.log('[HW Monitor] Starting lightweight polling every', interval, 'ms');
-
-    // Warm up CPU counters
-    getCpuUsage();
-
-    // First poll immediately
-    setTimeout(pollHardwareStats, 500);
-    hwMonitorInterval = setInterval(pollHardwareStats, interval);
-}
-
-function stopHWMonitor() {
-    if (hwMonitorInterval) {
-        clearInterval(hwMonitorInterval);
-        hwMonitorInterval = null;
-        latestHwStats = null;
-        if (activeNvidiaSmiProcess) {
-            try { activeNvidiaSmiProcess.kill(); } catch (e) { }
-            activeNvidiaSmiProcess = null;
-        }
-        console.log('[HW Monitor] Stopped');
-    }
-}
-
-function formatHWStatsForRPC() {
-    if (!latestHwStats) return null;
-    const parts = [];
-
-    const showCPU = hwMonitorSettings.showCPU !== false;
-    const showRAM = hwMonitorSettings.showRAM !== false;
-    const showGPU = hwMonitorSettings.showGPU !== false;
-
-    const showGPUTemp = hwMonitorSettings.showGPUTemp !== false;
-
-    if (latestHwStats.cpu && showCPU) {
-        let str = `CPU: ${latestHwStats.cpu.usage}%`;
-        parts.push(str);
-    }
-    if (latestHwStats.ram && showRAM) {
-        parts.push(`RAM: ${latestHwStats.ram.usedGB}/${latestHwStats.ram.totalGB}GB`);
-    }
-    if (latestHwStats.gpu && showGPU) {
-        // Only show GPU if we have any valid data to prevent "GPU: N/A" spam
-        const hasTemp = showGPUTemp && latestHwStats.gpu.temp !== null;
-
-        if (latestHwStats.gpu.usage !== null || hasTemp) {
-            let str = `GPU:`;
-            if (latestHwStats.gpu.usage !== null) str += ` ${latestHwStats.gpu.usage}%`;
-            if (hasTemp) str += `${latestHwStats.gpu.usage !== null ? '' : ' '}(${latestHwStats.gpu.temp}°C)`;
-            parts.push(str.trim());
-        }
-    }
-
-    return parts.length > 0 ? parts.join(' | ') : null;
-}
-
-
 // ===== SOUNDBOARD IPC HANDLERS =====
 
+let _cachedSBDriverResult = null;
+let _lastSBDriverCheck = 0;
 
 // Check if VB-Cable driver is installed (detect CABLE Input/Output devices)
-ipcMain.handle('soundboard:check-driver-installed', async () => {
+ipcMain.handle('soundboard:check-driver-installed', async (event, opts = {}) => {
     try {
+        const now = Date.now();
+        if (!opts?.force && _cachedSBDriverResult && (now - _lastSBDriverCheck) < 60000) {
+            return _cachedSBDriverResult;
+        }
+
         // Use PowerShell to list audio devices and check for VB-Cable
         return new Promise((resolve) => {
             exec('powershell -Command "Get-WmiObject Win32_SoundDevice | Select-Object Name | ConvertTo-Json"', (error, stdout) => {
                 if (error) {
                     console.error('[Solari] Error checking audio devices:', error);
-                    resolve({ installed: false, error: error.message });
+                    const res = { installed: false, error: error.message };
+                    _cachedSBDriverResult = res;
+                    _lastSBDriverCheck = now;
+                    resolve(res);
                     return;
                 }
 
@@ -4875,10 +4796,13 @@ ipcMain.handle('soundboard:check-driver-installed', async () => {
                     );
 
                     console.log('[Solari] VB-Cable detection:', vbCableFound ? 'FOUND' : 'NOT FOUND');
-                    resolve({
+                    const res = {
                         installed: vbCableFound,
                         devices: deviceList.map(d => d?.Name).filter(Boolean)
-                    });
+                    };
+                    _cachedSBDriverResult = res;
+                    _lastSBDriverCheck = now;
+                    resolve(res);
                 } catch (parseError) {
                     console.error('[Solari] Error parsing audio devices:', parseError);
                     resolve({ installed: false, error: parseError.message });
@@ -4973,6 +4897,12 @@ ipcMain.handle('soundboard:duplicate-sound', async (event, soundId) => {
     }
 });
 
+function registerGlobalShortcuts() {
+    if (soundBoard) {
+        soundBoard.initializeShortcuts(handleShortcutPlay);
+    }
+}
+
 ipcMain.handle('soundboard:update-sound', async (event, soundId, updates) => {
     try {
         if (!soundBoard) throw new Error('SoundBoard not initialized');
@@ -5021,16 +4951,10 @@ ipcMain.handle('soundboard:play', async (event, soundId) => {
         saveData();
 
         // Send to all connected plugins via WebSocket
-        if (wss) {
-            wss.clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        type: 'soundboard:play',
-                        payload: { soundId, url, volume, loop }
-                    }));
-                }
-            });
-        }
+        broadcastToWebSocketClients({
+            type: 'soundboard:play',
+            payload: { soundId, url, volume, loop }
+        });
 
         return { success: true };
     } catch (e) {
@@ -5068,15 +4992,9 @@ ipcMain.handle('soundboard:get-history', () => {
 ipcMain.handle('soundboard:stop-all', async () => {
     if (CONSTANTS.DEBUG_MODE) console.log('[SoundBoard IPC] stop-all invoked');
     try {
-        if (wss) {
-            wss.clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        type: 'soundboard:stop-all'
-                    }));
-                }
-            });
-        }
+        broadcastToWebSocketClients({
+            type: 'soundboard:stop-all'
+        });
         return { success: true };
     } catch (e) {
         console.error('[SoundBoard IPC] Error stopping all sounds:', e);
@@ -5185,9 +5103,11 @@ function initializeWebSocketServer() {
     extensionVersion = '0.0.0';
     let extensionDisconnectTimeout = null;
 
-    // Periodically ping the extension every 1 second to keep its MV3 service worker alive
+    // Periodically ping the extension every 8 seconds (if connected) to keep its MV3 service worker alive without excessive timer wakeups
     if (extensionPingInterval) clearInterval(extensionPingInterval);
+    const extPingDelay = CONSTANTS.EXTENSION_PING_INTERVAL_MS || 8000;
     extensionPingInterval = setInterval(() => {
+        if (!extensionWsId) return; // Optimization: only ping if extension is actually connected
         connectedPlugins.forEach((plugin) => {
             if (plugin.name === 'Solari Extension') {
                 if (plugin.ws && plugin.ws.readyState === 1) { // 1 = OPEN
@@ -5202,7 +5122,7 @@ function initializeWebSocketServer() {
                 }
             }
         });
-    }, 1000);
+    }, extPingDelay);
 
     wss.on('connection', (ws) => {
         const wsId = `ws_${Date.now()}`;
@@ -5316,19 +5236,12 @@ function initializeWebSocketServer() {
                     case 'spotify_config':
                     case 'spotify-config-updated': // Handle both types
                         // Forward config from plugin to renderer
-                        if (mainWindow) {
-                            // Update Settings UI
-                            mainWindow.webContents.send('spotify-data-loaded', { settings: data.config, schema: data.schema });
-
-                            // Signal plugin is connected (Important for UI Green Dot)
-                            mainWindow.webContents.send('spotify-config-updated', data.config);
-
-                            // Update Auth UI
-                            mainWindow.webContents.send('spotify-status-update', {
-                                loggedIn: !!(data.config.spotifyAccessToken && data.config.spotifyRefreshToken),
-                                clientId: data.config.spotifyClientId
-                            });
-                        }
+                        sendToMainWindow('spotify-data-loaded', { settings: data.config, schema: data.schema });
+                        sendToMainWindow('spotify-config-updated', data.config);
+                        sendToMainWindow('spotify-status-update', {
+                            loggedIn: !!(data.config.spotifyAccessToken && data.config.spotifyRefreshToken),
+                            clientId: data.config.spotifyClientId
+                        });
 
                         // Update Main Process State
                         if (data.config && data.config.spotifyClientId) spotifyClientId = data.config.spotifyClientId;
@@ -5341,11 +5254,8 @@ function initializeWebSocketServer() {
 
                     case 'notes_config_sync':
                         // Forward notes config and schema to renderer
-                        if (mainWindow) {
-                            mainWindow.webContents.send('notes-data-loaded', { settings: data.config, schema: data.schema });
-                            // Notify UI that plugin is connected
-                            mainWindow.webContents.send('notes-status-update', { connected: true });
-                        }
+                        sendToMainWindow('notes-data-loaded', { settings: data.config, schema: data.schema });
+                        sendToMainWindow('notes-status-update', { connected: true });
                         break;
 
                     case 'setActivity':
@@ -5401,12 +5311,12 @@ function initializeWebSocketServer() {
                         ws.send(JSON.stringify({ type: 'success', message: 'Activity reset' }));
                         break;
                     case 'user_info':
-                        if (mainWindow) mainWindow.webContents.send('user-info-updated', data.user);
+                        sendToMainWindow('user-info-updated', data.user);
                         break;
                     case 'afk_logs':
                         const pLogs = connectedPlugins.get(wsId);
                         if (pLogs && blockedPlugins.has(pLogs.name)) return;
-                        if (mainWindow) mainWindow.webContents.send('afk-logs-updated', data.logs);
+                        sendToMainWindow('afk-logs-updated', data.logs);
                         break;
                     case 'afk_config':
                         // Plugin is sending its current config - sync with Solari's system AFK
@@ -5423,7 +5333,7 @@ function initializeWebSocketServer() {
                             }
                         }
                         // Forward to renderer
-                        if (mainWindow) mainWindow.webContents.send('afk-config-updated', data.config);
+                        sendToMainWindow('afk-config-updated', data.config);
                         break;
 
                     case 'spotify_control_clicked':
@@ -5614,7 +5524,8 @@ function startAutoDetection() {
     if (autoDetectInterval) return;
 
     console.log('[Solari] Starting auto-detection...');
-    autoDetectInterval = setInterval(() => checkRunningProcesses(false), CONSTANTS.PROCESS_CHECK_INTERVAL_MS);
+    const interval = global.ecoMode ? (CONSTANTS.PROCESS_CHECK_INTERVAL_ECO_MS || 10000) : CONSTANTS.PROCESS_CHECK_INTERVAL_MS;
+    autoDetectInterval = setInterval(() => checkRunningProcesses(false), interval);
     checkRunningProcesses(true); // Run immediately with isFirstCheck=true
 }
 
@@ -5630,6 +5541,12 @@ function stopAutoDetection() {
             try { activeTasklistProcess.kill(); } catch (e) { }
             activeTasklistProcess = null;
         }
+        if (activeBrowserProcess) {
+            try { activeBrowserProcess.kill(); } catch (e) { }
+            activeBrowserProcess = null;
+        }
+        isProcessCheckRunning = false;
+        isBrowserCheckRunning = false;
         // v1.12.0: Also clear the presence source state and notify renderer
         presenceSources.autoDetect.active = false;
         presenceSources.autoDetect.data = null;
@@ -5647,6 +5564,7 @@ function stopAutoDetection() {
 function checkRunningProcesses(isFirstCheck = false) {
     if (!autoDetectEnabled) return;
     if (autoDetectMappings.length === 0 && websiteMappings.length === 0) return;
+    if (process.platform !== 'win32') return;
 
     // Check if we're in backoff mode due to repeated errors
     if (Date.now() < processCheckBackoffUntil) {
@@ -5816,6 +5734,8 @@ function checkRunningProcesses(isFirstCheck = false) {
 // Website Monitor (Backwards compatibility mode for non-extension users)
 // (Note: Extension data always overrides this via priority system)
 function checkBrowserWindowTitles(isFirstCheck = false) {
+    if (process.platform !== 'win32') return;
+
     // Skip website detection if user has chosen to use extension instead
     if (useExtensionForWeb) {
         // Clear any existing website detection state
@@ -5835,7 +5755,8 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
     const tasklistCommand = `tasklist /V /FI "STATUS eq running" /FO CSV /NH | findstr /I "brave chrome firefox msedge opera"`;
     isBrowserCheckRunning = true;
 
-    exec(tasklistCommand, { encoding: 'utf8', timeout: 5000, maxBuffer: CONSTANTS.EXEC_MAX_BUFFER }, (error, stdout, stderr) => {
+    activeBrowserProcess = exec(tasklistCommand, { encoding: 'utf8', timeout: 5000, maxBuffer: CONSTANTS.EXEC_MAX_BUFFER }, (error, stdout, stderr) => {
+        activeBrowserProcess = null;
         isBrowserCheckRunning = false;
         let shouldClear = false;
         let foundWebsite = false;
@@ -5953,12 +5874,12 @@ function checkBrowserWindowTitles(isFirstCheck = false) {
                         console.log('[Solari] Fallback: Disabling RPC');
                         currentActivity = {};
                         if (rpcClient && rpcConnected) rpcClient.clearActivity();
-                        if (mainWindow) mainWindow.webContents.send('preset-auto-loaded', '🚫 RPC Desativada');
+                        sendToMainWindow('preset-auto-loaded', '🚫 RPC Desativada');
                     } else if (fallbackPresetIndex >= 0 && presets[fallbackPresetIndex]) {
                         const fallbackPreset = presets[fallbackPresetIndex];
                         console.log(`[Solari] Fallback: Loading preset ${fallbackPreset.name}`);
                         loadPresetActivity(fallbackPreset);
-                        if (mainWindow) mainWindow.webContents.send('preset-auto-loaded', `Padrão: ${fallbackPreset.name}`);
+                        sendToMainWindow('preset-auto-loaded', `Padrão: ${fallbackPreset.name}`);
                     } else {
                         currentActivity = {};
                         if (rpcClient && rpcConnected) rpcClient.clearActivity();
@@ -6068,7 +5989,7 @@ function loadPresetActivity(preset, isManual = false) {
         presenceSources.manualPreset.data = activity;
         presenceSources.manualPreset.clientId = finalClientId;
         presenceSources.manualPreset.presetName = preset.name;
-        if (mainWindow) mainWindow.webContents.send('manual-mode-changed', true);
+        sendToMainWindow('manual-mode-changed', true);
     }
 
     setActivity(activity, finalClientId); // Pass clientId explicitly 2nd arg
@@ -6364,10 +6285,16 @@ function checkAdminStatus() {
                         message: 'Solari não está executando como Administrador',
                         detail: 'Se o seu Discord executa como Administrador, o Rich Presence pode não funcionar corretamente.\n\nPara corrigir, feche o Solari e execute-o como Administrador (clique direito → Executar como administrador).\n\nSe seu Discord NÃO executa como admin, você pode ignorar esta mensagem.',
                         dontRemind: 'Não lembrar novamente'
+                    },
+                    es: {
+                        title: '⚠️ Modo Administrador',
+                        message: 'Solari no se está ejecutando como Administrador',
+                        detail: 'Si tu Discord se ejecuta como Administrador, el Rich Presence puede no funcionar correctamente.\n\nPara corregirlo, cierra Solari y ejecútalo como Administrador (clic derecho → Ejecutar como administrador).\n\nSi tu Discord NO se ejecuta como admin, puedes ignorar este mensaje.',
+                        dontRemind: 'No volver a recordar'
                     }
                 };
 
-                const lang = appSettings.language === 'pt-BR' ? 'pt' : 'en';
+                const lang = appSettings.language === 'pt-BR' ? 'pt' : (appSettings.language === 'es' ? 'es' : 'en');
                 const warning = adminWarning[lang];
 
                 showRendererDialog({
@@ -6473,6 +6400,7 @@ app.whenReady().then(async () => {
         set spotifyTokens(v) { spotifyTokens = v; },
         get extensionStats() { return extensionStats; },
         set extensionStats(v) { extensionStats = v; },
+        get discordUserId() { return rpcClient && rpcClient.user ? rpcClient.user.id : null; },
     };
 
     DataManager.init(_sharedStore, { app, path, fs, CONSTANTS }, (data) => {
@@ -6681,7 +6609,11 @@ app.on('window-all-closed', () => {
         stopTracking();
         // v1.10: Flush any pending save immediately
         saveDataSync();
-        if (rpcClient) rpcClient.destroy();
+        if (rpcClient) {
+            try {
+                rpcClient.destroy().catch(() => {});
+            } catch (e) { /* ignore */ }
+        }
         // v1.10: Graceful WebSocket shutdown with proper close code
         if (wss) {
             wss.clients.forEach(client => {
@@ -6697,6 +6629,8 @@ app.on('window-all-closed', () => {
         if (autoDetectInterval) clearInterval(autoDetectInterval);
         if (extensionPingInterval) clearInterval(extensionPingInterval);
         if (extensionStatsInterval) clearInterval(extensionStatsInterval);
+        if (rpcHealthCheckInterval) clearInterval(rpcHealthCheckInterval);
+        if (profileCardUpdateTimer) clearTimeout(profileCardUpdateTimer);
         app.quit();
     }
 });
@@ -6705,5 +6639,7 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
     stopTracking();
     if (extensionStatsInterval) clearInterval(extensionStatsInterval);
+    if (rpcHealthCheckInterval) clearInterval(rpcHealthCheckInterval);
+    if (profileCardUpdateTimer) clearTimeout(profileCardUpdateTimer);
     saveDataSync(); // Ensure data is flushed
 });

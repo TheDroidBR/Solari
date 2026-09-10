@@ -33,6 +33,7 @@ module.exports = {
 
     // Process Detection
     PROCESS_CHECK_INTERVAL_MS: 3000,
+    PROCESS_CHECK_INTERVAL_ECO_MS: 10000, // Throttled interval under Eco Mode (v2.0.1)
     AFK_CHECK_INTERVAL_MS: 10000,
     MAX_PROCESS_CHECK_ERRORS: 3,
     BACKOFF_DURATION_MS: 30000,
@@ -68,6 +69,7 @@ module.exports = {
     // Browser Extension
     EXTENSION_CLEAR_DEBOUNCE_MS: 1000, // Grace period before clearing extension presence
     EXTENSION_DISCONNECT_TIMEOUT_MS: 3000, // Wait before clearing presence on WS disconnect
+    EXTENSION_PING_INTERVAL_MS: 8000, // 8s ping to keep MV3 alive without event-loop spin (v2.0.1)
     
     // Hardware Monitor
     HW_GPU_POLL_INTERVAL_MS: 10000, // GPU sampling interval (nvidia-smi is expensive)

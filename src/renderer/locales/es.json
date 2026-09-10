@@ -69,6 +69,7 @@
         "deleteConfirm": "¿Eliminar este preset?"
     },
     "tabs": {
+        "extension": "Extensión del Navegador",
         "rpc": "Rich Presence",
         "soundboard": "SoundBoard",
         "plugins": "Plugins",
@@ -113,6 +114,11 @@
         "nonePreset": "-- Ninguno (Predeterminado) --"
     },
     "settings": {
+        "privacyTitle": "Privacidad",
+        "privacyDesc": "Administra cómo Solari recopila datos para mejoras.",
+        "labelAdditionalTelemetry": "Telemetría Adicional",
+        "additionalTelemetryTitle": "Ayudar al Desarrollador",
+        "additionalTelemetryDesc": "Recopila mayor información de uso sobre el ecosistema Solari para ayudarnos a optimizar la aplicación.",
         "generalTitle": "General",
         "generalDesc": "Configuración de inicio y de interfaz.",
         "rpcTitle": "Discord RPC",
@@ -307,6 +313,25 @@
         "testing": "Probando..."
     },
     "presence": {
+        "largeImageLink": "Enlace de Imagen Grande (Opcional)",
+        "largeImageLinkPlaceholder": "Enlace al hacer clic en Imagen Grande (ej: https://...)",
+        "tipLargeImageLink": "Hace que la Imagen Grande sea interactiva. Debe comenzar con https://.",
+        "smallImageLink": "Enlace de Imagen Pequeña (Opcional)",
+        "smallImageLinkPlaceholder": "Enlace al hacer clic en Imagen Pequeña (ej: https://...)",
+        "tipSmallImageLink": "Hace que la Imagen Pequeña sea interactiva. Debe comenzar con https://.",
+        "tipActivityType": "Define el verbo mostrado en Discord: Jugando, Escuchando, Viendo o Compitiendo. Solo cambia la etiqueta — no la conexión RPC.",
+        "tipDetails": "Línea principal de Rich Presence, mostrada justo debajo del nombre de la app. Máximo 128 caracteres. Admite enlace si se completa el campo URL.",
+        "tipDetailsUrl": "Hace que la Línea 1 sea interactiva cuando los usuarios hacen clic en ella. Debe comenzar con https://.",
+        "tipState": "Segunda línea, generalmente para subcontexto como 'En partida clasificatoria'. Máximo 128 caracteres.",
+        "tipStateUrl": "Hace que la Línea 2 sea interactiva cuando los usuarios hacen clic en ella. Debe comenzar con https://.",
+        "tipLargeImage": "Imagen de 512×512px que ocupa el card. Usa Imgur o URL directa. Discord puede tardar hasta 1 minuto en almacenar en caché una nueva imagen.",
+        "tipLargeImageText": "Texto emergente (tooltip) al pasar el cursor sobre la imagen grande en Discord.",
+        "tipSmallImage": "Ícono de 128×128px en la esquina inferior derecha de la imagen grande. Solo visible si también hay una Imagen Grande configurada.",
+        "tipSmallImageText": "Texto emergente al pasar el cursor sobre la imagen pequeña en Discord.",
+        "tipParty": "Muestra 'X de Y' en Discord (ej. '3 de 5 jugadores'). Solo aparece si ambos campos están completos. El valor actual no debe exceder el máximo.",
+        "tipButtons": "Hasta 2 botones interactivos en tu card. Etiqueta: máx 32 caracteres, URL debe comenzar con https://. Nota: no verás tus propios botones — otros usuarios de Discord sí.",
+        "tipTimestamp": "Controla el temporizador mostrado en tu Rich Presence. 'Normal' cuenta desde que hiciste clic en Actualizar Estado. 'Local' muestra la hora de tu reloj actual. 'Personalizado' te permite elegir fecha y hora específicas.",
+        "tipTimestampEnd": "Cuando está habilitado, Discord muestra una cuenta regresiva ('termina en X min') en lugar de tiempo transcurrido ('X min transcurridos'). Requiere configurar un timestamp de finalización en modo Personalizado.",
         "title": "Configuración de Presencia",
         "activityType": "Tipo de Actividad",
         "playing": "Jugando",
@@ -361,6 +386,13 @@
         "loadDefault": "Cargar predeterminado"
     },
     "preview": {
+        "playingGame": "JUGANDO A UN JUEGO",
+        "customizeTitle": "Personalizar Perfil",
+        "displayNameLabel": "Nombre Mostrado",
+        "usernameLabel": "Nombre de Usuario",
+        "avatarUrlLabel": "URL de la Imagen de Avatar",
+        "bannerColorLabel": "Color del Banner de Perfil",
+        "resetProfile": "Restablecer Perfil",
         "title": "Vista Previa de Discord",
         "loading": "Cargando...",
         "elapsed": "transcurrido",
@@ -370,6 +402,7 @@
         "competing": "COMPITIENDO EN"
     },
     "presets": {
+        "infoTooltip": "Guarda diferentes configuraciones de Rich Presence como Presets para alternar rápidamente entre ellos.",
         "title": "Presets",
         "export": "Exportar",
         "import": "Importar",
@@ -385,6 +418,7 @@
         "globalDefault": "Predeterminado Global"
     },
     "identities": {
+        "infoTooltip": "Usa Perfiles de App para cambiar el nombre de la aplicación mostrado en tu estado de Discord (ej. 'Jugando a Visual Studio' en lugar de solo 'Solari').",
         "title": "Perfiles de App",
         "hint": "Crea múltiples perfiles con diferentes Client IDs.",
         "namePlaceholder": "Nombre de App (ej: Visual Studio)",
@@ -562,6 +596,7 @@
         "disabled": "Deshabilitado"
     },
     "menu": {
+        "updates": "Actualizaciones",
         "file": "Archivo",
         "startWithWindows": "Iniciar con Windows",
         "startMinimized": "Iniciar Minimizado",
@@ -619,6 +654,10 @@
         "runSetupWizard": "Ejecutar Asistente de Configuración"
     },
     "wizard": {
+        "pluginSpotifyTitle": "Spotify Sync",
+        "pluginSpotifyDesc": "Muestra lo que estás escuchando con la portada del álbum.",
+        "pluginAutoDetectTitle": "Detección Automática",
+        "pluginAutoDetectDesc": "Detecta automáticamente juegos y aplicaciones para actualizar tu estado.",
         "welcome": "Bienvenido a Solari",
         "subtitle": "Tu compañero definitivo de Rich Presence para Discord.",
         "selectLanguage": "Selecciona tu idioma",
@@ -807,5 +846,74 @@
         "submitError": "Error al enviar: {error}",
         "networkError": "Fallo de red al enviar el formulario.",
         "sending": "Enviando..."
+    },
+    "profileCard": {
+        "title": "Discord Profile Card",
+        "description": "Muestra tus estadísticas en vivo de Solari en las conexiones de tu perfil de Discord (Mural).",
+        "statusLabel": "Estado",
+        "checking": "Comprobando conexión...",
+        "linkedAs": "Vinculado como {user}",
+        "notLinked": "No vinculado a las conexiones del perfil de Discord",
+        "fetchFailed": "Error al consultar estado",
+        "linkBtn": "🔗 Vincular Cuenta",
+        "updateBtn": "🔄 Actualizar Card",
+        "updating": "Actualizando...",
+        "unlinkBtn": "Desvincular",
+        "updateSuccess": "¡Profile Card actualizado con éxito!",
+        "updateError": "Error al actualizar el Profile Card. Verifica si estás conectado y autenticado.",
+        "unlinkConfirm": "¿Estás seguro de que deseas desvincular tu cuenta de Discord de Solari Profile Card?",
+        "unlinkSuccess": "Cuenta desvinculada con éxito.",
+        "unlinkError": "Error al desvincular la cuenta."
+    },
+    "onboarding": {
+        "title": "Primer Paso: Configura tu Client ID",
+        "desc": "Solari necesita un ID de Aplicación de Discord para mostrar tu Rich Presence. Es gratuito y toma 2 minutos.",
+        "tutorial": "📖 Tutorial",
+        "devPortal": "🔗 Crear Client ID",
+        "configure": "⚙️ Configurar Ahora"
+    },
+    "contextBar": {
+        "autoDetectActive": "Detección Automática activa",
+        "displaying": "mostrando",
+        "editEntersManual": "Haz clic en 'Actualizar Estado' para entrar en modo manual.",
+        "resumeAutoDetect": "(Reanudar Detección)",
+        "autoDetectOn": "Detección Automática activa",
+        "autoDetectIdle": "Detección Automática activa — ninguna app detectada. Completa el formulario para configurar manualmente.",
+        "noAppDetected": "ninguna app detectada",
+        "fillFormManual": "Completa el formulario para establecer la presencia manualmente.",
+        "manualMode": "Modo Manual — lo que completes aquí se mostrará en Discord cuando hagas clic en <b>Actualizar Estado</b>."
+    },
+    "themeMenu": {
+        "title": "Estilo y Personalización",
+        "baseTheme": "Tema Base",
+        "default": "Predeterminado",
+        "dark": "Oscuro",
+        "light": "Claro",
+        "neonTitle": "Efectos Neón",
+        "neonDesc": "Brillos y luces en los bordes.",
+        "customizeCss": "Personalizar CSS...",
+        "moreThemes": "Más Temas...",
+        "galleryTitle": "Galería de Temas Solari",
+        "galleryDesc": "Elige un estilo exclusivo para redefinir por completo la apariencia y atmósfera de Solari.",
+        "defaultDesc": "El aspecto original de Solari con detalles en naranja.",
+        "darkDesc": "Tema oscuro futurista en azul hielo glacial.",
+        "lightDesc": "Interfaz clara limpia, minimalista y cómoda.",
+        "matrixDesc": "Tema cyberpunk de código verde hacker.",
+        "retro": "Terminal Retro",
+        "retroDesc": "Terminal de fósforo ámbar de los 80 con líneas de escaneo CRT y bordes rectos.",
+        "sakura": "Brisa Sakura",
+        "sakuraDesc": "Tema claro dulce en rosa pastel con esquinas ultra redondeadas.",
+        "brutalist": "Brutalista Suizo",
+        "brutalistDesc": "Estilo neo-brutalista de alto contraste amarillo y negro con sombras sólidas desplazadas.",
+        "aero": "Aero Glass",
+        "aeroDesc": "Glassmorphism brillante de los 2000, reflejos realistas y detalles en azul cielo.",
+        "eInk": "E-Ink Kindle",
+        "eInkDesc": "Tema de lector de papel electrónico monocromático con tipografía Georgia serif y alta legibilidad.",
+        "cyberNoir": "Cyber-Noir",
+        "cyberNoirDesc": "Aspecto de ciencia ficción táctico en negro y rojo neón con fondo de cuadrícula de radar militar.",
+        "polaroid": "Polaroid 70s",
+        "polaroidDesc": "Papel nostálgico cálido en crema/beige con calcomanía de franjas de colores vintage.",
+        "aurora": "Aurora Polaris",
+        "auroraDesc": "Cielo ártico azul marino profundo con luminosos degradados de aurora boreal en esmeralda y cian."
     }
 }

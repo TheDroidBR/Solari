@@ -897,5 +897,23 @@
         "submitError": "Error submitting: {error}",
         "networkError": "Network failure while submitting form.",
         "sending": "Sending..."
+    },
+    "profileCard": {
+        "title": "Discord Profile Card",
+        "description": "Show your live Solari stats on your Discord Profile connections (Mural).",
+        "statusLabel": "Status",
+        "checking": "Checking connection...",
+        "linkedAs": "Linked as {user}",
+        "notLinked": "Not linked to Discord Profile connections",
+        "fetchFailed": "Failed to fetch status",
+        "linkBtn": "🔗 Link Account",
+        "updateBtn": "🔄 Update Card",
+        "updating": "Updating...",
+        "unlinkBtn": "Unlink",
+        "updateSuccess": "Profile Card updated successfully!",
+        "updateError": "Failed to update Profile Card. Please verify if you are logged in and connected.",
+        "unlinkConfirm": "Are you sure you want to unlink your Discord account from the Solari Profile Card?",
+        "unlinkSuccess": "Account unlinked successfully.",
+        "unlinkError": "Error unlinking account."
     }
 }

@@ -123,6 +123,10 @@ class SoundBoard {
 
         const sound = this.sounds[soundIndex];
         try {
+            // Unregister global shortcut if present to avoid leaking hotkeys
+            if (sound.shortcut) {
+                this.unregisterShortcut(soundId);
+            }
             // Delete file
             if (fs.existsSync(sound.path)) {
                 fs.unlinkSync(sound.path);
@@ -151,20 +155,21 @@ class SoundBoard {
             // Avoid overwriting existing files
             let counter = 1;
             while (fs.existsSync(targetPath)) {
-                targetPath = path.join(targetDir, `${baseName}_copy${counter}${ext}`);
                 counter++;
+                targetPath = path.join(targetDir, `${baseName}_copy(${counter})${ext}`);
             }
 
+            const finalName = counter > 1 ? `${baseName}_copy(${counter})` : newName;
             fs.copyFileSync(sound.path, targetPath);
 
             const newSound = {
                 id: uuidv4(),
-                name: newName,
+                name: finalName,
                 filename: path.basename(targetPath),
                 category: sound.category,
                 customCategory: sound.customCategory,
                 path: targetPath,
-                size: fs.statSync(targetPath).size,
+                size: (() => { try { return fs.statSync(targetPath).size; } catch { return 0; } })(),
                 shortcut: null, // Don't copy shortcut
                 volume: sound.volume,
                 favorite: false,
@@ -187,7 +192,18 @@ class SoundBoard {
 
         // Update allowed fields
         if (updates.name !== undefined) sound.name = updates.name;
-        if (updates.shortcut !== undefined) sound.shortcut = updates.shortcut;
+        if (updates.shortcut !== undefined) {
+            if (updates.shortcut !== sound.shortcut) {
+                if (sound.shortcut && globalShortcut.isRegistered(sound.shortcut)) {
+                    globalShortcut.unregister(sound.shortcut);
+                }
+                if (updates.shortcut && updates.shortcut.trim()) {
+                    this.registerShortcut(soundId, updates.shortcut.trim());
+                } else {
+                    sound.shortcut = null;
+                }
+            }
+        }
         if (updates.volume !== undefined) sound.volume = Math.max(0, Math.min(1, updates.volume));
         if (updates.favorite !== undefined) sound.favorite = updates.favorite;
         if (updates.color !== undefined) sound.color = updates.color;
@@ -289,9 +305,11 @@ class SoundBoard {
         const sound = this.getSoundById(soundId);
         if (!sound) return false;
 
+        const previousShortcut = sound.shortcut;
+
         // Unregister potential old shortcut or conflict
-        if (sound.shortcut && globalShortcut.isRegistered(sound.shortcut)) {
-            globalShortcut.unregister(sound.shortcut);
+        if (previousShortcut && globalShortcut.isRegistered(previousShortcut)) {
+            globalShortcut.unregister(previousShortcut);
         }
 
         try {
@@ -305,10 +323,25 @@ class SoundBoard {
                 return true;
             } else {
                 console.warn(`[SoundBoard] Failed to register hotkey: ${accelerator}`);
+                // Restore old shortcut if new one failed
+                if (previousShortcut) {
+                    try {
+                        globalShortcut.register(previousShortcut, () => {
+                            if (this.playCallback) this.playCallback(sound.id);
+                        });
+                    } catch { }
+                }
                 return false;
             }
         } catch (e) {
             console.error('[SoundBoard] Shortcut register error:', e);
+            if (previousShortcut) {
+                try {
+                    globalShortcut.register(previousShortcut, () => {
+                        if (this.playCallback) this.playCallback(sound.id);
+                    });
+                } catch { }
+            }
             return false;
         }
     }
@@ -393,7 +426,7 @@ class SoundBoard {
                     ...s,
                     path: filePath,
                     exists: fileExists,
-                    size: fileExists ? fs.statSync(filePath).size : 0,
+                    size: fileExists ? (() => { try { return fs.statSync(filePath).size; } catch { return 0; } })() : 0,
                     dateAdded: new Date()
                 };
             }).filter(s => {

@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer, shell } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
     // IPC Messages (Outgoing from Renderer)
-    send: (channel, data) => {
+    send: (channel, ...args) => {
         const validChannels = [
             'get-data', 
             'save-app-settings', 
@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'spotify-finish-auth',
             'spotify-logout',
             'set-spotify-client-id',
+            'get-spotify-data',
+            'open-external-url',
             'save-language',
             'save-theme',
             'get-theme',
@@ -28,10 +30,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'window-minimize',
             'window-maximize',
             'window-close',
-            'dialog-response'
+            'dialog-response',
+            'profile-card-connect'
         ];
         if (validChannels.includes(channel)) {
-            ipcRenderer.send(channel, data);
+            ipcRenderer.send(channel, ...args);
         }
     },
     // IPC Listeners (Incoming to Renderer)
@@ -90,7 +93,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     removeAllListeners: (channel) => {
         ipcRenderer.removeAllListeners(channel);
     },
-    invoke: (channel, data) => {
+    invoke: (channel, ...args) => {
         const validChannels = [
             'get-current-language',
             'get-spotify-status',
@@ -114,6 +117,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'soundboard:get-sound-data',
             'soundboard:stop-all',
             'soundboard:refresh-shortcuts',
+            'soundboard:update-sound',
+            'soundboard:delete-sound',
+            'soundboard:add-sound',
+            'soundboard:update-settings',
+            'soundboard:pick-file',
+            'soundboard:duplicate-sound',
+            'soundboard:export',
+            'soundboard:import',
+            'soundboard:register-hotkey',
+            'soundboard:unregister-hotkey',
+            'soundboard:toggle-favorite',
+            'soundboard:play',
+            // Hardware Monitor handlers
+            'hw-monitor:toggle',
+            'hw-monitor:get-stats',
+            'hw-monitor:get-settings',
+            'hw-monitor:save-settings',
             // Export/Import
             'export-logs',
             'export-presets',
@@ -125,10 +145,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
             'bd:get-plugins',
             'plugin:check-bd',
             'plugin:install-bd',
-            'plugin:uninstall-bd'
+            'plugin:uninstall-bd',
+            'profile-card-status',
+            'profile-card-unlink',
+            'profile-card-update'
         ];
         if (validChannels.includes(channel)) {
-            return ipcRenderer.invoke(channel, data);
+            return ipcRenderer.invoke(channel, ...args);
         }
     },
     // Shell interactions (SEC-02: only allow http/https protocols)

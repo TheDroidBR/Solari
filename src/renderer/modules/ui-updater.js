@@ -25,7 +25,10 @@ function init() {
         try {
             const result = await ipcRenderer.invoke('check-update-silent');
             if (result?.hasUpdate) {
+                const iconEl = updateBtn.querySelector('.update-icon');
+                if (iconEl) iconEl.textContent = '⬇️';
                 if (updateLabel) updateLabel.textContent = `v${result.latestVersion}`;
+                updateBtn.disabled = false;
                 updateBtn.title = `${t('settings.updateAvailableTitle') || 'Update available!'} v${result.latestVersion}`;
                 updateBtn.style.display = 'inline-flex';
             } else {
@@ -41,7 +44,8 @@ function init() {
     setInterval(checkSilently, 600000);
 
     updateBtn.addEventListener('click', () => {
-        updateBtn.textContent = '⏳';
+        const iconEl = updateBtn.querySelector('.update-icon');
+        if (iconEl) iconEl.textContent = '⏳';
         updateBtn.disabled = true;
         ipcRenderer.send('trigger-update-via-splash');
     });

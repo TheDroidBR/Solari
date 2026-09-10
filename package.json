@@ -1,7 +1,7 @@
 {
   "name": "solari",
   "productName": "Solari",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Solari - Advanced Discord Rich Presence",
   "main": "src/main/index.js",
   "scripts": {
@@ -17,16 +17,38 @@
   "author": "TheDroid",
   "license": "GPL-2.0",
   "devDependencies": {
-    "electron": "^42.4.0",
-    "electron-builder": "^25.0.0"
+    "electron": "^42.5.1",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "discord-rpc": "^4.0.1",
-    "electron-updater": "^6.8.3",
-    "express": "^4.18.0",
-    "uuid": "^9.0.0",
+    "electron-updater": "^6.8.9",
+    "express": "^4.21.2",
+    "uuid": "^11.1.1",
     "wavesurfer.js": "^7.12.1",
-    "ws": "^8.16.0"
+    "ws": "^8.21.3"
+  },
+  "overrides": {
+    "tar": ">=7.5.22",
+    "lodash": ">=4.18.1",
+    "form-data": ">=4.0.6",
+    "@xmldom/xmldom": ">=0.9.12",
+    "tmp": ">=0.2.7",
+    "undici": ">=7.29.1",
+    "discord-rpc": {
+      "ws": "^7.5.13"
+    },
+    "body-parser": ">=1.20.8",
+    "minimatch": ">=3.1.5",
+    "builder-util-runtime": ">=9.7.0",
+    "path-to-regexp": ">=0.1.13",
+    "qs": ">=6.16.0",
+    "js-yaml": ">=4.3.2",
+    "ip-address": ">=10.3.1",
+    "ajv": ">=6.14.0",
+    "@isaacs/brace-expansion": ">=5.0.1",
+    "brace-expansion": ">=1.1.18",
+    "@tootallnate/once": ">=2.0.1"
   },
   "build": {
     "appId": "com.solari.app",

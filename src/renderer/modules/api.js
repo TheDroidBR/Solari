@@ -31,10 +31,10 @@ const send = (channel, ...args) => ipcRenderer.send(channel, ...args);
 /**
  * Invoke IPC and return a Promise with the result.
  * @param {string} channel
- * @param {*} [data]
+ * @param {...*} args
  * @returns {Promise<*>}
  */
-const invoke = (channel, data) => ipcRenderer.invoke(channel, data);
+const invoke = (channel, ...args) => ipcRenderer.invoke(channel, ...args);
 
 /**
  * Register a listener for an incoming IPC event.

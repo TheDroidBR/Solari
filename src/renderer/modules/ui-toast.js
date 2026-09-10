@@ -33,7 +33,17 @@ function show(message, type = 'info', duration = 4000) {
 
     const toast = document.createElement('div');
     toast.className = `solari-toast solari-toast-${type}`;
-    toast.innerHTML = `<span class="solari-toast-icon">${icons[type] || icons.info}</span><span class="solari-toast-msg">${message}</span>`;
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'solari-toast-icon';
+    iconSpan.textContent = icons[type] || icons.info;
+
+    const msgSpan = document.createElement('span');
+    msgSpan.className = 'solari-toast-msg';
+    msgSpan.textContent = message;
+
+    toast.appendChild(iconSpan);
+    toast.appendChild(msgSpan);
     container.appendChild(toast);
 
     requestAnimationFrame(() => toast.classList.add('show'));

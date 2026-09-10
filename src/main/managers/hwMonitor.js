@@ -27,6 +27,7 @@ let _lastHwRpcUpdate = 0;
 let _lastHwRpcString = '';
 let _activeNvidiaSmiProcess = null;
 let _activeInterval = 0;
+let _startupTimer = null;
 
 /**
  * Initialize the HW Monitor manager.
@@ -139,7 +140,11 @@ async function _pollHardwareStats() {
 
         const mw = _getMainWindow();
         if (mw && !mw.isDestroyed() && mw.isVisible()) {
-            mw.webContents.send('hw-stats-update', results);
+            try {
+                mw.webContents.send('hw-stats-update', results);
+            } catch (sendErr) {
+                // Window destroyed during tick
+            }
         }
 
         // Throttled RPC update
@@ -220,20 +225,28 @@ function startHWMonitor() {
     console.log('[HW Monitor] Starting lightweight polling every', interval, 'ms');
 
     _getCpuUsage(); // Warm up counters
-    setTimeout(_pollHardwareStats, 500);
+    if (_startupTimer) clearTimeout(_startupTimer);
+    _startupTimer = setTimeout(() => {
+        _startupTimer = null;
+        _pollHardwareStats();
+    }, 500);
     _store.hwMonitorInterval = setInterval(_pollHardwareStats, interval);
 }
 
 function stopHWMonitor() {
+    if (_startupTimer) {
+        clearTimeout(_startupTimer);
+        _startupTimer = null;
+    }
+    if (_activeNvidiaSmiProcess) {
+        try { _activeNvidiaSmiProcess.kill(); } catch { }
+        _activeNvidiaSmiProcess = null;
+    }
     if (_store.hwMonitorInterval) {
         clearInterval(_store.hwMonitorInterval);
         _store.hwMonitorInterval = null;
         _store.latestHwStats = null;
         _activeInterval = 0;
-        if (_activeNvidiaSmiProcess) {
-            try { _activeNvidiaSmiProcess.kill(); } catch { }
-            _activeNvidiaSmiProcess = null;
-        }
         console.log('[HW Monitor] Stopped');
     }
 }

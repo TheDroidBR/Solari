@@ -147,8 +147,19 @@ function init() {
     toggleGPUTemp.addEventListener('change', onStatToggle);
 
     // Live stats from main process
+    let lastReceivedStats = null;
     ipcRenderer.on('hw-stats-update', (_event, stats) => {
-        if (stats) updateGauges(stats);
+        if (!stats) return;
+        lastReceivedStats = stats;
+        if (!document.hidden && toggle.checked) {
+            updateGauges(stats);
+        }
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && toggle.checked && lastReceivedStats) {
+            updateGauges(lastReceivedStats);
+        }
     });
 
     // Initialize from persisted settings

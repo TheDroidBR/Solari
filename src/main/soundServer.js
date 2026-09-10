@@ -53,12 +53,19 @@ class SoundServer {
                 return res.status(404).json({ error: 'Sound not found' });
             }
 
-            if (!fs.existsSync(sound.path)) {
-                console.error(`[SoundServer] File missing: ${sound.path}`);
+            const resolvedPath = path.resolve(sound.path);
+            const soundsDir = path.resolve(this.soundBoard.soundsDir);
+            if (resolvedPath !== soundsDir && !resolvedPath.startsWith(soundsDir + path.sep)) {
+                console.warn(`[SoundServer] Path traversal blocked: ${resolvedPath}`);
+                return res.status(403).json({ error: 'Access denied to unauthorized sound path' });
+            }
+
+            if (!fs.existsSync(resolvedPath)) {
+                console.error(`[SoundServer] File missing: ${resolvedPath}`);
                 return res.status(404).json({ error: 'Sound file missing' });
             }
 
-            res.sendFile(sound.path);
+            res.sendFile(resolvedPath);
         });
 
         // Get sound list
@@ -95,6 +102,8 @@ class SoundServer {
                 this.server.on('error', (err) => {
                     if (err.code === 'EADDRINUSE') {
                         console.log(`[SoundServer] Port ${this.port} in use, trying ${this.port + 1}`);
+                        try { this.server.close(); } catch {}
+                        this.server = null;
                         this.port += 1;
                         this.start(retryCount + 1).then(resolve).catch(reject);
                     } else {
@@ -109,7 +118,12 @@ class SoundServer {
 
     stop() {
         if (this.server) {
-            this.server.close();
+            try {
+                this.server.close();
+            } catch (e) {
+                console.warn('[SoundServer] Error during stop:', e.message);
+            }
+            this.server = null;
             console.log('[SoundServer] Stopped');
         }
     }

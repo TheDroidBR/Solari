@@ -29,3 +29,12 @@ plugins/SolariExperiment.plugin.js
 
 # Microsoft SmartScreen submission guide
 microsoft-smartscreen-submission.md
+
+# Private developer features
+src/main/managers/profileCardManager.js
+
+# Backup & temporary diff files
+*.bak
+*.diff
+git_diff.txt
+diff_index.txt

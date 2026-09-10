@@ -40,6 +40,16 @@ function _barEl()  { return document.getElementById('rpcModeContextBar'); }
 function _iconEl() { return _barEl() && _barEl().querySelector('.ctx-icon'); }
 function _textEl() { return _barEl() && _barEl().querySelector('.ctx-text'); }
 
+function _escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 /**
  * Update the context bar UI.
  * Text spans are given data-i18n attributes so applyTranslations() can
@@ -62,7 +72,7 @@ function _updateBar() {
             bar.className = 'rpc-mode-context-bar ctx-autodetect-active';
             icon.textContent = iconChar;
             text.removeAttribute('data-i18n');
-            text.innerHTML = `${t(i18nKey) || fallback} — ${t('contextBar.displaying') || 'displaying'}: <b>${_detectedPreset}</b>. ${t('contextBar.editEntersManual') || "Click 'Update Status' to enter manual mode."}`;
+            text.innerHTML = `${t(i18nKey) || fallback} — ${t('contextBar.displaying') || 'displaying'}: <b>${_escapeHtml(_detectedPreset)}</b>. ${t('contextBar.editEntersManual') || "Click 'Update Status' to enter manual mode."}`;
             return;
         } else {
             iconChar = '🔍';

@@ -17,9 +17,17 @@ class TelemetryManager {
     }
 
     checkSBDriverInstalled() {
+        // Cache driver check for 1 hour to prevent constant powershell WMI queries
+        const now = Date.now();
+        if (this._cachedDriverInstalled !== undefined && (now - (this._lastDriverCheck || 0)) < 3600000) {
+            return Promise.resolve(this._cachedDriverInstalled);
+        }
+
         return new Promise((resolve) => {
             exec('powershell -Command "Get-WmiObject Win32_SoundDevice | Select-Object Name | ConvertTo-Json"', (error, stdout) => {
                 if (error) {
+                    this._cachedDriverInstalled = false;
+                    this._lastDriverCheck = now;
                     resolve(false);
                     return;
                 }
@@ -34,8 +42,12 @@ class TelemetryManager {
                             d.Name.toLowerCase().includes('voicemeeter')
                         )
                     );
+                    this._cachedDriverInstalled = vbCableFound;
+                    this._lastDriverCheck = now;
                     resolve(vbCableFound);
                 } catch (e) {
+                    this._cachedDriverInstalled = false;
+                    this._lastDriverCheck = now;
                     resolve(false);
                 }
             });
@@ -107,6 +119,7 @@ class TelemetryManager {
             // OPTION A: Native fetch (Fastest, no window overhead)
             const response = await fetch(url, {
                 method: 'GET',
+                signal: AbortSignal.timeout(10000),
                 headers: {
                     'User-Agent': CONSTANTS.APP_USER_AGENT,
                     'Cache-Control': 'no-cache'
@@ -145,9 +158,18 @@ class TelemetryManager {
             });
         }
 
+        let loadTimeout = setTimeout(() => {
+            if (this.telemetryWindow && !this.telemetryWindow.isDestroyed()) {
+                if (this.debugMode) console.log('[Solari Telemetry] Fallback window load timed out, destroying window.');
+                this.telemetryWindow.destroy();
+                this.telemetryWindow = null;
+            }
+        }, 15000);
+
         this.telemetryWindow.loadURL(url);
 
         const handleFinishLoad = () => {
+            if (loadTimeout) { clearTimeout(loadTimeout); loadTimeout = null; }
             if (!this.telemetryWindow || this.telemetryWindow.isDestroyed()) return;
 
             this.telemetryWindow.webContents.executeJavaScript('document.body.innerText')
@@ -169,13 +191,25 @@ class TelemetryManager {
                 .catch(() => { });
         };
 
+        const handleFailLoad = () => {
+            if (loadTimeout) { clearTimeout(loadTimeout); loadTimeout = null; }
+            if (this.telemetryWindow && !this.telemetryWindow.isDestroyed()) {
+                if (this.debugMode) console.log('[Solari Telemetry] Fallback window load failed, destroying window.');
+                this.telemetryWindow.destroy();
+                this.telemetryWindow = null;
+            }
+        };
+
+        this.telemetryWindow.webContents.removeAllListeners('did-fail-load');
+        this.telemetryWindow.webContents.removeAllListeners('did-finish-load');
+        this.telemetryWindow.webContents.once('did-fail-load', handleFailLoad);
         this.telemetryWindow.webContents.once('did-finish-load', handleFinishLoad);
     }
 
     async sendTrackerDisconnect() {
         if (!this.trackingUserId) return;
         const url = `${this.trackerUrl}?action=disconnect&uid=${encodeURIComponent(this.trackingUserId)}`;
-        fetch(url).catch(() => { });
+        fetch(url, { signal: AbortSignal.timeout(5000) }).catch(() => { });
     }
 
     reschedulePing() {

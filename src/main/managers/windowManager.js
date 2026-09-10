@@ -37,6 +37,18 @@ function init(iconPath) {
  * @param {string} url 
  */
 function openExternalSafe(url) {
+    if (!url || typeof url !== 'string') return;
+    try {
+        const parsed = new URL(url);
+        if (!CONSTANTS.SAFE_PROTOCOLS.includes(parsed.protocol)) {
+            console.warn('[WindowManager] openExternalSafe blocked unsafe protocol:', parsed.protocol);
+            return;
+        }
+    } catch {
+        console.warn('[WindowManager] openExternalSafe received invalid URL:', url);
+        return;
+    }
+
     if (process.platform === 'win32') {
         try {
             const child = spawn('explorer.exe', [url], { detached: true, stdio: 'ignore' });
@@ -160,7 +172,11 @@ function createSplashWindow() {
  */
 function sendSplashStatus(state, message) {
     if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.webContents.send('update-status', { state, message });
+        try {
+            splashWindow.webContents.send('update-status', { state, message });
+        } catch (e) {
+            console.warn('[WindowManager] Failed to send splash status:', e.message);
+        }
     }
 }
 
@@ -172,7 +188,11 @@ function sendSplashStatus(state, message) {
  */
 function sendSplashProgress(percent, downloaded, total) {
     if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.webContents.send('download-progress', { percent, downloaded, total });
+        try {
+            splashWindow.webContents.send('download-progress', { percent, downloaded, total });
+        } catch (e) {
+            console.warn('[WindowManager] Failed to send splash progress:', e.message);
+        }
     }
 }
 

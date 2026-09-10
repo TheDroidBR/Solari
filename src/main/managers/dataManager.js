@@ -268,12 +268,20 @@ function _buildPayload() {
     };
 }
 
+let _saveQueuePromise = Promise.resolve();
+
 async function _writeAtomicFile(filePath, json) {
     const tmp = filePath + '.tmp';
-    const handle = await _fs.promises.open(tmp, 'w');
-    await handle.writeFile(json, 'utf8');
-    await handle.sync();
-    await handle.close();
+    let handle = null;
+    try {
+        handle = await _fs.promises.open(tmp, 'w');
+        await handle.writeFile(json, 'utf8');
+        await handle.sync();
+    } finally {
+        if (handle) {
+            try { await handle.close(); } catch { }
+        }
+    }
     await _fs.promises.rename(tmp, filePath);
     
     if (process.platform !== 'win32') {
@@ -292,9 +300,15 @@ async function _writeAtomicFile(filePath, json) {
 function _writeAtomicFileSync(filePath, json) {
     const tmp = filePath + '.tmp';
     _fs.writeFileSync(tmp, json, 'utf8');
-    const fd = _fs.openSync(tmp, 'r+');
-    _fs.fsyncSync(fd);
-    _fs.closeSync(fd);
+    let fd;
+    try {
+        fd = _fs.openSync(tmp, 'r+');
+        _fs.fsyncSync(fd);
+    } finally {
+        if (fd !== undefined) {
+            try { _fs.closeSync(fd); } catch { }
+        }
+    }
     _fs.renameSync(tmp, filePath);
     
     if (process.platform !== 'win32') {
@@ -317,7 +331,9 @@ async function _saveDataImmediate() {
     if (_dataLoadFailed) {
         return;
     }
-    try {
+    // Queue saves to ensure atomic serialization
+    _saveQueuePromise = _saveQueuePromise.then(async () => {
+        try {
         const json = JSON.stringify(_buildPayload(), null, 2);
         if (!json || json === '{}') {
             console.warn('[DataManager] Payload is empty, skipping save.');
@@ -363,6 +379,8 @@ async function _saveDataImmediate() {
     } catch (e) {
         console.error('[DataManager] Save failed:', e);
     }
+});
+return _saveQueuePromise;
 }
 
 function _saveDataImmediateSync() {
@@ -414,11 +432,17 @@ function _saveDataImmediateSync() {
     }
 }
 
-/** Auto-detects system language and sets it in the store. */
+/** Auto-detects system language and sets it in the store. Supports pt-BR, es, and en fallback. */
 function _autoDetectLanguage() {
     if (!_app) return;
-    const locale = _app.getLocale() || '';
-    _store.appSettings.language = locale.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en';
+    const locale = (_app.getLocale() || '').toLowerCase();
+    if (locale.startsWith('pt')) {
+        _store.appSettings.language = 'pt-BR';
+    } else if (locale.startsWith('es')) {
+        _store.appSettings.language = 'es';
+    } else {
+        _store.appSettings.language = 'en';
+    }
     console.log(`[DataManager] Auto-detected language: ${_store.appSettings.language}`);
 }
 

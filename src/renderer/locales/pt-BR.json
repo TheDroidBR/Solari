@@ -897,5 +897,23 @@
         "submitError": "Erro ao enviar: {error}",
         "networkError": "Falha de rede ao enviar formulário.",
         "sending": "Enviando..."
+    },
+    "profileCard": {
+        "title": "Discord Profile Card",
+        "description": "Exiba suas estatísticas do Solari no mural e conexões do seu perfil do Discord.",
+        "statusLabel": "Status",
+        "checking": "Verificando conexão...",
+        "linkedAs": "Vinculado como {user}",
+        "notLinked": "Não vinculado às conexões do perfil do Discord",
+        "fetchFailed": "Falha ao consultar status",
+        "linkBtn": "🔗 Vincular Conta",
+        "updateBtn": "🔄 Atualizar Card",
+        "updating": "Atualizando...",
+        "unlinkBtn": "Desvincular",
+        "updateSuccess": "Profile Card atualizado com sucesso!",
+        "updateError": "Falha ao atualizar o Profile Card. Verifique se está conectado e autenticado.",
+        "unlinkConfirm": "Tem certeza que deseja desvincular sua conta do Discord do Solari Profile Card?",
+        "unlinkSuccess": "Conta desvinculada com sucesso.",
+        "unlinkError": "Erro ao desvincular conta."
     }
 }

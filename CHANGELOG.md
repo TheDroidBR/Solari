@@ -1,3 +1,83 @@
+## [2.0.1] - 2026-09-09
+**UPDATE 2.0.1: CPU & RESOURCE OPTIMIZATIONS, SECURITY HARDENING, DEPENDENCY SECURITY OVERHAUL, PLUGIN STABILITY FIXES & MEDIA VIEWER POLISH**
+
+---
+
+## ⚡ General Changes
+*   **Background CPU & Subprocess Optimization**: Drastically minimized process spawning overhead across the main process:
+    *   *Intelligent Discord Detection Bypass*: If `SolariManager` or the RPC client is actively connected, Discord runtime confirmation returns instantly without invoking system commands.
+    *   *Single-Query Discord Check*: Replaced 3 concurrent `tasklist` subprocesses with a single pattern-matched query (`tasklist /FI "IMAGENAME eq Discord*" /NH`) on Windows.
+    *   *Auto-Detect Eco Mode Throttling*: Throttled process scanning from 3s to 10s when Eco Mode is active, preventing unnecessary CPU and battery drain.
+    *   *WebSocket Extension Ping Throttling*: Tuned extension keepalive ping from 1s to 8s and restricted execution strictly to when an active browser extension is connected.
+    *   *Cached Telemetry & Soundboard Driver Queries*: Added an in-memory cache for audio driver presence checks across telemetry and soundboard handlers, eliminating repetitive PowerShell WMI queries on every heartbeat and tab switch.
+    *   *Subprocess Lifecycle Management*: Tracked `activeBrowserProcess` and ensured clean termination alongside `activeTasklistProcess` upon stopping auto-detection, eliminating zombie child processes.
+    *   *Legacy HW Monitor De-duplication*: Removed legacy duplicate HW monitor routines from `index.js` that shadowed `hwMonitor.js`, activating smart eco-mode throttling and automatic polling pauses when the window is hidden.
+*   **Renderer UI & Background Lifecycle Throttling**:
+    *   *Hardware Monitor Background Throttling*: Silenced gauge animations, SVG circumference calculations, and DOM mutations when the window is hidden (`document.hidden`), refreshing automatically upon window focus.
+    *   *Virtual Audio Cable Ping Optimization*: Added `document.hidden` check to the periodic 30s VB-Cable status loop, saving unnecessary IPC and driver check queries while minimized.
+    *   *Extension Statistics Layout Optimization*: Skipped redundant per-second DOM reconstructions in `ExtensionTabManager.renderStats()` when the extension tab is inactive or hidden.
+    *   *Global Mousemove Throttling*: Added fast bailouts to the window mousemove event listener when no toasts are active, eliminating thousands of redundant DOM selections and layout calls (`getBoundingClientRect`) per second.
+    *   *Public Presets Search Debouncing*: Debounced catalog search input by 180ms to avoid re-rendering and parsing hundreds of community cards on every individual keystroke.
+    *   *Soundboard Live Progress Indicator*: Connected a lightweight `requestAnimationFrame` progress loop to the soundboard UI that animates the audio progress bar smoothly during playback and cleans up upon completion or sound stop.
+*   **WebSocket Broadcast Hardening**: Centralized all outbound WebSocket broadcasts through `broadcastToWebSocketClients`, protecting against socket abrupt terminations and avoiding uncaught process exceptions when connected clients drop during iteration.
+*   **Telemetry Fallback Window Lifecycle**: Added a 15-second safety timeout on fallback telemetry background windows, automatically closing and destroying stalled windows to prevent orphaned 50–80MB Chromium renderer process memory leaks.
+*   **Hardware Monitor Subprocess & IPC Hardening**: Guaranteed that any active `nvidia-smi` child process is cleanly terminated whenever the hardware monitor stops, and wrapped telemetry/hardware window dispatches in safe lifecycle guards.
+*   **Centralized Update Pipeline**: Streamlined the in-app update checker to prioritize official GitHub Releases and removed deprecated GitLab fallback checks, ensuring cleaner and faster update handshakes.
+*   **Documentation & Onboarding Polish**: Updated documentation with full feature breakdowns of the v2.0 suite, custom BetterDiscord plugins, and configuration guides.
+
+## 🔒 Security Hardening
+*   **Comprehensive Supply-Chain Security Overhaul (0 Vulnerabilities)**: Remediated all 51 security advisories reported by GitHub Dependabot and reduced `npm audit` vulnerabilities from 32 down to **0**:
+    *   *node-tar Traversal & Hardlink Fixes (`tar >= 7.5.22`)*: Patched critical and high severity arbitrary file creation/overwrite, symlink poisoning, drive-relative linkpath traversal, and macOS APFS Unicode ligature collision race condition vulnerabilities.
+    *   *Prototype Pollution & Code Injection (`lodash >= 4.18.1`)*: Remediated prototype pollution and code injection risks via unescaped template key imports.
+    *   *Multipart CRLF Injection (`form-data >= 4.0.6`)*: Fixed CRLF injection in multipart form data via unescaped field names and filenames.
+    *   *XML Node Injection (`@xmldom/xmldom >= 0.9.12`)*: Mitigated XML node injection vulnerabilities across unvalidated DocumentType, processing instructions, and comment serialization.
+    *   *Temp File Path Traversal (`tmp >= 0.2.7`)*: Secured temporary directory and file creation against arbitrary path traversal via prefix/postfix manipulation.
+    *   *Proxy Bypass & Header Injection (`undici >= 7.29.1`)*: Eliminated SOCKS5 proxy bypass and HTTP header/CRLF injection vulnerabilities.
+    *   *WebSocket Memory DoS (`ws ^7.5.13` & `ws ^8.21.3`)*: Upgraded direct WebSocket server to v8.21.3 and pinned `discord-rpc`'s nested client to v7.5.13, mitigating DoS via memory exhaustion from tiny fragments and uninitialized memory disclosures.
+    *   *Packaging Search Path Defense (`electron-builder ^26.15.3`)*: Upgraded the build pipeline to v26.15.3, resolving uncontrolled search path elements in `app-builder-lib`.
+    *   *Credential Leak Mitigation (`electron-updater ^6.8.9` & `builder-util-runtime >= 9.7.0`)*: Eliminated cross-origin credential leaks of `PRIVATE-TOKEN` and `Authorization` headers during automated update requests.
+    *   *Catastrophic Backtracking ReDoS (`minimatch >= 3.1.5`)*: Patched multiple combinatorial backtracking ReDoS vectors in wildcard and globstar pattern matching.
+    *   *Body-Parser Size Enforcement (`body-parser >= 1.20.8` & `express ^4.21.2`)*: Patched silent size enforcement bypass on invalid limits to prevent unauthenticated memory DoS.
+    *   *Buffer Boundary Hardening (`uuid ^11.1.1`)*: Upgraded UUID generator to v11 to resolve buffer out-of-bounds checks.
+    *   *Upstream Engine Patches (`electron ^42.5.1`)*: Bumped Electron runtime target to v42.5.1 to incorporate the latest Chromium security fixes.
+*   **Renderer Stored XSS & Attribute Injection Sanitization**:
+    *   *HTML Entity Encoding*: Implemented `escapeHtml` across preset lists, custom dialog modals (`showCustomModal`), AFK disabled preset rows, and the mode context bar, neutralizing stored script injection from untrusted preset titles or external process strings.
+    *   *Presence Preview Hardening*: Replaced raw `innerHTML` interpolation with `textContent` on `previewState`, preventing script execution from Rich Presence fields.
+    *   *Image Attribute Injection Defense*: Replaced string template HTML assembly for `previewLargeImage` and `previewSmallImage` with safe DOM element instantiation, blocking attribute breakout attacks via crafted image URLs.
+    *   *AFK Log Sanitization*: Hardened AFK log list rendering to bind timestamps and masked messages via DOM text nodes rather than `innerHTML`.
+*   **Toast Notification DOM Sanitization (XSS Prevention)**: Eliminated direct `innerHTML` interpolation of user and external status strings in `ui-toast.js` and `renderer.js` (`showToast`), safely binding text content via `textContent` to block HTML/DOM-based injection vectors.
+*   **Soundboard Preset & Filename HTML Sanitization**: Added HTML entity sanitization (`escapeHtml`) when rendering sound names and keyboard hotkeys in the SoundBoard grid, preventing stored XSS from untrusted local audio filenames or imported soundboard configurations.
+*   **In-Memory PowerShell Execution**: Eliminated temporary script file creation in `%TEMP%\solari_console_toggle.ps1` for console toggling, executing powershell commands directly in-memory via `-EncodedCommand` (UTF-16LE Base64) to prevent local file tampering, race conditions, and disk residue.
+*   **Network Request Protocol Validation & Limits**: Secured `net:fetch-resource` and `plugins:fetch-bypass` against SSRF and arbitrary local file reads (`file://`) by enforcing strict `http:`/`https:` protocol validation, adding a 15-second request timeout, and setting a 5MB payload limit to prevent memory exhaustion attacks.
+*   **Plugin Auto-Download Timeout Defense**: Added a 15-second network timeout and strict 2MB buffer aborts to `downloadPluginToString()`, preventing socket descriptor leaks and infinite process hangs on stalled network connections.
+*   **SoundServer Path Traversal Prevention**: Hardened the local sound file endpoint (`/sounds/:soundId`) by validating that resolved file paths are strictly contained within the authorized application sounds directory (`soundsDir`), blocking directory traversal and arbitrary file reads.
+*   **External URL Protocol Whitelisting**: Added protocol validation against `CONSTANTS.SAFE_PROTOCOLS` in `WindowManager.openExternalSafe` to prevent arbitrary command execution via `explorer.exe` arguments.
+
+## 🐛 Bug Fixes
+*   **Soundboard Hotkey Update Crash & Registry Leak**: Fixed a critical bug in `soundboard:update-sound` where modifying a sound shortcut attempted to call non-existent `registerGlobalShortcuts()`, throwing an unhandled `ReferenceError`. Fixed `soundboard.js` to properly unregister stale hotkeys before binding new ones, and defined `registerGlobalShortcuts()` to keep shortcuts in sync.
+*   **Soundboard "Stop All" State Sync**: Connected `window.sbStopAll` directly to the main process (`soundboard:stop-all`), ensuring that stopping playback halts audio on connected Discord BetterDiscord plugins and remote clients rather than solely stopping local audio.
+*   **Soundboard Progress Bar Reset**: Fixed audio progress bars remaining stuck mid-track when audio playback ended or was stopped manually, ensuring the progress bar width resets immediately to 0%.
+*   **Initial Spotify Sync Data Pipeline**: Added the missing main-process IPC listener for `get-spotify-data`, allowing the renderer to immediately retrieve and display Spotify status, priority ordering, and current playback track upon application startup.
+*   **Preload Bridge Variadic Argument Support & Channel Whitelist**: Updated `send` and `invoke` in `preload.js` and `api.js` to accept `...args`, preventing multi-argument IPC payloads from having subsequent parameters dropped. Expanded `preload.js`'s whitelist to include all soundboard and hardware monitor handlers.
+*   **Global i18n Token Replacement Parity**: Upgraded placeholder token substitution in `i18n.js` from `replace()` to `replaceAll()`, resolving issues where sentences containing repeated template tokens only replaced the first occurrence.
+*   **Spanish Administrator Dialog Localization**: Added complete Spanish (`es`) strings for the Administrator Mode detection dialog in `checkAdminStatus()`, ensuring full language parity for Spanish users.
+*   **Main Process Window Lifecycle Safety (`sendToMainWindow`)**: Introduced a safe IPC dispatcher (`sendToMainWindow`) wrapping all outgoing window communications in `!mainWindow.isDestroyed()` and `try/catch` checks, eliminating uncaught `Error: Object has been destroyed` crashes during window close, reload, or app shutdown.
+*   **Silent Update Check State Leak**: Fixed a state bug in `updater_manager.js` where `checkUpdateSilent()` set `isSilentCheck = true` without resetting it on return or error, which permanently silenced splash update notifications and progress updates.
+*   **Update Badge Button DOM Preservation**: Fixed an issue in `ui-updater.js` where clicking the update button wiped its child elements via `textContent = '⏳'`, preserving the `#updateVersionLabel` DOM element across checks.
+*   **Atomic Save Race Condition & File Handle Leak**: Serialized concurrent settings writes in `dataManager.js` via a promise queue to prevent simultaneous temp file collisions, and wrapped file handles in `try ... finally` blocks to ensure file descriptors close cleanly even if writes fail.
+*   **Spanish System Locale Auto-Detection**: Fixed a localization bug where `_autoDetectLanguage()` only checked for Portuguese and defaulted Spanish installations to English, now correctly detecting `es` locales.
+*   **Soundboard Duplication Counter Sync**: Fixed display name desynchronization when duplicating soundboard tracks by numbering duplicated names (`base_copy(counter)`), and prevented hotkey state leaks.
+*   **Hardware Monitor Teardown Safety**: Ensured initial startup timers and interval handles in `hwMonitor.js` are cleanly tracked and cancelled when stopping the monitor.
+*   **Telemetry Fallback Window Memory Leak**: Added request timeouts (`AbortSignal.timeout`) and cleaned up attached event listeners on reusable fallback browser windows.
+*   **Soundboard Global Shortcut Leak**: Fixed shortcut registration leak where deleting a sound left its hotkey permanently bound in Electron's `globalShortcut` registry. Added safe rollback to previous shortcuts if a new hotkey registration fails.
+*   **BetterDiscord Auto-Repair Path Defense**: Added defensive path validation for missing Discord installation or module directories during repair routines, preventing unhandled `TypeError` crashes.
+*   **SolariPlayer Avatar & Banner Overlap Prevention**: Implemented strict asset URL filtering in `SolariPlayer.plugin.js` (blocking `/avatars/`, `/banners/`, `/icons/`, `/emojis/`, `/stickers/`, and `/avatar-decorations/`) and expanded exclusion zones across user profile cards, settings, collectibles, and server sidebars to prevent the video player overlay from appearing on non-message video/image assets.
+*   **SolariMotion Media Viewer Controls Alignment**: Narrowed selector specificity in `SolariMotion.plugin.js` for the image/media viewer and normalized animation keyframe states (`transform: none`, `filter: none` at 100%). This prevents parent modal transforms from disrupting Discord's native close, download, and share buttons, keeping them correctly anchored to the edges.
+*   **IPC Event Listeners Consolidation**: Consolidated scattered duplicate event listeners (`rpc-status`, `data-loaded`, `plugin-list-updated`) in the renderer process to guarantee deterministic execution order and prevent memory leaks.
+*   **Spanish Localization Parity**: Restored 84 missing translation keys in `es.json` across Browser Extension tabs, Theme Gallery descriptions, Context Bar statuses, Onboarding guides, and Rich Presence tooltips, achieving 100% key parity across all supported languages (PT/EN/ES).
+
+---
+
 ## [2.0.0] - 2026-06-24
 **UPDATE 2.0.0: DYNAMIC PLUGINS CONFIGURATION, CUSTOM POPUPS, MODERNIZED TOASTS, CLICKABLE IMAGES, THEME INTEGRATION, ECO MODE OVERHAUL & ADVANCED SECURITY**
 

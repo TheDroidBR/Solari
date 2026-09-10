@@ -48,7 +48,7 @@
         <img class="sidebar-logo-img" id="sidebarLogo" src="" alt="Solari Logo">
         <div class="sidebar-brand-text">
           <div class="sidebar-brand-name">Solari</div>
-          <div class="sidebar-brand-version" id="appVersionHeader">v2.0.0</div>
+          <div class="sidebar-brand-version" id="appVersionHeader">v2.0.1</div>
         </div>
         <button class="sidebar-pin-btn" id="sidebarPinBtn" title="Fixar Sidebar" aria-label="Fixar Sidebar">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -407,6 +407,40 @@
                     🔑 <span data-i18n="menu.clientId">Client ID...</span>
                   </button>
 
+                </div>
+              </div>
+
+              <!-- DISCORD PROFILE CARD CARD -->
+              <div class="settings-card" id="discord-profile-card" style="display: none;">
+                <div class="settings-header">
+                  <div class="settings-icon-box" style="background: rgba(255, 215, 0, 0.15); color: #ffd700;">🌟</div>
+                  <div class="settings-info">
+                    <h3 data-i18n="profileCard.title" style="background: var(--text-gradient, linear-gradient(135deg, #fff, #a1a1aa)); -webkit-background-clip: text; background-clip: text; color: transparent;">
+                      Discord Profile Card</h3>
+                    <p data-i18n="profileCard.description">Show your live Solari stats on your Discord Profile connections (Mural).</p>
+                  </div>
+                </div>
+                <div class="settings-content" style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+                  <div class="settings-row" style="padding: 4px 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: none;">
+                    <div class="settings-row-label" style="display: flex; flex-direction: column; flex-grow: 1;">
+                      <span data-i18n="profileCard.statusLabel" style="font-size: 14px; font-weight: 600; color: #fff;">Status</span>
+                      <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
+                        <span id="discord-profile-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #a1a1aa; display: inline-block;"></span>
+                        <span id="discord-profile-status-text" data-i18n="profileCard.checking" class="settings-row-desc" style="margin: 0; font-weight: 500; font-size: 12px; color: rgba(255,255,255,0.45);">Checking connection...</span>
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                      <button id="discord-profile-link-btn" data-i18n="profileCard.linkBtn" class="btn btn-secondary" style="border: 1px solid rgba(255,255,255,0.08); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; display: none; background: rgba(255,255,255,0.03); color: #fff;">
+                        🔗 Link Account
+                      </button>
+                      <button id="discord-profile-update-btn" data-i18n="profileCard.updateBtn" class="btn btn-primary" style="padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; display: none;">
+                        🔄 Update Card
+                      </button>
+                      <button id="discord-profile-unlink-btn" data-i18n="profileCard.unlinkBtn" class="btn btn-danger" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; display: none;">
+                        Unlink
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 

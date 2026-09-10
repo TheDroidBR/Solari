@@ -84,6 +84,16 @@
         }
     };
 
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     // Initialize DOM Elements
     function initElements() {
         elements = {
@@ -611,6 +621,8 @@
             const isPlaying = activePlayingSources.has(String(sound.id));
             const colorStyle = sound.color ? `border: 2px solid ${sound.color} !important; border-image: none !important; box-shadow: 0 4px 15px ${sound.color}60, inset 0 0 20px ${sound.color}20 !important;` : '';
             const durationText = sound.duration ? formatDuration(sound.duration) : '';
+            const safeName = escapeHtml(sound.name);
+            const safeShortcut = sound.shortcut ? escapeHtml(sound.shortcut) : '⌨️ Bind Key';
 
             return `
                 <div class="sound-card glass-card hover-lift ${isPlaying ? 'playing' : ''} ${sound.favorite ? 'favorite' : ''}" 
@@ -624,8 +636,8 @@
                             ${sound.favorite ? '⭐' : '☆'}
                         </button>
                     </div>
-                    <div class="sound-name" title="${sound.name}" ondblclick="window.sbRenameSound('${sound.id}')"><span class="sb-name-inner">${sound.name}</span></div>
-                    <div class="sound-shortcut" onclick="window.sbBindHotkey('${sound.id}')" title="Click to bind Global Hotkey" style="cursor: pointer;">${sound.shortcut || '⌨️ Bind Key'}</div>
+                    <div class="sound-name" title="${safeName}" ondblclick="window.sbRenameSound('${sound.id}')"><span class="sb-name-inner">${safeName}</span></div>
+                    <div class="sound-shortcut" onclick="window.sbBindHotkey('${sound.id}')" title="Click to bind Global Hotkey" style="cursor: pointer;">${safeShortcut}</div>
                     <div class="sound-meta">${formatFileSize(sound.size)}</div>
                     <div class="sound-actions">
                         <button class="sound-btn btn-play ${isPlaying ? 'playing' : ''}" onclick="window.sbPlaySound('${sound.id}')" title="${isPlaying ? 'Stop' : 'Play'}">
@@ -715,15 +727,43 @@
             source.start(0);
             console.log('[SoundBoard] Step 4: Playback started successfully');
 
+            // Track duration
+            const soundObj = sounds.find(s => String(s.id) === String(soundId));
+            if (soundObj && !soundObj.duration) {
+                soundObj.duration = audioBuffer.duration;
+            }
+
+            // Animate progress bar
+            let progressAnimId = null;
+            const startTime = audioContext.currentTime;
+            const soundDuration = audioBuffer.duration;
+            const stepProgress = () => {
+                const fillEl = document.getElementById(`sb-progress-${soundId}`);
+                if (fillEl && soundDuration > 0) {
+                    const elapsed = audioContext.currentTime - startTime;
+                    const pct = Math.min(100, Math.max(0, (elapsed / soundDuration) * 100));
+                    fillEl.style.width = `${pct}%`;
+                    if (pct < 100 && activePlayingSources.has(String(soundId))) {
+                        progressAnimId = requestAnimationFrame(stepProgress);
+                    }
+                }
+            };
+            progressAnimId = requestAnimationFrame(stepProgress);
+
             // Track current source
             currentAudioSource = source;
             currentGainNode = gainNode;
-            activePlayingSources.set(String(soundId), { source, gainNode });
+            activePlayingSources.set(String(soundId), { source, gainNode, progressAnimId });
 
             // Handle end of playback
             source.onended = () => {
                 const active = activePlayingSources.get(String(soundId));
                 if (active && active.source === source) {
+                    if (active.progressAnimId) {
+                        cancelAnimationFrame(active.progressAnimId);
+                    }
+                    const progressBar = document.getElementById('sb-progress-' + soundId);
+                    if (progressBar) progressBar.style.width = '0%';
                     activePlayingSources.delete(String(soundId));
                     if (currentlyPlaying === soundId) {
                         currentlyPlaying = null;
@@ -773,6 +813,11 @@
     function stopSound(soundId) {
         const active = activePlayingSources.get(String(soundId));
         if (active) {
+            if (active.progressAnimId) {
+                cancelAnimationFrame(active.progressAnimId);
+            }
+            const progressBar = document.getElementById('sb-progress-' + soundId);
+            if (progressBar) progressBar.style.width = '0%';
             try {
                 active.source.stop();
                 active.source.disconnect();
@@ -882,6 +927,7 @@
         stopAllSounds();
         currentlyPlaying = null;
         renderSounds();
+        sbIpcRenderer.invoke('soundboard:stop-all').catch(() => { });
         safeShowToast('⏹️', 'All sounds stopped', 'info');
     };
 
@@ -1079,13 +1125,19 @@
 
     // --- B6: Context Menu ---
     let contextMenuEl = null;
+    let activeCloseCtx = null;
 
     window.sbContextMenu = function (event, soundId) {
         event.preventDefault();
         event.stopPropagation();
 
-        // Remove existing context menu
-        if (contextMenuEl) contextMenuEl.remove();
+        // Remove existing context menu and cleanup listeners
+        if (activeCloseCtx) {
+            activeCloseCtx();
+        } else if (contextMenuEl) {
+            contextMenuEl.remove();
+            contextMenuEl = null;
+        }
 
         const sound = sounds.find(s => s.id === soundId);
         if (!sound) return;
@@ -1127,6 +1179,15 @@
         if (rect.right > window.innerWidth) contextMenuEl.style.left = (window.innerWidth - rect.width - 8) + 'px';
         if (rect.bottom > window.innerHeight) contextMenuEl.style.top = (window.innerHeight - rect.height - 8) + 'px';
 
+        // Close on outside click or item execution
+        const closeCtx = () => {
+            if (contextMenuEl) { contextMenuEl.remove(); contextMenuEl = null; }
+            document.removeEventListener('click', closeCtx);
+            document.removeEventListener('contextmenu', closeCtx);
+            activeCloseCtx = null;
+        };
+        activeCloseCtx = closeCtx;
+
         // Handle click
         contextMenuEl.addEventListener('click', async (e) => {
             const action = e.target.closest('.sb-ctx-item')?.dataset.action;
@@ -1148,16 +1209,9 @@
                     break;
                 case 'delete': window.sbDeleteSound(soundId); break;
             }
-            contextMenuEl.remove();
-            contextMenuEl = null;
+            closeCtx();
         });
 
-        // Close on outside click
-        const closeCtx = () => {
-            if (contextMenuEl) { contextMenuEl.remove(); contextMenuEl = null; }
-            document.removeEventListener('click', closeCtx);
-            document.removeEventListener('contextmenu', closeCtx);
-        };
         setTimeout(() => {
             document.addEventListener('click', closeCtx);
             document.addEventListener('contextmenu', closeCtx);

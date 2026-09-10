@@ -24,7 +24,19 @@ let updateReady = false;
 let lastError = null;
 let isFallbackAttempt = false;
 let updateCheckResolve = null;
+let splashSafetyTimeout = null;
 let isSilentCheck = false; // Flag to distinguish silent checks from splash checks (Bug 12)
+
+function finishSplashCheck(result) {
+    if (splashSafetyTimeout) {
+        clearTimeout(splashSafetyTimeout);
+        splashSafetyTimeout = null;
+    }
+    if (updateCheckResolve) {
+        updateCheckResolve(result);
+        updateCheckResolve = null;
+    }
+}
 
 // Configure electron-updater defaults
 autoUpdater.autoDownload = false; // We control when to download
@@ -72,9 +84,8 @@ autoUpdater.on('update-available', (info) => {
 
 autoUpdater.on('update-not-available', (info) => {
     console.log(`[Solari Updater] No update available. Current: v${info.version}`);
-    if (!isSilentCheck && updateCheckResolve) {
-        updateCheckResolve(false);
-        updateCheckResolve = null;
+    if (!isSilentCheck) {
+        finishSplashCheck(false);
     }
 });
 
@@ -93,10 +104,7 @@ autoUpdater.on('update-downloaded', (info) => {
     updateReady = true;
     if (!isSilentCheck) {
         sendStatus('installing', 'Installing update...');
-        if (updateCheckResolve) {
-            updateCheckResolve(true);
-            updateCheckResolve = null;
-        }
+        finishSplashCheck(true);
     }
 });
 
@@ -121,10 +129,7 @@ autoUpdater.on('error', (error) => {
             if (updateCheckResolve) {
                 // Wait 5 seconds so user can read the red error message
                 setTimeout(() => {
-                    if (updateCheckResolve) {
-                        updateCheckResolve(false);
-                        updateCheckResolve = null;
-                    }
+                    finishSplashCheck(false);
                 }, 5000);
             }
         });
@@ -136,10 +141,7 @@ autoUpdater.on('error', (error) => {
     if (updateCheckResolve) {
         // Wait 5 seconds so user can read the red error message
         setTimeout(() => {
-            if (updateCheckResolve) {
-                updateCheckResolve(false);
-                updateCheckResolve = null;
-            }
+            finishSplashCheck(false);
         }, 5000);
     }
 });
@@ -180,13 +182,10 @@ function checkUpdateViaSplash() {
         });
 
         // Safety timeout: if nothing happens in 30 seconds, resolve false
-        setTimeout(() => {
-            if (updateCheckResolve) {
-                console.warn('[Solari Updater] Update check timed out after 30s');
-                sendStatus('error', 'Update check timed out. Starting anyway...');
-                updateCheckResolve(false);
-                updateCheckResolve = null;
-            }
+        splashSafetyTimeout = setTimeout(() => {
+            console.warn('[Solari Updater] Update check timed out after 30s');
+            sendStatus('error', 'Update check timed out. Starting anyway...');
+            finishSplashCheck(false);
         }, 30000);
     });
 }
@@ -236,6 +235,8 @@ async function checkUpdateSilent() {
             }
         }
         return { hasUpdate: false, latestVersion: currentVersion, currentVersion };
+    } finally {
+        isSilentCheck = false;
     }
 }
 

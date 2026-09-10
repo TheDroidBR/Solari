@@ -13,6 +13,16 @@ const fs = require('fs');
 const path = require('path');
 const { initI18n, t, applyTranslations, loadTranslations, getCurrentLang } = require('./i18n');
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // --- Version Injection ---
 (function injectVersion() {
     try {
@@ -208,6 +218,14 @@ const settingsCheckUpdatesBtn = document.getElementById('settings-checkUpdatesBt
 const settingsChangelogBtn = document.getElementById('settings-changelogBtn');
 const settingsSetupWizardBtn = document.getElementById('settings-setupWizardBtn');
 const settingsAboutBtn = document.getElementById('settings-aboutBtn');
+
+// --- Discord Profile Card Elements ---
+const discordProfileStatusText = document.getElementById('discord-profile-status-text');
+const discordProfileStatusDot = document.getElementById('discord-profile-status-dot');
+const discordProfileLinkBtn = document.getElementById('discord-profile-link-btn');
+const discordProfileUpdateBtn = document.getElementById('discord-profile-update-btn');
+const discordProfileUnlinkBtn = document.getElementById('discord-profile-unlink-btn');
+let isProfileCardAllowed = false;
 
 // State Locks
 let isSyncingLanguage = false;
@@ -524,6 +542,7 @@ if (ecoModeToggle) {
 
 // Periodic check for VB-Cable driver (detects installation changes)
 setInterval(async () => {
+    if (document.hidden) return; // Skip background check if window is hidden/minimized
     try {
         const result = await ipcRenderer.invoke('soundboard:check-driver-installed');
         const wasInstalled = vbCableDriverInstalled;
@@ -719,7 +738,7 @@ function showCustomModal(options = {}) {
             if (isDefault) {
                 btnClass = type === 'warning' ? 'btn btn-danger' : 'btn btn-primary';
             }
-            return `<button class="${btnClass}" data-index="${idx}" style="flex: 1; padding: 10px 20px; font-size: 0.9rem; font-weight: 600; min-width: 100px;">${btnText}</button>`;
+            return `<button class="${btnClass}" data-index="${idx}" style="flex: 1; padding: 10px 20px; font-size: 0.9rem; font-weight: 600; min-width: 100px;">${escapeHtml(btnText)}</button>`;
         }).join('');
 
         // Build HTML for checkbox (optional)
@@ -729,7 +748,7 @@ function showCustomModal(options = {}) {
             checkboxHtml = `
                 <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 20px; color: var(--text-muted); font-size: 0.85rem; cursor: pointer; user-select: none;" id="dialogCheckboxWrapper">
                     <input type="checkbox" id="dialogCheckbox" ${isChecked} style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--primary, #ff6b35);">
-                    <label for="dialogCheckbox" style="cursor: pointer; font-family: 'Space Grotesk', sans-serif;">${checkboxLabel}</label>
+                    <label for="dialogCheckbox" style="cursor: pointer; font-family: 'Space Grotesk', sans-serif;">${escapeHtml(checkboxLabel)}</label>
                 </div>
             `;
         }
@@ -737,9 +756,9 @@ function showCustomModal(options = {}) {
         overlay.innerHTML = `
             <div class="modal-content ${glowClass}" style="max-width: 440px; text-align: center; padding: 30px; display: flex; flex-direction: column; align-items: center;">
                 ${iconHtml}
-                <h2 style="margin-bottom: 10px; font-size: 1.3rem; background: var(--text-gradient, var(--text)); -webkit-background-clip: text; color: transparent; font-family: 'Space Grotesk', sans-serif; font-weight: 700;">${title}</h2>
-                <p style="margin-bottom: 12px; color: var(--text); font-size: 1rem; font-weight: 500; line-height: 1.4; font-family: 'Space Grotesk', sans-serif;">${message}</p>
-                ${detail ? `<p style="margin-bottom: 22px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; font-family: 'Space Grotesk', sans-serif; white-space: pre-wrap; width: 100%; text-align: center;">${detail}</p>` : '<div style="margin-bottom: 10px;"></div>'}
+                <h2 style="margin-bottom: 10px; font-size: 1.3rem; background: var(--text-gradient, var(--text)); -webkit-background-clip: text; color: transparent; font-family: 'Space Grotesk', sans-serif; font-weight: 700;">${escapeHtml(title)}</h2>
+                <p style="margin-bottom: 12px; color: var(--text); font-size: 1rem; font-weight: 500; line-height: 1.4; font-family: 'Space Grotesk', sans-serif;">${escapeHtml(message)}</p>
+                ${detail ? `<p style="margin-bottom: 22px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; font-family: 'Space Grotesk', sans-serif; white-space: pre-wrap; width: 100%; text-align: center;">${escapeHtml(detail)}</p>` : '<div style="margin-bottom: 10px;"></div>'}
                 ${checkboxHtml}
                 <div class="dialog-buttons-container" style="display: flex; gap: 15px; justify-content: center; width: 100%; margin-top: 5px;">
                     ${renderedButtons}
@@ -1175,6 +1194,143 @@ if (settingsUninstallBtn) {
     });
 }
 
+// --- Discord Profile Card UI Control ---
+let linkPollInterval = null;
+
+async function updateDiscordProfileCardUI() {
+    if (!discordProfileStatusText) return null;
+
+    const cardEl = document.getElementById('discord-profile-card');
+    if (!isProfileCardAllowed) {
+        if (cardEl) cardEl.style.display = 'none';
+        return null;
+    }
+    if (cardEl) cardEl.style.display = 'block';
+
+    try {
+        const status = await ipcRenderer.invoke('profile-card-status');
+        
+        if (status && status.linked) {
+            if (discordProfileStatusDot) {
+                discordProfileStatusDot.style.background = '#10b981'; // Green
+                discordProfileStatusDot.style.boxShadow = '0 0 8px #10b981';
+            }
+            const userDisplay = status.user?.global_name || status.user?.username || 'User';
+            const template = t('profileCard.linkedAs') || 'Linked as {user}';
+            discordProfileStatusText.textContent = template.replace('{user}', userDisplay);
+
+            if (discordProfileLinkBtn) discordProfileLinkBtn.style.display = 'none';
+            if (discordProfileUpdateBtn) discordProfileUpdateBtn.style.display = 'inline-block';
+            if (discordProfileUnlinkBtn) discordProfileUnlinkBtn.style.display = 'inline-block';
+        } else {
+            if (discordProfileStatusDot) {
+                discordProfileStatusDot.style.background = '#a1a1aa'; // Gray
+                discordProfileStatusDot.style.boxShadow = 'none';
+            }
+            discordProfileStatusText.textContent = t('profileCard.notLinked') || 'Not linked to Discord Profile connections';
+
+            if (discordProfileLinkBtn) discordProfileLinkBtn.style.display = 'inline-block';
+            if (discordProfileUpdateBtn) discordProfileUpdateBtn.style.display = 'none';
+            if (discordProfileUnlinkBtn) discordProfileUnlinkBtn.style.display = 'none';
+        }
+        return status;
+    } catch (e) {
+        console.error('[ProfileCard UI] Failed to check status:', e);
+        if (discordProfileStatusDot) {
+            discordProfileStatusDot.style.background = '#ef4444'; // Red
+            discordProfileStatusDot.style.boxShadow = '0 0 8px #ef4444';
+        }
+        discordProfileStatusText.textContent = t('profileCard.fetchFailed') || 'Failed to fetch status';
+
+        if (discordProfileLinkBtn) discordProfileLinkBtn.style.display = 'none';
+        if (discordProfileUpdateBtn) discordProfileUpdateBtn.style.display = 'none';
+        if (discordProfileUnlinkBtn) discordProfileUnlinkBtn.style.display = 'none';
+        return null;
+    }
+}
+
+if (discordProfileLinkBtn) {
+    discordProfileLinkBtn.addEventListener('click', () => {
+        ipcRenderer.send('profile-card-connect');
+        
+        // Clear any existing polling interval to prevent timer leaks
+        if (linkPollInterval) {
+            clearInterval(linkPollInterval);
+            linkPollInterval = null;
+        }
+
+        // Poll for connection success to update UI automatically
+        let attempts = 0;
+        linkPollInterval = setInterval(async () => {
+            attempts++;
+            const status = await updateDiscordProfileCardUI();
+            if ((status && status.linked) || attempts >= 30) {
+                clearInterval(linkPollInterval);
+                linkPollInterval = null;
+            }
+        }, 2000);
+    });
+}
+
+if (discordProfileUpdateBtn) {
+    discordProfileUpdateBtn.addEventListener('click', async () => {
+        discordProfileUpdateBtn.disabled = true;
+        const oldText = discordProfileUpdateBtn.textContent;
+        discordProfileUpdateBtn.textContent = t('profileCard.updating') || 'Updating...';
+        
+        try {
+            const success = await ipcRenderer.invoke('profile-card-update');
+            if (success) {
+                const msg = t('profileCard.updateSuccess') || 'Profile Card updated successfully!';
+                if (typeof showToast === 'function') {
+                    showToast(msg, 'success');
+                } else {
+                    alert(msg);
+                }
+            } else {
+                const err = t('profileCard.updateError') || 'Failed to update Profile Card. Please verify if you are logged in and connected.';
+                if (typeof showToast === 'function') {
+                    showToast(err, 'error');
+                } else {
+                    alert(err);
+                }
+            }
+        } catch (err) {
+            console.error('[ProfileCard UI] Update error:', err);
+        } finally {
+            discordProfileUpdateBtn.disabled = false;
+            discordProfileUpdateBtn.textContent = oldText;
+            await updateDiscordProfileCardUI();
+        }
+    });
+}
+
+if (discordProfileUnlinkBtn) {
+    discordProfileUnlinkBtn.addEventListener('click', async () => {
+        const confirmMsg = t('profileCard.unlinkConfirm') || 'Are you sure you want to unlink your Discord account from the Solari Profile Card?';
+        if (confirm(confirmMsg)) {
+            try {
+                await ipcRenderer.invoke('profile-card-unlink');
+                const successMsg = t('profileCard.unlinkSuccess') || 'Account unlinked successfully.';
+                if (typeof showToast === 'function') {
+                    showToast(successMsg, 'success');
+                } else {
+                    alert(successMsg);
+                }
+                await updateDiscordProfileCardUI();
+            } catch (err) {
+                console.error('[ProfileCard UI] Unlink error:', err);
+                const errMsg = t('profileCard.unlinkError') || 'Error unlinking account.';
+                if (typeof showToast === 'function') {
+                    showToast(errMsg, 'error');
+                } else {
+                    alert(errMsg);
+                }
+            }
+        }
+    });
+}
+
 // --- Load Initial Data ---
 function syncSettingsUI(loadedSettings) {
     if (!loadedSettings) return;
@@ -1475,6 +1631,18 @@ ipcRenderer.on('data-loaded', async (event, data) => {
     if (typeof initExtensionAd === 'function') {
         initExtensionAd();
     }
+    
+    // Check Discord Profile Card linked status on boot
+    isProfileCardAllowed = !!data.isProfileCardAllowed;
+    updateDiscordProfileCardUI();
+
+    // Sync to UI context bar
+    if (typeof uiContext !== 'undefined') {
+        uiContext.setGlobalClientId(data && data.globalClientId);
+        uiContext.setDetectedPreset(data ? data.autoDetectPreset : null);
+        const autoDetTgl = document.getElementById('autoDetectToggle');
+        if (autoDetTgl) uiContext.setAutoDetect(autoDetTgl.checked);
+    }
 });
 
 ipcRenderer.on('run-setup-wizard', () => {
@@ -1491,6 +1659,10 @@ ipcRenderer.on('presets-updated', (event, presets) => {
 
 // --- RPC Status Updates (Connection Indicator in Header + Server Status Section) ---
 ipcRenderer.on('rpc-status', (event, data) => {
+    if (typeof uiContext !== 'undefined' && uiContext.setRpcConnected) {
+        uiContext.setRpcConnected(!!(data && data.connected));
+    }
+
     const statusIndicator = document.querySelector('.status-indicator');
     const statusText = document.querySelector('.status-text');
     const rpcStatusEl = document.getElementById('rpcStatus');
@@ -1558,12 +1730,34 @@ ipcRenderer.on('rpc-status', (event, data) => {
         }
         if (rpcStatusDot) rpcStatusDot.style.background = '#ef4444';
     }
+    
+    // Update Discord Profile Card UI state on RPC change
+    isProfileCardAllowed = !!data.isProfileCardAllowed;
+    updateDiscordProfileCardUI();
 });
 
 // --- Plugin List Updates ---
 ipcRenderer.on('plugin-list-updated', async (event, plugins) => {
     connectedPlugins = plugins;
     renderPluginList();
+
+    if (Array.isArray(plugins)) {
+        const hasSpotify = plugins.some(p => p.name === 'SpotifySync');
+        const hasSmartAFK = plugins.some(p => p.name === 'SmartAFKDetector');
+
+        if (hasSpotify !== spotifyConnected) {
+            spotifyConnected = hasSpotify;
+            if (typeof updateSpotifyConnectionStatus === 'function') {
+                updateSpotifyConnectionStatus(hasSpotify);
+            }
+        }
+        if (hasSmartAFK !== smartAfkConnected) {
+            smartAfkConnected = hasSmartAFK;
+            if (typeof updateSmartAFKConnectionStatus === 'function') {
+                updateSmartAFKConnectionStatus(hasSmartAFK);
+            }
+        }
+    }
 });
 
 ipcRenderer.on('blocked-list-updated', (event, blocked) => {
@@ -1580,7 +1774,11 @@ ipcRenderer.on('afk-logs-updated', (event, logs) => {
     afkLogs.innerHTML = '';
     logs.forEach(log => {
         const li = document.createElement('li');
-        li.innerHTML = `<span style="color: #888;">[${log.time}]</span> ${maskPaths(log.message)}`;
+        const timeSpan = document.createElement('span');
+        timeSpan.style.color = '#888';
+        timeSpan.textContent = `[${log.time}] `;
+        li.appendChild(timeSpan);
+        li.appendChild(document.createTextNode(maskPaths(log.message)));
         afkLogs.appendChild(li);
     });
 });
@@ -1648,7 +1846,7 @@ function renderAfkDisabledPresets() {
 
     afkDisabledPresetsContainer.innerHTML = afkDisabledPresets.map((presetName, index) => `
         <div class="preset-disable-row" data-index="${index}" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; margin-bottom: 6px; background: linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(217,119,6,0.1) 100%); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; transition: all 0.2s;">
-            <span style="color: #f59e0b; flex: 1;">🎮 ${presetName}</span>
+            <span style="color: #f59e0b; flex: 1;">🎮 ${escapeHtml(presetName)}</span>
             <button class="remove-preset-disable-btn" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: none; color: white; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 0.85em; flex: none; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">✕</button>
         </div>
     `).join('');
@@ -1724,15 +1922,15 @@ function renderPresets(presets) {
         if (preset.clientId) {
             const profile = identities.find(i => i.id === preset.clientId);
             const appName = profile ? profile.name : 'Custom App';
-            appBadge = `<span class="preset-app-badge" title="Discord App: ${appName}">📱 ${appName}</span>`;
+            appBadge = `<span class="preset-app-badge" title="Discord App: ${escapeHtml(appName)}">📱 ${escapeHtml(appName)}</span>`;
         }
 
         div.innerHTML = `
-      <span class="preset-name">${preset.name}</span>
+      <span class="preset-name">${escapeHtml(preset.name)}</span>
       ${appBadge}
       <div class="preset-actions">
-          <span class="preset-replace" data-index="${index}" data-name="${preset.name}" title="Substituir com dados atuais">🔄</span>
-          <span class="preset-delete" data-index="${index}" data-name="${preset.name}" title="Excluir">✖</span>
+          <span class="preset-replace" data-index="${index}" data-name="${escapeHtml(preset.name)}" title="Substituir com dados atuais">🔄</span>
+          <span class="preset-delete" data-index="${index}" data-name="${escapeHtml(preset.name)}" title="Excluir">✖</span>
       </div>
     `;
         div.addEventListener('click', async (e) => {
@@ -2283,7 +2481,7 @@ function updatePreview() {
 
 
         if (stateText) {
-            previewState.innerHTML = stateText;
+            previewState.textContent = stateText;
             previewState.style.display = 'block';
             previewState.style.opacity = '1';
         } else {
@@ -2374,12 +2572,20 @@ function updatePreview() {
 
     // Update large image
     if (previewLargeImage) {
+        previewLargeImage.innerHTML = '';
         const largeUrl = largeImageInput.value;
         if (largeUrl && (largeUrl.startsWith('http://') || largeUrl.startsWith('https://'))) {
-            previewLargeImage.innerHTML = `<img src="${largeUrl}" onerror="this.parentElement.innerHTML='<span>🎮</span>'" />`;
+            const lImg = document.createElement('img');
+            lImg.src = largeUrl;
+            lImg.onerror = () => {
+                previewLargeImage.innerHTML = '<span>🎮</span>';
+                previewLargeImage.appendChild(smallImageDiv);
+            };
+            previewLargeImage.appendChild(lImg);
         } else {
             previewLargeImage.innerHTML = '<span>🎮</span>';
         }
+
         // Re-add small image element
         const smallImageDiv = document.createElement('div');
         smallImageDiv.className = 'discord-preview-small-image preview-map-hoverable';
@@ -2387,7 +2593,13 @@ function updatePreview() {
 
         const smallUrl = smallImageInput.value;
         if (smallUrl && (smallUrl.startsWith('http://') || smallUrl.startsWith('https://'))) {
-            smallImageDiv.innerHTML = `<img src="${smallUrl}" onerror="this.parentElement.innerHTML='<span>⭐</span>'" />`;
+            const sImg = document.createElement('img');
+            sImg.src = smallUrl;
+            sImg.onerror = () => {
+                smallImageDiv.innerHTML = '<span>⭐</span>';
+            };
+            smallImageDiv.innerHTML = '';
+            smallImageDiv.appendChild(sImg);
             smallImageDiv.style.display = 'flex';
         } else if (smallUrl) {
             smallImageDiv.innerHTML = '<span>⭐</span>';
@@ -3740,12 +3952,17 @@ function showToast(title, message, type = 'info', duration = 3700) {
                 ${iconHtml}
             </div>
             <div class="toast-body" style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
-                <div class="toast-title" style="margin: 0 0 2px 0; font-weight: 700; font-family: 'Space Grotesk', sans-serif; font-size: 0.95rem; color: #fff;">${titleText}</div>
-                <div class="toast-message" style="margin: 0; font-size: 0.82rem; color: rgba(255, 255, 255, 0.65); line-height: 1.4; font-family: 'Space Grotesk', sans-serif; word-break: break-word;">${message}</div>
+                <div class="toast-title" style="margin: 0 0 2px 0; font-weight: 700; font-family: 'Space Grotesk', sans-serif; font-size: 0.95rem; color: #fff;"></div>
+                <div class="toast-message" style="margin: 0; font-size: 0.82rem; color: rgba(255, 255, 255, 0.65); line-height: 1.4; font-family: 'Space Grotesk', sans-serif; word-break: break-word;"></div>
             </div>
         </div>
         <div class="toast-progress-bar" style="position: absolute; bottom: 0; left: 0; height: 3px; width: 100%; transform-origin: left; transform: scaleX(1); transition: transform ${duration}ms linear;"></div>
     `;
+
+    const titleEl = toast.querySelector('.toast-title');
+    if (titleEl) titleEl.textContent = titleText || '';
+    const msgEl = toast.querySelector('.toast-message');
+    if (msgEl) msgEl.textContent = message || '';
 
     toastContainer.appendChild(toast);
 
@@ -3770,7 +3987,8 @@ function showToast(title, message, type = 'info', duration = 3700) {
 
 // Hover detection for intangible toasts (reduces opacity on hover)
 document.addEventListener('mousemove', (e) => {
-    const toasts = document.querySelectorAll('.toast:not(.removing)');
+    if (!toastContainer || toastContainer.children.length === 0) return;
+    const toasts = toastContainer.querySelectorAll('.toast:not(.removing)');
     if (toasts.length === 0) return;
 
     toasts.forEach(toast => {
@@ -3898,22 +4116,6 @@ ipcRenderer.on('notes-data-loaded', (event, data) => {
 
 // Handle Notes status updates
 ipcRenderer.on('notes-status-update', (event, status) => {
-});
-
-// Update plugin list to check for SpotifySync
-ipcRenderer.on('plugin-list-updated', (event, plugins) => {
-    // Original plugin list handler continues...
-    const hasSpotify = plugins.some(p => p.name === 'SpotifySync');
-    const hasSmartAFK = plugins.some(p => p.name === 'SmartAFKDetector');
-
-    if (hasSpotify !== spotifyConnected) {
-        spotifyConnected = hasSpotify;
-        updateSpotifyConnectionStatus(hasSpotify);
-    }
-    if (hasSmartAFK !== smartAfkConnected) {
-        smartAfkConnected = hasSmartAFK;
-        updateSmartAFKConnectionStatus(hasSmartAFK);
-    }
 });
 
 // Update Spotify connection status UI
@@ -7619,23 +7821,7 @@ const uiContext = require('./modules/ui-context');
 })();
 
 
-// Hook: rpc-status IPC → context bar (no-op for banner since banner only cares about globalClientId)
-ipcRenderer.on('rpc-status', (_, data) => {
-    uiContext.setRpcConnected(!!(data && data.connected));
-});
 
-// Hook: data-loaded → give ui-context the actual global Client ID to decide banner visibility
-// This runs AFTER all startup data is ready, preventing any flash effect.
-ipcRenderer.on('data-loaded', (_, data) => {
-    uiContext.setGlobalClientId(data && data.globalClientId);
-
-    // Sync current detected preset name to context bar
-    uiContext.setDetectedPreset(data ? data.autoDetectPreset : null);
-
-    // Also sync auto-detect toggle state to context bar
-    const autoDetTgl = document.getElementById('autoDetectToggle');
-    if (autoDetTgl) uiContext.setAutoDetect(autoDetTgl.checked);
-});
 
 
 
@@ -8249,6 +8435,12 @@ const ExtensionTabManager = {
     renderStats() {
         const statsContainer = document.getElementById('ext-stats-container');
         if (!statsContainer || !lastSessionStats) return;
+
+        // Skip DOM reconstruction if window is hidden or extension tab is not active
+        const extTab = document.getElementById('extension-tab');
+        if (document.hidden || (extTab && !extTab.classList.contains('active'))) {
+            return;
+        }
 
         statsContainer.innerHTML = '';
         const platformTime = lastSessionStats.platformTime || {};

@@ -90,7 +90,7 @@ function t(key, replacements = {}) {
     // Handle string replacements like {name}
     if (typeof value === 'string') {
         for (const [placeholder, replacement] of Object.entries(replacements)) {
-            value = value.replace(`{${placeholder}}`, replacement);
+            value = value.replaceAll(`{${placeholder}}`, replacement);
         }
     }
 

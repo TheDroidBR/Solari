@@ -209,8 +209,10 @@ function getActivityVerb(type) {
  * @returns {Object} A new preset object with resolved localized string properties
  */
 function resolvePresetStrings(preset) {
-    const rawLang = getCurrentLang() || 'en';
-    const lang = rawLang.toLowerCase().startsWith('pt') ? 'pt' : 'en';
+    const rawLang = (getCurrentLang() || 'en').toLowerCase();
+    let lang = 'en';
+    if (rawLang.startsWith('pt')) lang = 'pt';
+    else if (rawLang.startsWith('es')) lang = 'es';
     const localized = preset[lang] || preset['en'] || preset['pt'] || {};
 
     return {
@@ -288,8 +290,9 @@ function renderPresetsGrid(presets) {
         const bannerImg = preset.largeImage || 'https://raw.githubusercontent.com/TheDroidBR/Solari/main/SolariPhotoTransparente.png';
         const activityVerb = getActivityVerb(preset.activityType || '0');
 
-        const labelLine1 = (getCurrentLang() || 'en').toLowerCase().startsWith('pt') ? 'Linha 1' : 'Line 1';
-        const labelLine2 = (getCurrentLang() || 'en').toLowerCase().startsWith('pt') ? 'Linha 2' : 'Line 2';
+        const rawLang = (getCurrentLang() || 'en').toLowerCase();
+        const labelLine1 = rawLang.startsWith('pt') ? 'Linha 1' : rawLang.startsWith('es') ? 'Línea 1' : 'Line 1';
+        const labelLine2 = rawLang.startsWith('pt') ? 'Linha 2' : rawLang.startsWith('es') ? 'Línea 2' : 'Line 2';
 
         card.innerHTML = `
             <div class="preset-card-banner">
@@ -734,12 +737,16 @@ function setupCatalogSearch() {
     const searchInput = document.getElementById('public-presets-search');
     const filterSelect = document.getElementById('public-presets-filter');
 
+    let searchDebounceTimer = null;
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             searchQuery = e.target.value;
-            if (cachedPresets) {
-                renderPresetsGrid(cachedPresets);
-            }
+            if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => {
+                if (cachedPresets) {
+                    renderPresetsGrid(cachedPresets);
+                }
+            }, 180);
         });
     }
 

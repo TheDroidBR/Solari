@@ -63,11 +63,13 @@ class SpotifyManager {
                     spotifyTokenExpiry: 0
                 }
             });
-            if (this.mainWindow) {
-                this.mainWindow.webContents.send('spotify-status-update', {
-                    loggedIn: false,
-                    clientId: this.spotifyClientId
-                });
+            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                try {
+                    this.mainWindow.webContents.send('spotify-status-update', {
+                        loggedIn: false,
+                        clientId: this.spotifyClientId
+                    });
+                } catch { }
             }
         });
 
@@ -98,24 +100,35 @@ class SpotifyManager {
                 tokenExpiry: data.tokenExpiry
             };
             this.saveData();
-            if (this.mainWindow) {
-                this.mainWindow.webContents.send('spotify-status-update', {
-                    loggedIn: data.connected,
-                    clientId: this.spotifyClientId
-                });
+            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                try {
+                    this.mainWindow.webContents.send('spotify-status-update', {
+                        loggedIn: data.connected,
+                        clientId: this.spotifyClientId
+                    });
+                } catch { }
             }
         } else if (data.type === 'spotify_track_updated') {
-            if (this.mainWindow) {
-                this.mainWindow.webContents.send('spotify-track-updated', data.track);
+            if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                try {
+                    this.mainWindow.webContents.send('spotify-track-updated', data.track);
+                } catch { }
             }
         }
     }
 
     broadcastToPlugins(payload) {
         if (this.wss) {
+            const msg = JSON.stringify(payload);
             this.wss.clients.forEach(client => {
                 if (client.readyState === 1) { // WebSocket.OPEN
-                    client.send(JSON.stringify(payload));
+                    try {
+                        client.send(msg, (err) => {
+                            if (err) console.error('[SpotifyManager] WS send error:', err);
+                        });
+                    } catch (e) {
+                        console.error('[SpotifyManager] WS send exception:', e);
+                    }
                 }
             });
         }
