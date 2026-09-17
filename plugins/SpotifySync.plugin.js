@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Spotify controller & Rich Presence companion for Discord. Features Glassmorphism UI, dynamic album color tinting, animated rhythm visualizer, synced LRC lyrics with seek, Spotify Connect device picker, queue explorer, and 1-click Solari authentication.
- * @version 3.0.0
+ * @version 3.0.1
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
@@ -359,7 +359,7 @@ module.exports = class SpotifySync {
         }
 
         return [
-            { type: 'custom_header', title: this.t('title'), version: this.meta.version || '3.0.0' },
+            { type: 'custom_header', title: this.t('title'), version: this.meta.version || '3.0.1' },
             { type: 'status_card', id: 'solariStatus', label: this.t('solari'), status: this.isConnectedToSolari ? 'connected' : 'disconnected' },
             {
                 type: 'group', label: 'Display & Aesthetics', children: displayChildren
@@ -419,7 +419,7 @@ module.exports = class SpotifySync {
 
     // ═══════════════════ LIFECYCLE ═══════════════════
     start() {
-        console.log(`[SpotifySync] Starting v${this.meta.version || '3.0.0'} (Next-Gen)...`);
+        console.log(`[SpotifySync] Starting v${this.meta.version || '3.0.1'} (Next-Gen)...`);
         this.loadConfig();
         this.checkChangelog();
         this.checkForUpdates();
@@ -1193,7 +1193,8 @@ module.exports = class SpotifySync {
     showVolumeIndicator(pct) {
         const overlay = document.getElementById('ss2-vol-overlay');
         if (!overlay) return;
-        overlay.textContent = `🔊 ${pct}%`;
+        const icon = pct === 0 ? '🔇' : (pct < 50 ? '🔉' : '🔊');
+        overlay.textContent = `${icon} ${pct}%`;
         overlay.classList.add('visible');
         if (this._volOverlayTimeout) clearTimeout(this._volOverlayTimeout);
         this._volOverlayTimeout = setTimeout(() => {
@@ -1496,7 +1497,7 @@ module.exports = class SpotifySync {
         .ss2-header-row {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 6px;
             min-height: 40px;
         }
 
@@ -1674,7 +1675,7 @@ module.exports = class SpotifySync {
         .ss2-mini-ctrls {
             display: flex;
             align-items: center;
-            gap: 3px;
+            gap: 2px;
             flex-shrink: 0;
         }
 
@@ -1682,8 +1683,8 @@ module.exports = class SpotifySync {
             background: transparent;
             border: none;
             color: rgba(255, 255, 255, 0.7);
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             border-radius: 50%;
             cursor: pointer;
             display: inline-flex;
@@ -1695,16 +1696,16 @@ module.exports = class SpotifySync {
         .ss2-btn:hover {
             color: #fff;
             background: rgba(255, 255, 255, 0.12);
-            transform: scale(1.1);
+            transform: scale(1.08);
         }
         .ss2-btn:active {
             transform: scale(0.94);
         }
-        .ss2-btn svg { width: 16px; height: 16px; fill: currentColor; }
+        .ss2-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
         .ss2-btn-play {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             background: var(--ss-accent, #1DB954);
             color: #000;
             box-shadow: 0 2px 8px var(--ss-accent-glow);
@@ -1712,13 +1713,14 @@ module.exports = class SpotifySync {
         .ss2-btn-play:hover {
             background: #fff;
             color: #000;
-            transform: scale(1.12);
-            box-shadow: 0 0 14px var(--ss-accent);
+            transform: scale(1.1);
+            box-shadow: 0 0 12px var(--ss-accent);
         }
+        .ss2-btn-play svg { width: 15px; height: 15px; fill: currentColor; }
 
         .ss2-btn-expand {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             color: rgba(255, 255, 255, 0.45);
         }
         .ss2-btn-expand:hover { color: #fff; }
@@ -1729,19 +1731,21 @@ module.exports = class SpotifySync {
             transform: rotate(180deg);
         }
 
-        /* Compact Volume Control (Inline in Header) */
+        /* Compact Volume Control (Inline in Header - Retractable on Hover) */
         .ss2-mini-vol-wrap {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
             flex-shrink: 0;
-            padding: 2px 6px;
+            padding: 2px 4px;
             border-radius: 6px;
             background: rgba(255, 255, 255, 0.05);
-            transition: all 0.2s ease;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+            overflow: hidden;
         }
-        .ss2-mini-vol-wrap:hover {
-            background: rgba(255, 255, 255, 0.1);
+        .ss2-mini-vol-wrap:hover,
+        .ss2-mini-vol-wrap:focus-within {
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
         }
         #ss2-widget.ss2-is-expanded .ss2-mini-vol-wrap { display: none !important; }
 
@@ -1749,8 +1753,8 @@ module.exports = class SpotifySync {
             background: transparent;
             border: none;
             color: rgba(255, 255, 255, 0.75);
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
             cursor: pointer;
             display: inline-flex;
@@ -1764,21 +1768,31 @@ module.exports = class SpotifySync {
             color: #fff;
             transform: scale(1.1);
         }
-        .ss2-mini-vol-btn svg { width: 14px; height: 14px; fill: currentColor; }
+        .ss2-mini-vol-btn svg { width: 13px; height: 13px; fill: currentColor; }
 
         .ss2-mini-vol-slider {
-            width: 52px;
+            width: 0;
             height: 4px;
+            opacity: 0;
+            pointer-events: none;
+            margin: 0;
             -webkit-appearance: none;
             appearance: none;
-            background: rgba(255, 255, 255, 0.22);
+            background: rgba(255, 255, 255, 0.25);
             border-radius: 2px;
             outline: none;
             cursor: pointer;
-            transition: background 0.2s ease;
+            transition: width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease, margin 0.2s ease, background 0.2s ease;
+        }
+        .ss2-mini-vol-wrap:hover .ss2-mini-vol-slider,
+        .ss2-mini-vol-wrap:focus-within .ss2-mini-vol-slider {
+            width: 44px;
+            opacity: 1;
+            pointer-events: auto;
+            margin: 0 4px 0 2px;
         }
         .ss2-mini-vol-slider:hover {
-            background: rgba(255, 255, 255, 0.38);
+            background: rgba(255, 255, 255, 0.4);
         }
         .ss2-mini-vol-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -1793,7 +1807,7 @@ module.exports = class SpotifySync {
         }
         .ss2-mini-vol-slider:hover::-webkit-slider-thumb {
             background: var(--ss-accent, #1DB954);
-            transform: scale(1.25);
+            transform: scale(1.2);
         }
 
         /* Floating Volume Badge for Wheel Scroll */
@@ -2747,7 +2761,8 @@ module.exports = class SpotifySync {
             if (e.target.closest('.ss2-subview-content')) return;
             e.preventDefault();
             const delta = e.deltaY < 0 ? 5 : -5;
-            const newVol = Math.max(0, Math.min(100, (this._volumePercent || 50) + delta));
+            const currentVol = (typeof this._volumePercent === 'number' && !isNaN(this._volumePercent)) ? this._volumePercent : 50;
+            const newVol = Math.max(0, Math.min(100, currentVol + delta));
             this._volumePercent = newVol;
             const mainVol = document.getElementById('ss2-vol-slider');
             const miniVol = document.getElementById('ss2-mini-vol-slider');
@@ -2995,10 +3010,7 @@ module.exports = class SpotifySync {
         } else {
             // In compact mode:
             if (miniCtrls) {
-                let showCtrls = true;
-                if (!this.config.showControls) showCtrls = false;
-                else if (this.config.controlsVisibility === 'whenPlaying') showCtrls = isPlaying;
-                else if (this.config.controlsVisibility === 'whenOpen') showCtrls = false; // 'whenOpen' means controls are shown ONLY when expanded
+                const showCtrls = Boolean(this.config.showControls);
                 miniCtrls.style.display = showCtrls ? 'flex' : 'none';
             }
             if (miniScrub) {

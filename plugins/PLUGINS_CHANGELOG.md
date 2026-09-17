@@ -94,6 +94,12 @@
 - 🚀 **Critical Fix (Status Stuck):** Solved a Discord API Rate Limiting issue (HTTP 429) that caused the AFK Custom Status to appear cleared locally, but remain stuck globally.
 - 🛡️ **Improvement:** Removed 5-second aggressive spam and implemented a safe 4-minute network renewal to keep the AFK Status perfectly synced and stable.
 
+## SpotifySync v3.0.1 (2026-09-17)
+- ⏯️ **Compact Mode Playback Controls**: Restored and optimized Play/Pause, Previous, and Next track buttons directly inside the collapsed header row for instant 1-click playback navigation.
+- 🎚️ **Collapsible Hover Volume & Fluid Header Layout**: Re-engineered the compact volume slider to smoothly expand on hover/focus and collapse when idle, giving priority to playback controls and track title legibility without cluttering narrow sidebars.
+- 🛡️ **Always-Active Controls Logic**: Decoupled compact controls from the idle visibility filter, ensuring Play, Pause, and Skip actions remain instantly accessible even when playback is paused.
+- 🔊 **Precise Volume Clamping**: Fixed a bug where scrolling the mouse wheel below 0% caused volume to reset to 50% due to falsy zero evaluation, ensuring stable clamping between 0% and 100%.
+
 ## SpotifySync v3.0.0 (2026-09-17)
 - 🚀 **Next-Gen Total Overhaul**: Redesigned from the ground up for maximum responsiveness, zero lag, and premium glassmorphic aesthetics.
 - 👑 **Full Spotify Premium Powers**: Comprehensive visual indicators, intuitive guidance, and seamless remote playback capabilities (Timeline Seek, Volume Slider, Like/Unlike, Track Skipping, Queue, Playlists, and Spotify Connect). Sleek Hero Card view even when disconnected.
