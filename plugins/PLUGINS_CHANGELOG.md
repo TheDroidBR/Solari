@@ -94,6 +94,20 @@
 - 🚀 **Critical Fix (Status Stuck):** Solved a Discord API Rate Limiting issue (HTTP 429) that caused the AFK Custom Status to appear cleared locally, but remain stuck globally.
 - 🛡️ **Improvement:** Removed 5-second aggressive spam and implemented a safe 4-minute network renewal to keep the AFK Status perfectly synced and stable.
 
+## SpotifySync v3.0.0 (2026-09-17)
+- 🚀 **Next-Gen Total Overhaul**: Redesigned from the ground up for maximum responsiveness, zero lag, and premium glassmorphic aesthetics.
+- 👑 **Full Spotify Premium Powers**: Comprehensive visual indicators, intuitive guidance, and seamless remote playback capabilities (Timeline Seek, Volume Slider, Like/Unlike, Track Skipping, Queue, Playlists, and Spotify Connect). Sleek Hero Card view even when disconnected.
+- 🎴 **Expanded Hero Card & Dynamic Ambient Glow**: Enlarged 64px album art presentation with real-time dynamic ambient glow matching the active track's cover palette via offscreen canvas.
+- 🎛️ **Independent Expanded & Compact Controls**: Dedicated playback and volume controls for both widget modes without duplication. In compact mode, adjust volume with a popup slider or mouse wheel scroll with live percentage badge.
+- 🔊 **Spotify Connect Device Hub & Instant Volume Sync**: Seamlessly transfer playback between PC, Phone, TV, or smart speakers with friendly device name toasts and automatic volume slider synchronization to the new active device.
+- 🥁 **Beat-Synced Dynamic Visualizer**: 4-bar equalizer smoothly animated to the real-time tempo (BPM) and rhythm energy of the song via Spotify Web API.
+- ⚡ **Zero-Polling Flux Architecture**: Direct subscriptions to Discord native Flux Dispatchers (`SPOTIFY_PLAYER_STATE`, `LOCAL_ACTIVITY_UPDATE`) with 60fps `requestAnimationFrame` progress interpolation, drastically reducing CPU/battery usage.
+- 📜 **Enlarged Synced Lyrics Experience**: Expansive lyrics view inside the sidebar (up to 85vh) with smooth centered auto-scroll, active verse luminescence, and 1-click line copying.
+- 🔄 **Reactive Real-Time Settings**: BetterDiscord's settings modal updates instantly upon connection or token refresh without needing to close and reopen.
+- 🔗 **Dual-Sync & Local OAuth Server**: 1-click authentication with automatic local callback capture on port 8888 or direct redirect URL pasting.
+- 📑 **Play Queue Explorer & Library**: Browse upcoming songs and start playlists directly from your Discord sidebar.
+- 🛠️ **Restored Comprehensive Settings**: Brought back full control granularity (`controlsVisibility`, `startCompact`, `showControls`, `showAlbumArt`, `showProgressBar`, `showVisualizer`, `dynamicTheme`, `showLikeButton`, `showShuffleRepeat`, `showVolumeSlider`, `showLyricsButton`, `showQueueButton`, `showDevicesButton`, `showPlaylistsButton`, `showShareButton`).
+
 ## SpotifySync v2.1.4 (2026-05-28)
 - 🚀 **Auto-Updater System**: Integrated a premium, fully-translated confirmation modal to notify you on update availability.
 - 📋 **Integrated Changelog**: Automatically parses and shows native BetterDiscord changelog details on successful update.

@@ -618,9 +618,101 @@ ipcMain.on('set-spotify-client-id', (event, id) => {
     });
 });
 
+let spotifyAuthServer = null;
+
+function startSpotifyAuthCallbackServer() {
+    if (spotifyAuthServer) return;
+    const http = require('http');
+    try {
+        spotifyAuthServer = http.createServer((req, res) => {
+            try {
+                const reqUrl = new URL(req.url, 'http://127.0.0.1:8888');
+                if (reqUrl.pathname === '/callback') {
+                    const code = reqUrl.searchParams.get('code');
+                    const error = reqUrl.searchParams.get('error');
+
+                    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                    if (code) {
+                        res.end(`<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Spotify Conectado - Solari</title>
+    <style>
+        body {
+            background: #0d0e15; color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; margin: 0; text-align: center;
+        }
+        .card {
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; padding: 32px 40px; box-shadow: 0 12px 36px rgba(0,0,0,0.5);
+            max-width: 420px;
+        }
+        h1 { color: #1DB954; margin: 0 0 10px 0; font-size: 24px; }
+        p { color: #aaa; margin: 6px 0; font-size: 14px; line-height: 1.5; }
+        .badge {
+            display: inline-block; background: rgba(29,185,84,0.15); color: #1DB954;
+            padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 12px; margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🎵 Conexão Concluída!</h1>
+        <p>Sua conta do Spotify foi vinculada ao <b>Solari</b> e ao <b>Discord</b> com sucesso.</p>
+        <p>Você pode fechar esta aba e voltar para o Discord.</p>
+        <div class="badge">Pronto para tocar! 🎸</div>
+    </div>
+    <script>setTimeout(() => window.close(), 3000);</script>
+</body>
+</html>`);
+                        broadcastToWebSocketClients({
+                            type: 'finish_spotify_auth',
+                            code: code
+                        });
+                        console.log('[Solari Spotify Auth] OAuth code captured and forwarded to SpotifySync plugin!');
+                    } else {
+                        res.end(`<!DOCTYPE html>
+<html><body style="background:#0d0e15;color:#ef4444;font-family:sans-serif;padding:40px;text-align:center;">
+    <h2>❌ Falha na Autenticação</h2>
+    <p>${error || 'Nenhum código de autorização foi recebido.'}</p>
+</body></html>`);
+                    }
+
+                    setTimeout(() => {
+                        if (spotifyAuthServer) {
+                            try { spotifyAuthServer.close(); } catch (e) {}
+                            spotifyAuthServer = null;
+                        }
+                    }, 20000);
+                    return;
+                }
+            } catch (err) {
+                console.error('[Solari Spotify Auth] Callback error:', err);
+            }
+            res.writeHead(404);
+            res.end('Not Found');
+        });
+
+        spotifyAuthServer.listen(8888, '127.0.0.1', () => {
+            console.log('[Solari Spotify Auth] Callback server listening on http://127.0.0.1:8888/callback');
+        });
+
+        spotifyAuthServer.on('error', (e) => {
+            console.warn('[Solari Spotify Auth] Server port 8888 error:', e.message);
+            spotifyAuthServer = null;
+        });
+    } catch (e) {
+        console.error('[Solari Spotify Auth] Server initialization failed:', e);
+    }
+}
+
 // IPC: Spotify Login (Trigger Auth in Plugin)
 ipcMain.on('spotify-login', () => {
     console.log('[Solari] Triggering Spotify Login in Plugin...');
+    startSpotifyAuthCallbackServer();
     broadcastToWebSocketClients({
         type: 'start_spotify_auth'
     });
@@ -1369,8 +1461,9 @@ function downloadPluginToString(url) {
 
 // Compare version strings (returns 1 if v1 > v2, -1 if v1 < v2, 0 if equal)
 function compareVersions(v1, v2) {
-    const parts1 = v1.split('.').map(Number);
-    const parts2 = v2.split('.').map(Number);
+    if (!v1 || !v2) return 0;
+    const parts1 = String(v1).split('.').map(p => parseInt(p, 10) || 0);
+    const parts2 = String(v2).split('.').map(p => parseInt(p, 10) || 0);
 
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
         const p1 = parts1[i] || 0;
@@ -5233,6 +5326,10 @@ function initializeWebSocketServer() {
                         }
                         break;
 
+                    case 'start_spotify_auth_server':
+                        startSpotifyAuthCallbackServer();
+                        break;
+
                     case 'spotify_config':
                     case 'spotify-config-updated': // Handle both types
                         // Forward config from plugin to renderer
@@ -5250,6 +5347,16 @@ function initializeWebSocketServer() {
                             spotifyTokens.refreshToken = data.config.spotifyRefreshToken;
                             spotifyTokens.tokenExpiry = data.config.spotifyTokenExpiry;
                         }
+                        break;
+
+                    case 'spotify_status_update':
+                        sendToMainWindow('spotify-status-update', {
+                            loggedIn: !!data.connected,
+                            clientId: data.clientId || spotifyClientId
+                        });
+                        if (data.accessToken) spotifyTokens.accessToken = data.accessToken;
+                        if (data.refreshToken) spotifyTokens.refreshToken = data.refreshToken;
+                        if (data.tokenExpiry) spotifyTokens.tokenExpiry = data.tokenExpiry;
                         break;
 
                     case 'notes_config_sync':
