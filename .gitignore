@@ -38,3 +38,4 @@ src/main/managers/profileCardManager.js
 *.diff
 git_diff.txt
 diff_index.txt
+capture_plugins_and_autodetect.js
