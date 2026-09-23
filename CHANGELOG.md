@@ -1,3 +1,20 @@
+## [2.0.2] - 2026-09-17
+**UPDATE 2.0.2: 1-CLICK SPOTIFY PREMIUM AUTO-CONNECT, LOCAL OAUTH LOOPBACK INTERCEPTION & SPOTIFYSYNC INTEGRATION**
+
+---
+
+## ✨ New Features
+*   **1-Click Spotify Premium Auto-Connect**: Streamlined Spotify Premium account linking into a seamless, zero-copy authentication flow that eliminates manual URL copying and pasting:
+    *   *Local Loopback OAuth Server (`127.0.0.1:8888`)*: Embedded an ephemeral, background HTTP callback server in the main process (`startSpotifyAuthCallbackServer`) that listens on `http://127.0.0.1:8888/callback` specifically during authorization handshakes.
+    *   *Automatic Authorization Code Interception*: Automatically captures incoming Spotify OAuth `code` query parameters upon redirection and relays them directly to the `SpotifySync` BetterDiscord plugin via the local WebSocket bridge (`ws://127.0.0.1:6464`) with payload `{ type: 'finish_spotify_auth', code }`.
+    *   *Branded Auto-Closing Success Page*: Serves a polished, dark-mode confirmation card ("🎵 Conexão Concluída!") styled to match Solari's aesthetic (`#0d0e15`) with Spotify emerald accents (`#1DB954`), complete with an automatic script that safely closes the browser tab after 3 seconds (`setTimeout(() => window.close(), 3000)`).
+    *   *Resource-Safe Lifecycle & Auto-Teardown*: Implemented an automatic 20-second teardown timeout that cleanly closes the HTTP server and releases port 8888 after successful callback handling or timeout, preventing background socket leaks or persistent port occupation.
+
+## ⚡ General Changes
+*   **Bi-Directional Spotify Auth IPC & WebSocket Orchestration**:
+    *   *Unified Triggering*: Connected IPC `spotify-login` and WebSocket `start_spotify_auth_server` events so that initiating authentication from either the Solari Desktop App or the BetterDiscord settings panel starts the local loopback server synchronously.
+    *   *Defensive Port Binding*: Wrapped the loopback server in robust error handling to log and recover safely without process interruption if port 8888 encounters collisions or network interface errors.
+
 ## [2.0.1] - 2026-09-09
 **UPDATE 2.0.1: CPU & RESOURCE OPTIMIZATIONS, SECURITY HARDENING, DEPENDENCY SECURITY OVERHAUL, PLUGIN STABILITY FIXES & MEDIA VIEWER POLISH**
 

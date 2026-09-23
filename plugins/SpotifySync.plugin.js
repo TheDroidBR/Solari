@@ -3,7 +3,7 @@
  * @author TheDroid
  * @authorLink https://solarirpc.com
  * @description Premium Spotify controller & Rich Presence companion for Discord. Features Glassmorphism UI, dynamic album color tinting, animated rhythm visualizer, synced LRC lyrics with seek, Spotify Connect device picker, queue explorer, and 1-click Solari authentication.
- * @version 3.0.1
+ * @version 3.1.0
  * @source https://github.com/TheDroidBR/Solari
  * @website https://solarirpc.com
  * @updateUrl https://raw.githubusercontent.com/TheDroidBR/Solari/main/plugins/SpotifySync.plugin.js
@@ -33,10 +33,15 @@ module.exports = class SpotifySync {
             share: 'Share in Chat', shareCopied: 'Link copied to clipboard!', copyTrackUrl: 'Copy Song Link',
             copyArtistUrl: 'Copy Artist Link', copyAlbumUrl: 'Copy Album Link', copied: 'Copied!',
             lyrics: 'Lyrics', noLyrics: 'No lyrics found for this song', lyricsBy: 'Lyrics via LRCLIB',
-            copyLyrics: 'Copy Lyrics', lyricsCopied: 'Lyrics copied to clipboard!',
+            copyLyrics: 'Copy Lyrics', lyricsCopied: 'Lyrics copied to clipboard!', syncLyrics: 'Sync to song',
             devices: 'Spotify Connect', noDevices: 'No devices found', transferring: 'Transferring to', activeDevice: 'Active',
             queue: 'Play Queue', emptyQueue: 'No upcoming tracks in queue', recommended: 'Recommended', contextq: 'From Context',
             library: 'Your Playlists', emptyLibrary: 'No playlists found',
+            idleTitle: 'Spotify Ready', idleSubtitle: 'Choose where to listen or press Play to resume on PC',
+            thisComputer: 'This Computer', resumeOnPc: 'Play on this PC', lastPlayed: 'Recently Played',
+            refreshDevices: 'Refresh Devices', noDevicesOpenApp: 'Open Spotify on your PC or phone to connect',
+            showIdleSuggestions: 'Device Suggestions when Idle', preferCurrentComputer: 'Prioritize Current Computer',
+            connectingTo: 'Connecting to', openSpotifyOnPc: 'Open Spotify on this PC to start playing',
             // Premium Auth
             premiumTitle: 'Spotify Connection',
             premiumNoticeTitle: '👑 Spotify Premium Required for Full Powers',
@@ -96,10 +101,15 @@ module.exports = class SpotifySync {
             share: 'Compartilhar no Chat', shareCopied: 'Link copiado para a área de transferência!', copyTrackUrl: 'Copiar Link da Música',
             copyArtistUrl: 'Copiar Link do Artista', copyAlbumUrl: 'Copiar Link do Álbum', copied: 'Copiado!',
             lyrics: 'Letras', noLyrics: 'Nenhuma letra encontrada para esta música', lyricsBy: 'Letras via LRCLIB',
-            copyLyrics: 'Copiar Letra Completa', lyricsCopied: 'Letras copiadas para a área de transferência!',
+            copyLyrics: 'Copiar Letra Completa', lyricsCopied: 'Letras copiadas para a área de transferência!', syncLyrics: 'Sincronizar letra',
             devices: 'Spotify Connect', noDevices: 'Nenhum dispositivo encontrado', transferring: 'Transferindo para', activeDevice: 'Ativo',
             queue: 'Fila de Reprodução', emptyQueue: 'Nenhuma faixa seguinte na fila', recommended: 'Recomendadas', contextq: 'Do Contexto',
             library: 'Suas Playlists', emptyLibrary: 'Nenhuma playlist encontrada',
+            idleTitle: 'Spotify Pronto', idleSubtitle: 'Escolha onde ouvir ou aperte Play para tocar no PC',
+            thisComputer: 'Este Computador', resumeOnPc: 'Tocar neste PC', lastPlayed: 'Última ouvida',
+            refreshDevices: 'Atualizar Dispositivos', noDevicesOpenApp: 'Abra o Spotify no PC ou celular para conectar',
+            showIdleSuggestions: 'Sugestões de Dispositivo quando Inativo', preferCurrentComputer: 'Priorizar Computador Atual',
+            connectingTo: 'Conectando a', openSpotifyOnPc: 'Abra o Spotify no PC para iniciar a reprodução',
             // Premium Auth
             premiumTitle: 'Conexão Spotify',
             premiumNoticeTitle: '👑 Spotify Premium Necessário para Poderes Completos',
@@ -159,10 +169,15 @@ module.exports = class SpotifySync {
             share: 'Compartir en Chat', shareCopied: '¡Enlace copiado al portapapeles!', copyTrackUrl: 'Copiar Enlace de Canción',
             copyArtistUrl: 'Copiar Enlace del Artista', copyAlbumUrl: 'Copiar Enlace del Álbum', copied: '¡Copiado!',
             lyrics: 'Letras', noLyrics: 'No se encontraron letras para esta canción', lyricsBy: 'Letras via LRCLIB',
-            copyLyrics: 'Copiar Letras', lyricsCopied: '¡Letras copiadas al portapapeles!',
+            copyLyrics: 'Copiar Letras', lyricsCopied: '¡Letras copiadas al portapapeles!', syncLyrics: 'Sincronizar letra',
             devices: 'Spotify Connect', noDevices: 'No se encontraron dispositivos', transferring: 'Transfiriendo a', activeDevice: 'Activo',
             queue: 'Cola de Reproducción', emptyQueue: 'No hay canciones en cola', recommended: 'Recomendadas', contextq: 'Del Contexto',
             library: 'Tus Playlists', emptyLibrary: 'No se encontraron playlists',
+            idleTitle: 'Spotify Listo', idleSubtitle: 'Elige dónde escuchar o pulsa Play para reproducir en el PC',
+            thisComputer: 'Este Ordenador', resumeOnPc: 'Reproducir en este PC', lastPlayed: 'Última escuchada',
+            refreshDevices: 'Actualizar Dispositivos', noDevicesOpenApp: 'Abre Spotify en tu PC o móvil para conectar',
+            showIdleSuggestions: 'Sugerencias de Dispositivos al estar Inactivo', preferCurrentComputer: 'Priorizar Ordenador Actual',
+            connectingTo: 'Conectando a', openSpotifyOnPc: 'Abre Spotify en tu PC para iniciar la reproducción',
             // Premium Auth
             premiumTitle: 'Conexión Spotify',
             premiumNoticeTitle: '👑 Spotify Premium Necesario para Poderes Completos',
@@ -270,6 +285,8 @@ module.exports = class SpotifySync {
             showDevicesButton: true,
             showPlaylistsButton: true,
             showShareButton: true,
+            showIdleDeviceSuggestions: true,
+            preferCurrentComputer: true,
             startCompact: false,
             language: 'pt-BR',
             serverUrl: 'ws://127.0.0.1:6464', // Solari App Master WebSocket Port
@@ -281,7 +298,8 @@ module.exports = class SpotifySync {
             spotifyVerifier: '',
             spotifyRedirectUri: 'http://127.0.0.1:8888/callback',
             _userDisplayName: '',
-            _userProduct: ''
+            _userProduct: '',
+            _lastKnownTrack: null
         };
 
         this.lastControlTime = 0;
@@ -419,7 +437,7 @@ module.exports = class SpotifySync {
 
     // ═══════════════════ LIFECYCLE ═══════════════════
     start() {
-        console.log(`[SpotifySync] Starting v${this.meta.version || '3.0.1'} (Next-Gen)...`);
+        console.log(`[SpotifySync] Starting v${this.meta.version || '3.1.0'} (Next-Gen)...`);
         this.loadConfig();
         this.checkChangelog();
         this.checkForUpdates();
@@ -821,13 +839,51 @@ module.exports = class SpotifySync {
             : (state.isPlaying && state.track);
 
         // Premium AFK Fallback: if Discord Store has no track but user is linked to Spotify API
-        const hasRealTrack = state.track && state.track.trackId;
+        let hasRealTrack = state.track && state.track.trackId;
         if (!hasRealTrack && this.hasPremium()) {
             const fallback = await this.getSpotifyStatePremiumFallback();
             if (fallback && fallback.track && fallback.track.trackId) {
                 state = fallback;
+                hasRealTrack = true;
                 shouldShow = true;
             }
+        }
+
+        // v3.1.0: Smart Idle State & PC Wake Discovery
+        // If nothing is playing / no active track, check for Spotify Connect devices and present ready state
+        const isStillNotPlaying = !state.isPlaying && (!state.track || !state.track.trackId);
+        if (isStillNotPlaying && this.hasPremium() && (this.config.showIdleDeviceSuggestions || this.config.controlsVisibility === 'whenOpen')) {
+            const devices = this._devicesCache?.length ? this._devicesCache : await this.fetchDevices();
+            if (devices && devices.length > 0) {
+                const pcDev = this.resolveCurrentComputerDevice(devices);
+                const devName = pcDev ? pcDev.name : this.t('thisComputer');
+                const lastTrack = this.config._lastKnownTrack;
+
+                this._isIdleReady = true;
+                this._targetDevice = pcDev;
+
+                state = {
+                    isPlaying: false,
+                    isSpotifyOpen: true,
+                    track: {
+                        title: lastTrack ? lastTrack.title : this.t('idleTitle'),
+                        artist: lastTrack ? lastTrack.artist : `💻 ${devName}`,
+                        album: lastTrack ? (lastTrack.album || '') : this.t('idleSubtitle'),
+                        albumArtUrl: lastTrack?.albumArtUrl || null,
+                        trackId: lastTrack?.trackId || null,
+                        duration: lastTrack?.duration || 0,
+                        position: 0,
+                        _config: this.config
+                    }
+                };
+                shouldShow = true;
+            } else {
+                this._isIdleReady = false;
+                this._targetDevice = null;
+            }
+        } else if (hasRealTrack) {
+            this._isIdleReady = false;
+            this._targetDevice = null;
         }
 
         if (shouldShow && state.track) {
@@ -842,6 +898,20 @@ module.exports = class SpotifySync {
                         this.applyDynamicTheme(colors);
                     });
                 }
+            }
+
+            // Cache last known track when playing
+            if (state.isPlaying && state.track.trackId) {
+                this.config._lastKnownTrack = {
+                    title: state.track.title,
+                    artist: state.track.artist,
+                    album: state.track.album,
+                    albumArtUrl: state.track.albumArtUrl,
+                    trackId: state.track.trackId,
+                    uri: `spotify:track:${state.track.trackId}`,
+                    duration: state.track.duration
+                };
+                this.saveConfig();
             }
 
             this._isPlaying = state.isPlaying;
@@ -1078,7 +1148,16 @@ module.exports = class SpotifySync {
         if (miniVolSlider && miniVolSlider !== document.activeElement) {
             miniVolSlider.value = this._volumePercent;
         }
+        this.updateVolumeSliderFills();
         this.updateVolumeIcons();
+    }
+
+    updateVolumeSliderFills() {
+        const pct = (typeof this._volumePercent === 'number' && !isNaN(this._volumePercent)) ? this._volumePercent : 100;
+        const mainVol = document.getElementById('ss2-vol-slider');
+        const miniVol = document.getElementById('ss2-mini-vol-slider');
+        if (mainVol) mainVol.style.setProperty('--ss-vol-pct', `${pct}%`);
+        if (miniVol) miniVol.style.setProperty('--ss-vol-pct', `${pct}%`);
     }
 
     async syncPlaybackStateFromApi() {
@@ -1419,6 +1498,130 @@ module.exports = class SpotifySync {
         return this._devicesCache;
     }
 
+    resolveCurrentComputerDevice(devices) {
+        if (!Array.isArray(devices) || devices.length === 0) return null;
+
+        let localHostname = '';
+        try {
+            if (typeof require === 'function') {
+                const os = require('os');
+                if (os && typeof os.hostname === 'function') {
+                    localHostname = os.hostname() || '';
+                }
+            }
+        } catch (e) { }
+
+        if (!localHostname && typeof process !== 'undefined' && process?.env?.COMPUTERNAME) {
+            localHostname = process.env.COMPUTERNAME || '';
+        }
+
+        const clean = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const cleanLocal = clean(localHostname);
+
+        // 1. Direct or partial name match with type === 'computer'
+        if (cleanLocal) {
+            const nameMatch = devices.find(d => 
+                (d.type || '').toLowerCase() === 'computer' && 
+                (clean(d.name).includes(cleanLocal) || cleanLocal.includes(clean(d.name)))
+            );
+            if (nameMatch) return nameMatch;
+        }
+
+        // 2. Any device of type 'computer'
+        const anyComputer = devices.find(d => (d.type || '').toLowerCase() === 'computer');
+        if (anyComputer) return anyComputer;
+
+        // 3. Preferred device from config
+        if (this.config.preferredDeviceId) {
+            const pref = devices.find(d => d.id === this.config.preferredDeviceId);
+            if (pref) return pref;
+        }
+
+        // 4. Currently active device (if any)
+        const active = devices.find(d => d.is_active);
+        if (active) return active;
+
+        // 5. First available device
+        return devices[0];
+    }
+
+    async fetchRecentlyPlayed() {
+        if (!this.hasPremium()) return null;
+        try {
+            const data = await this.spotifyApi('/recently-played?limit=1', 'GET', null, false);
+            if (data?.items?.[0]?.track) {
+                const t = data.items[0].track;
+                const art = t.album?.images?.[0]?.url || null;
+                return {
+                    title: t.name || 'Unknown',
+                    artist: t.artists?.map(a => a.name).join(', ') || 'Unknown',
+                    album: t.album?.name || '',
+                    albumArtUrl: art,
+                    trackId: t.id || null,
+                    uri: t.uri || `spotify:track:${t.id}`,
+                    duration: t.duration_ms || 0
+                };
+            }
+        } catch (e) { }
+        return null;
+    }
+
+    async smartPlayOrWake() {
+        // If already playing, simple toggle to pause
+        if (this._isPlaying) {
+            return this.executeControl('pause');
+        }
+
+        // If local Discord store has an active paused track session, try resume
+        const state = this.getSpotifyState();
+        if (state.isPlaying) {
+            return this.executeControl('playpause');
+        }
+
+        // When Spotify has no active device or is idle:
+        if (this.hasPremium()) {
+            const devices = await this.fetchDevices();
+            if (devices && devices.length > 0) {
+                const targetPc = this.resolveCurrentComputerDevice(devices);
+                if (targetPc) {
+                    const devName = targetPc.name || this.t('thisComputer');
+                    this.safeShowToast(`💻 ${this.t('transferring')}: ${devName}...`, { type: 'info' });
+
+                    // Transfer playback with play: true
+                    await this.transferPlayback(targetPc.id, true, targetPc.volume_percent, devName);
+                    this._isPlaying = true;
+                    this.updatePlayPauseIcons();
+
+                    // Verification fallback: ensure music actually started playing
+                    setTimeout(async () => {
+                        const check = await this.spotifyApi('', 'GET');
+                        if (!check || !check.is_playing) {
+                            const lastTrack = this.config._lastKnownTrack || this._track;
+                            if (lastTrack?.uri || lastTrack?.trackId) {
+                                const uri = lastTrack.uri || `spotify:track:${lastTrack.trackId}`;
+                                await this.spotifyApi(`/play?device_id=${targetPc.id}`, 'PUT', { uris: [uri] });
+                            } else {
+                                await this.spotifyApi(`/play?device_id=${targetPc.id}`, 'PUT', {});
+                            }
+                            this.syncPlaybackStateFromApi();
+                        }
+                    }, 700);
+                    return;
+                } else {
+                    this.safeShowToast(`⚠️ ${this.t('openSpotifyOnPc')}`, { type: 'warning' });
+                    this.toggleSubView('devices');
+                    return;
+                }
+            } else {
+                this.safeShowToast(`⚠️ ${this.t('noDevicesOpenApp')}`, { type: 'warning' });
+                return;
+            }
+        }
+
+        // Non-premium fallback
+        return this.executeControl('play');
+    }
+
     async transferPlayback(deviceId, play = true, targetVolume = null, deviceName = null) {
         try {
             if (!deviceName && this._devicesCache) {
@@ -1539,6 +1742,20 @@ module.exports = class SpotifySync {
             background: rgba(255, 255, 255, 0.08);
             color: rgba(255, 255, 255, 0.5);
             border-color: rgba(255, 255, 255, 0.12);
+        }
+        .ss2-status-pill.ss2-status-ready {
+            background: rgba(29, 185, 84, 0.18);
+            color: #1DB954;
+            border-color: rgba(29, 185, 84, 0.45);
+            box-shadow: 0 0 8px rgba(29, 185, 84, 0.25);
+        }
+        .ss2-item-card.ss2-item-current-pc {
+            border: 1px solid rgba(29, 185, 84, 0.35) !important;
+            background: rgba(29, 185, 84, 0.08) !important;
+        }
+        .ss2-item-card.ss2-item-current-pc:hover {
+            background: rgba(29, 185, 84, 0.16) !important;
+            border-color: rgba(29, 185, 84, 0.6) !important;
         }
 
         #ss2-widget.ss2-is-expanded .ss2-art-container,
@@ -1736,16 +1953,18 @@ module.exports = class SpotifySync {
             display: inline-flex;
             align-items: center;
             flex-shrink: 0;
-            padding: 2px 4px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.05);
-            transition: background 0.2s ease, box-shadow 0.2s ease;
+            padding: 3px 6px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
             overflow: hidden;
         }
         .ss2-mini-vol-wrap:hover,
-        .ss2-mini-vol-wrap:focus-within {
-            background: rgba(255, 255, 255, 0.12);
-            box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+        .ss2-mini-vol-wrap.ss2-vol-active {
+            background: rgba(255, 255, 255, 0.13);
+            border-color: rgba(255, 255, 255, 0.16);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
         }
         #ss2-widget.ss2-is-expanded .ss2-mini-vol-wrap { display: none !important; }
 
@@ -1753,8 +1972,8 @@ module.exports = class SpotifySync {
             background: transparent;
             border: none;
             color: rgba(255, 255, 255, 0.75);
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             cursor: pointer;
             display: inline-flex;
@@ -1768,46 +1987,58 @@ module.exports = class SpotifySync {
             color: #fff;
             transform: scale(1.1);
         }
-        .ss2-mini-vol-btn svg { width: 13px; height: 13px; fill: currentColor; }
+        .ss2-mini-vol-btn svg { width: 14px; height: 14px; fill: currentColor; }
 
         .ss2-mini-vol-slider {
             width: 0;
-            height: 4px;
+            height: 22px;
             opacity: 0;
             pointer-events: none;
             margin: 0;
             -webkit-appearance: none;
             appearance: none;
-            background: rgba(255, 255, 255, 0.25);
-            border-radius: 2px;
+            background: transparent !important;
+            border: none;
             outline: none;
             cursor: pointer;
-            transition: width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease, margin 0.2s ease, background 0.2s ease;
+            transition: width 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease, margin 0.2s ease;
         }
         .ss2-mini-vol-wrap:hover .ss2-mini-vol-slider,
-        .ss2-mini-vol-wrap:focus-within .ss2-mini-vol-slider {
-            width: 44px;
+        .ss2-mini-vol-wrap.ss2-vol-active .ss2-mini-vol-slider {
+            width: 104px;
             opacity: 1;
             pointer-events: auto;
-            margin: 0 4px 0 2px;
+            margin: 0 6px 0 8px;
         }
-        .ss2-mini-vol-slider:hover {
-            background: rgba(255, 255, 255, 0.4);
+        .ss2-mini-vol-slider::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 4px;
+            background: linear-gradient(to right, var(--ss-accent, #1DB954) 0%, var(--ss-accent, #1DB954) var(--ss-vol-pct, 100%), rgba(255, 255, 255, 0.25) var(--ss-vol-pct, 100%), rgba(255, 255, 255, 0.25) 100%);
+            cursor: pointer;
+            transition: background 0.1s ease;
+        }
+        .ss2-mini-vol-slider:hover::-webkit-slider-runnable-track {
+            filter: brightness(1.2);
         }
         .ss2-mini-vol-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 10px;
-            height: 10px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
             background: #fff;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            border: 2px solid var(--ss-accent, #1DB954);
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
             cursor: pointer;
-            transition: transform 0.15s ease, background 0.15s ease;
+            margin-top: -4px;
+            transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
         }
-        .ss2-mini-vol-slider:hover::-webkit-slider-thumb {
+        .ss2-mini-vol-slider:hover::-webkit-slider-thumb,
+        .ss2-mini-vol-slider:active::-webkit-slider-thumb {
             background: var(--ss-accent, #1DB954);
-            transform: scale(1.2);
+            border-color: #fff;
+            transform: scale(1.25);
+            box-shadow: 0 0 10px var(--ss-accent-glow, rgba(29, 185, 84, 0.7));
         }
 
         /* Floating Volume Badge for Wheel Scroll */
@@ -2143,29 +2374,50 @@ module.exports = class SpotifySync {
         .ss2-vol-box {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 7px;
             flex: 1;
-            max-width: 110px;
+            max-width: 135px;
         }
-        .ss2-vol-box svg { width: 14px; height: 14px; fill: rgba(255, 255, 255, 0.5); flex-shrink: 0; }
+        .ss2-vol-box svg { width: 15px; height: 15px; fill: rgba(255, 255, 255, 0.65); flex-shrink: 0; }
         .ss2-vol-slider {
             width: 100%;
-            height: 3px;
+            height: 22px;
             -webkit-appearance: none;
             appearance: none;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 2px;
+            background: transparent !important;
+            border: none;
             outline: none;
             cursor: pointer;
         }
+        .ss2-vol-slider::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 4px;
+            background: linear-gradient(to right, var(--ss-accent, #1DB954) 0%, var(--ss-accent, #1DB954) var(--ss-vol-pct, 100%), rgba(255, 255, 255, 0.25) var(--ss-vol-pct, 100%), rgba(255, 255, 255, 0.25) 100%);
+            cursor: pointer;
+            transition: background 0.1s ease;
+        }
+        .ss2-vol-slider:hover::-webkit-slider-runnable-track {
+            filter: brightness(1.2);
+        }
         .ss2-vol-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 10px;
-            height: 10px;
-            background: #fff;
+            appearance: none;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            box-shadow: 0 0 4px rgba(0,0,0,0.4);
+            background: #fff;
+            border: 2px solid var(--ss-accent, #1DB954);
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
             cursor: pointer;
+            margin-top: -4px;
+            transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+        }
+        .ss2-vol-slider:hover::-webkit-slider-thumb,
+        .ss2-vol-slider:active::-webkit-slider-thumb {
+            background: var(--ss-accent, #1DB954);
+            border-color: #fff;
+            transform: scale(1.25);
+            box-shadow: 0 0 10px var(--ss-accent-glow, rgba(29, 185, 84, 0.7));
         }
 
         /* Inline Sidebar Sub-Views (Lyrics / Queue / Devices / Library) */
@@ -2228,18 +2480,29 @@ module.exports = class SpotifySync {
 
         /* Lyrics Styling */
         .ss2-lyrics-scroll-wrap {
+            position: relative;
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 24px 14px;
-            mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+            padding: 24px 14px 70px 14px;
+            mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 93%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 5%, black 93%, transparent 100%);
             display: flex;
             flex-direction: column;
             gap: 6px;
+            scroll-behavior: smooth;
         }
         .ss2-lyrics-scroll-wrap::-webkit-scrollbar { width: 4px; }
         .ss2-lyrics-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+        .ss2-lyrics-placeholder {
+            margin: auto;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 13px;
+            text-align: center;
+            padding: 24px;
+            line-height: 1.5;
+        }
 
         .ss2-lyric-line {
             padding: 8px 12px;
@@ -2247,10 +2510,11 @@ module.exports = class SpotifySync {
             color: rgba(255, 255, 255, 0.4);
             border-radius: 8px;
             line-height: 1.6;
-            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition: color 0.25s ease, background 0.25s ease, transform 0.25s ease;
             cursor: pointer;
             text-align: center;
             user-select: none;
+            flex-shrink: 0;
         }
         .ss2-lyric-line:hover {
             color: rgba(255, 255, 255, 0.85);
@@ -2260,13 +2524,46 @@ module.exports = class SpotifySync {
         .ss2-lyric-line.ss2-lyric-active {
             color: #fff !important;
             font-weight: 800;
-            font-size: 17px;
+            font-size: 16.5px;
             background: var(--ss-accent-bg, rgba(29, 185, 84, 0.16));
             text-shadow: 0 0 16px var(--ss-accent, #1DB954);
-            transform: scale(1.05);
+            transform: scale(1.04);
             padding: 10px 14px;
             border: 1px solid var(--ss-accent-glow, rgba(29, 185, 84, 0.3));
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .ss2-lyrics-sync-btn {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: rgba(20, 20, 20, 0.88);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--ss-accent, #1DB954);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 5px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease, background 0.15s ease;
+            z-index: 10;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .ss2-lyrics-sync-btn:hover {
+            background: var(--ss-accent, #1DB954);
+            color: #000;
+        }
+        .ss2-lyrics-sync-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
         }
 
         /* List Items (Queue / Devices / Library) */
@@ -2431,7 +2728,7 @@ module.exports = class SpotifySync {
                         <button class="ss2-mini-vol-btn" id="ss2-mini-vol-btn" title="${this.t('volume')}">
                             <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
                         </button>
-                        <input type="range" class="ss2-mini-vol-slider" id="ss2-mini-vol-slider" min="0" max="100" value="100" />
+                        <input type="range" class="ss2-mini-vol-slider" id="ss2-mini-vol-slider" min="0" max="100" value="${this._volumePercent}" style="--ss-vol-pct: ${this._volumePercent}%;" />
                     </div>
 
                     <!-- Mini Equalizer Bars -->
@@ -2544,7 +2841,7 @@ module.exports = class SpotifySync {
                         <!-- Volume Slider -->
                         <div class="ss2-vol-box" id="ss2-vol-box">
                             <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
-                            <input type="range" class="ss2-vol-slider" id="ss2-vol-slider" min="0" max="100" value="100" />
+                            <input type="range" class="ss2-vol-slider" id="ss2-vol-slider" min="0" max="100" value="${this._volumePercent}" style="--ss-vol-pct: ${this._volumePercent}%;" />
                         </div>
                     </div>
                 </div>
@@ -2603,10 +2900,10 @@ module.exports = class SpotifySync {
         const widget = document.getElementById('ss2-widget');
         if (!widget) return;
 
-        // Play/Pause Click
+        // Play/Pause Click (Smart Play or Wake)
         const handlePlayPause = (e) => {
             e.stopPropagation();
-            this.executeControl('playpause');
+            this.smartPlayOrWake();
         };
         document.getElementById('ss2-mini-play')?.addEventListener('click', handlePlayPause);
         document.getElementById('ss2-exp-play')?.addEventListener('click', handlePlayPause);
@@ -2627,11 +2924,13 @@ module.exports = class SpotifySync {
         document.getElementById('ss2-mini-next')?.addEventListener('click', handleNext);
         document.getElementById('ss2-exp-next')?.addEventListener('click', handleNext);
 
-        // Expand/Collapse Accordion
+        // Expand/Collapse Accordion (Persists preference automatically)
         document.getElementById('ss2-btn-expand')?.addEventListener('click', (e) => {
             e.stopPropagation();
             this._expanded = !this._expanded;
             widget.classList.toggle('ss2-is-expanded', this._expanded);
+            this.config.startCompact = !this._expanded;
+            this.saveConfig();
             if (this._track) {
                 this.updateWidget(this._track, this._isPlaying);
             }
@@ -2719,26 +3018,66 @@ module.exports = class SpotifySync {
             this._volumePercent = parseInt(e.target.value, 10);
             const miniVol = document.getElementById('ss2-mini-vol-slider');
             if (miniVol) miniVol.value = this._volumePercent;
+            this.updateVolumeSliderFills();
             this.updateVolumeIcons();
             this.showVolumeIndicator(this._volumePercent);
+            if (this._volDragDebounce) clearTimeout(this._volDragDebounce);
+            this._volDragDebounce = setTimeout(() => {
+                this.setVolume(this._volumePercent);
+            }, 75);
         });
         volSlider?.addEventListener('change', (e) => {
             e.stopPropagation();
+            if (this._volDragDebounce) clearTimeout(this._volDragDebounce);
             this.setVolume(parseInt(e.target.value, 10));
         });
 
         // Compact Volume Slider & Mute Toggle
         const miniVolSlider = document.getElementById('ss2-mini-vol-slider');
+        const miniVolWrap = document.getElementById('ss2-mini-vol-wrap');
+
+        let isMiniVolDragging = false;
+
+        miniVolSlider?.addEventListener('mousedown', () => {
+            isMiniVolDragging = true;
+            miniVolWrap?.classList.add('ss2-vol-active');
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isMiniVolDragging) {
+                isMiniVolDragging = false;
+                miniVolWrap?.classList.remove('ss2-vol-active');
+                miniVolSlider?.blur();
+            }
+        });
+
+        miniVolWrap?.addEventListener('mouseleave', () => {
+            if (!isMiniVolDragging) {
+                miniVolWrap?.classList.remove('ss2-vol-active');
+                miniVolSlider?.blur();
+            }
+        });
+
         miniVolSlider?.addEventListener('input', (e) => {
             e.stopPropagation();
             this._volumePercent = parseInt(e.target.value, 10);
             if (volSlider) volSlider.value = this._volumePercent;
+            this.updateVolumeSliderFills();
             this.updateVolumeIcons();
             this.showVolumeIndicator(this._volumePercent);
+            if (this._volDragDebounce) clearTimeout(this._volDragDebounce);
+            this._volDragDebounce = setTimeout(() => {
+                this.setVolume(this._volumePercent);
+            }, 75);
         });
         miniVolSlider?.addEventListener('change', (e) => {
             e.stopPropagation();
+            if (this._volDragDebounce) clearTimeout(this._volDragDebounce);
             this.setVolume(parseInt(e.target.value, 10));
+            miniVolSlider?.blur();
+            if (!miniVolWrap?.matches(':hover')) {
+                miniVolWrap?.classList.remove('ss2-vol-active');
+            }
         });
 
         document.getElementById('ss2-mini-vol-btn')?.addEventListener('click', (e) => {
@@ -2751,16 +3090,20 @@ module.exports = class SpotifySync {
             }
             if (volSlider) volSlider.value = this._volumePercent;
             if (miniVolSlider) miniVolSlider.value = this._volumePercent;
+            this.updateVolumeSliderFills();
             this.updateVolumeIcons();
             this.showVolumeIndicator(this._volumePercent);
             this.setVolume(this._volumePercent);
         });
 
-        // Mouse Wheel Volume on Widget
+        // Mouse Wheel Volume on Widget (Smooth & Gradual 2% step, 1% with Shift/Ctrl/Touchpad)
         widget.addEventListener('wheel', (e) => {
-            if (e.target.closest('.ss2-subview-content')) return;
+            // Never hijack wheel scrolling when user is inside any subview panel (lyrics, queue, devices, library)
+            if (this._activeSubView || e.target.closest('#ss2-subview-mount, .ss2-subview-panel, .ss2-lyrics-scroll-wrap, .ss2-subview-content')) return;
             e.preventDefault();
-            const delta = e.deltaY < 0 ? 5 : -5;
+            const isFine = e.shiftKey || e.ctrlKey || e.altKey || Math.abs(e.deltaY) < 40;
+            const step = isFine ? 1 : 2;
+            const delta = e.deltaY < 0 ? step : -step;
             const currentVol = (typeof this._volumePercent === 'number' && !isNaN(this._volumePercent)) ? this._volumePercent : 50;
             const newVol = Math.max(0, Math.min(100, currentVol + delta));
             this._volumePercent = newVol;
@@ -2768,13 +3111,19 @@ module.exports = class SpotifySync {
             const miniVol = document.getElementById('ss2-mini-vol-slider');
             if (mainVol) mainVol.value = newVol;
             if (miniVol) miniVol.value = newVol;
+            this.updateVolumeSliderFills();
             this.updateVolumeIcons();
             this.showVolumeIndicator(newVol);
             if (this._volDebounce) clearTimeout(this._volDebounce);
             this._volDebounce = setTimeout(() => {
                 this.setVolume(newVol);
-            }, 120);
+            }, 75);
         }, { passive: false });
+
+        // Isolate subviews from parent wheel events
+        document.getElementById('ss2-subview-mount')?.addEventListener('wheel', (e) => {
+            e.stopPropagation();
+        }, { passive: true });
 
         // Sub-View Buttons (Inside sidebar)
         document.getElementById('ss2-lyrics-tab-btn')?.addEventListener('click', (e) => {
@@ -2946,8 +3295,13 @@ module.exports = class SpotifySync {
         // Status Pill in Brand Bar
         const statusPill = document.getElementById('ss2-status-pill');
         if (statusPill) {
-            statusPill.textContent = isPlaying ? (this.t('nowPlaying') || 'TOCANDO') : (this.t('notPlaying') || 'PAUSADO');
-            statusPill.classList.toggle('ss2-status-paused', !isPlaying);
+            if (this._isIdleReady && this._targetDevice) {
+                statusPill.textContent = `💻 ${this._targetDevice.name || this.t('thisComputer')}`;
+                statusPill.className = 'ss2-status-pill ss2-status-ready';
+            } else {
+                statusPill.textContent = isPlaying ? (this.t('nowPlaying') || 'TOCANDO') : (this.t('notPlaying') || 'PAUSADO');
+                statusPill.className = `ss2-status-pill ${!isPlaying ? 'ss2-status-paused' : ''}`;
+            }
         }
 
         // Album Art (Compact & Hero)
@@ -3064,11 +3418,18 @@ module.exports = class SpotifySync {
         const playIcon = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
         const pauseIcon = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
         const currentIcon = this._isPlaying ? pauseIcon : playIcon;
+        const playBtnTitle = this._isIdleReady ? (this.t('resumeOnPc') || 'Tocar neste PC') : this.t('playPause');
 
         const miniPlay = document.getElementById('ss2-mini-play');
         const expPlay = document.getElementById('ss2-exp-play');
-        if (miniPlay) miniPlay.innerHTML = currentIcon;
-        if (expPlay) expPlay.innerHTML = currentIcon;
+        if (miniPlay) {
+            miniPlay.innerHTML = currentIcon;
+            miniPlay.title = playBtnTitle;
+        }
+        if (expPlay) {
+            expPlay.innerHTML = currentIcon;
+            expPlay.title = playBtnTitle;
+        }
     }
 
     updateVolumeIcons() {
@@ -3177,11 +3538,13 @@ module.exports = class SpotifySync {
                     <button class="ss2-btn" id="ss2-lyrics-size-btn" title="Expandir / Reduzir">${expandIcon}</button>
                     <button class="ss2-btn" id="ss2-lyrics-copy-btn" title="${this.t('copyLyrics')}">${copyIcon}</button>
                 </div>
-                <div class="ss2-lyrics-scroll-wrap">
-                    <div class="ss2-subview-content" id="ss2-lyrics-scroll" style="align-items:center;justify-content:center;">
-                        <div style="color:rgba(255,255,255,0.4);font-size:12px;">Carregando letras...</div>
-                    </div>
+                <div class="ss2-lyrics-scroll-wrap" id="ss2-lyrics-scroll">
+                    <div class="ss2-lyrics-placeholder">Carregando letras...</div>
                 </div>
+                <button class="ss2-lyrics-sync-btn" id="ss2-lyrics-sync-btn">
+                    <svg viewBox="0 0 24 24" style="width:12px;height:12px;fill:currentColor;"><path d="M12 4v12m-5-5l5 5 5-5"/></svg>
+                    ${this.t('syncLyrics') || 'Sincronizar letra'}
+                </button>
             </div>
         `;
 
@@ -3201,10 +3564,11 @@ module.exports = class SpotifySync {
 
         const lyrics = await this.fetchLyrics(trackTitle, trackArtist, trackAlbum, this._durationMs);
         const scroll = mount.querySelector('#ss2-lyrics-scroll');
+        const syncBtn = mount.querySelector('#ss2-lyrics-sync-btn');
         if (!scroll) return;
 
         if (!lyrics || lyrics.lines.length === 0) {
-            scroll.innerHTML = `<div style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center;padding:20px;">${this.t('noLyrics')}</div>`;
+            scroll.innerHTML = `<div class="ss2-lyrics-placeholder">${this.t('noLyrics')}</div>`;
             return;
         }
 
@@ -3221,14 +3585,57 @@ module.exports = class SpotifySync {
             </div>
         `).join('');
 
+        let isUserScrolling = false;
+        let userScrollTimeout = null;
+
+        const scrollToLine = (lineEl) => {
+            if (!lineEl || !scroll) return;
+            const targetTop = lineEl.offsetTop - (scroll.clientHeight / 2) + (lineEl.clientHeight / 2);
+            scroll.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+        };
+
+        const handleUserScroll = () => {
+            isUserScrolling = true;
+            syncBtn?.classList.add('visible');
+            if (userScrollTimeout) clearTimeout(userScrollTimeout);
+            userScrollTimeout = setTimeout(() => {
+                isUserScrolling = false;
+                syncBtn?.classList.remove('visible');
+            }, 3800);
+        };
+
+        scroll.addEventListener('wheel', (e) => {
+            e.stopPropagation();
+            handleUserScroll();
+        }, { passive: true });
+        scroll.addEventListener('touchmove', (e) => {
+            e.stopPropagation();
+            handleUserScroll();
+        }, { passive: true });
+        scroll.addEventListener('pointerdown', (e) => {
+            if (e.target === scroll) handleUserScroll();
+        });
+
+        syncBtn?.addEventListener('click', () => {
+            isUserScrolling = false;
+            syncBtn.classList.remove('visible');
+            if (userScrollTimeout) clearTimeout(userScrollTimeout);
+            const activeLine = scroll.querySelector('.ss2-lyric-line.ss2-lyric-active');
+            if (activeLine) scrollToLine(activeLine);
+        });
+
         // Click on line to seek
         scroll.querySelectorAll('.ss2-lyric-line').forEach(lineEl => {
             lineEl.addEventListener('click', () => {
                 const t = parseInt(lineEl.dataset.time, 10);
                 if (t >= 0) {
+                    isUserScrolling = false;
+                    syncBtn?.classList.remove('visible');
+                    if (userScrollTimeout) clearTimeout(userScrollTimeout);
                     this._positionMs = t;
                     this._positionTimestamp = Date.now();
                     this.seek(t);
+                    scrollToLine(lineEl);
                 }
             });
         });
@@ -3256,8 +3663,8 @@ module.exports = class SpotifySync {
                     allLines.forEach((el, i) => {
                         el.classList.toggle('ss2-lyric-active', i === activeIdx);
                     });
-                    if (activeIdx >= 0 && allLines[activeIdx]) {
-                        allLines[activeIdx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    if (!isUserScrolling && activeIdx >= 0 && allLines[activeIdx]) {
+                        scrollToLine(allLines[activeIdx]);
                     }
                 }
             }, 200);
@@ -3338,6 +3745,9 @@ module.exports = class SpotifySync {
                 <div class="ss2-subview-header">
                     <button class="ss2-btn" id="ss2-subview-back">${closeIcon}</button>
                     <span class="ss2-subview-title">${this.t('devices')}</span>
+                    <button class="ss2-btn" id="ss2-devices-refresh" title="${this.t('refreshDevices')}" style="margin-left:auto;">
+                        <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                    </button>
                 </div>
                 <div class="ss2-subview-content" id="ss2-devices-content">
                     <div style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center;padding:20px;">Buscando dispositivos...</div>
@@ -3346,6 +3756,7 @@ module.exports = class SpotifySync {
         `;
 
         mount.querySelector('#ss2-subview-back')?.addEventListener('click', () => this.closeSubView());
+        mount.querySelector('#ss2-devices-refresh')?.addEventListener('click', () => this.renderDevicesView(mount));
 
         if (!this.hasPremium()) {
             const content = mount.querySelector('#ss2-devices-content');
@@ -3378,16 +3789,26 @@ module.exports = class SpotifySync {
             }
         };
 
-        content.innerHTML = devices.map(d => `
-            <div class="ss2-item-card ${d.is_active ? 'ss2-item-active' : ''}" data-dev-id="${d.id}" data-dev-name="${d.name || 'Device'}" data-volume="${d.volume_percent ?? ''}">
+        const currentPc = this.resolveCurrentComputerDevice(devices);
+        const sortedDevices = [...devices].sort((a, b) => {
+            if (currentPc && a.id === currentPc.id) return -1;
+            if (currentPc && b.id === currentPc.id) return 1;
+            return 0;
+        });
+
+        content.innerHTML = sortedDevices.map(d => {
+            const isPc = currentPc && d.id === currentPc.id;
+            return `
+            <div class="ss2-item-card ${d.is_active ? 'ss2-item-active' : ''} ${isPc ? 'ss2-item-current-pc' : ''}" data-dev-id="${d.id}" data-dev-name="${d.name || 'Device'}" data-volume="${d.volume_percent ?? ''}">
                 <div style="font-size: 20px; width: 32px; text-align: center;">${deviceIcon(d.type)}</div>
                 <div class="ss2-item-meta">
                     <span class="ss2-item-title">${d.name || 'Device'}</span>
                     <span class="ss2-item-sub">${d.type} • 🔊 ${d.volume_percent ?? '?'}%</span>
                 </div>
-                ${d.is_active ? `<span style="font-size:10px;font-weight:700;color:var(--ss-accent);background:var(--ss-accent-bg);padding:2px 6px;border-radius:10px;">${this.t('activeDevice')}</span>` : ''}
+                ${d.is_active ? `<span style="font-size:10px;font-weight:700;color:var(--ss-accent);background:var(--ss-accent-bg);padding:2px 6px;border-radius:10px;">${this.t('activeDevice')}</span>` : (isPc ? `<span style="font-size:10px;font-weight:700;color:#1DB954;background:rgba(29,185,84,0.15);padding:2px 6px;border-radius:10px;border:1px solid rgba(29,185,84,0.3);">${this.t('thisComputer')} (${this.t('recommended')})</span>` : '')}
             </div>
-        `).join('');
+            `;
+        }).join('');
 
         content.querySelectorAll('.ss2-item-card').forEach(card => {
             card.addEventListener('click', () => {
@@ -3562,7 +3983,7 @@ module.exports = class SpotifySync {
         this.config.spotifyVerifier = verifier;
         this.saveConfig();
 
-        const scope = 'user-read-playback-state user-modify-playback-state user-read-currently-playing app-remote-control streaming user-library-read user-library-modify playlist-read-private playlist-read-collaborative';
+        const scope = 'user-read-playback-state user-modify-playback-state user-read-currently-playing app-remote-control streaming user-library-read user-library-modify playlist-read-private playlist-read-collaborative user-read-recently-played';
         const authUrl = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&code_challenge_method=S256&code_challenge=${challenge}&scope=${encodeURIComponent(scope)}`;
 
         window.open(authUrl, '_blank');
@@ -3840,6 +4261,8 @@ module.exports = class SpotifySync {
                     ${toggle(this.t('showVolumeSlider'), 'showVolumeSlider')}
                     ${toggle(this.t('showLyricsButton'), 'showLyricsButton')}
                     ${toggle(this.t('showShareButton'), 'showShareButton')}
+                    ${toggle(this.t('showIdleSuggestions'), 'showIdleDeviceSuggestions')}
+                    ${toggle(this.t('preferCurrentComputer'), 'preferCurrentComputer')}
                     ${isPremium ? `
                         <div style="margin:12px 0 6px 0;padding-top:10px;border-top:1px solid rgba(29,185,84,0.25);display:flex;align-items:center;gap:6px;">
                             <span style="font-size:0.85em;color:#1DB954;font-weight:700;">👑 ${this.t('fullPowersTitle')}</span>

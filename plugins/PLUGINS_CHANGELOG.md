@@ -94,6 +94,21 @@
 - 🚀 **Critical Fix (Status Stuck):** Solved a Discord API Rate Limiting issue (HTTP 429) that caused the AFK Custom Status to appear cleared locally, but remain stuck globally.
 - 🛡️ **Improvement:** Removed 5-second aggressive spam and implemented a safe 4-minute network renewal to keep the AFK Status perfectly synced and stable.
 
+## SpotifySync v3.1.0 (2026-09-23)
+- ⚡ **Smart Play & Auto PC Wake**: Pressionar o botão de Play quando nenhum dispositivo estiver reproduzindo ativamente faz o plugin buscar automaticamente os aparelhos na rede Spotify Connect, identificar o computador atual e transferir a reprodução para ele instantaneamente.
+- 💻 **Priorização Inteligente do Computador Atual**: Implementado detector de hostname local (`os.hostname` / `COMPUTERNAME`) para destacar o PC do usuário com o badge "Este Computador (Recomendado)" no topo do seletor de dispositivos.
+- 🎵 **Resiliência e Retomada Automática**: Quando o Spotify fica ocioso por muito tempo e a fila de reprodução é esvaziada pela API, o plugin recupera a última música tocada e inicia a reprodução sem que o usuário precise abrir ou interagir manualmente com o cliente do Spotify.
+- 🎛️ **Card de Prontidão Ociosa (Idle Ready State)**: Em vez de desaparecer ou ficar congelado como "Não Tocando", o widget agora exibe o status de prontidão com o computador alvo e mantém o botão de Play pronto para despertar.
+- 🔄 **Botão de Atualizar Dispositivos**: Adicionado botão de atualização rápida no cabeçalho do Spotify Connect para detectar aparelhos recém-abertos instantaneamente.
+- 🎚️ **Barra de Volume Expandida & Ergonômica**: Barra compacta expandida para 104px no hover/foco com 22px de área de clique vertical (hit target), preenchimento gradiente dinâmico com a cor de destaque do Spotify (`--ss-vol-pct`) e thumb tátil de 14px com zoom de arrasto.
+- 🖱️ **Scroll Gradual e Suave de Volume**: O ajuste de volume pela roda do mouse agora progride em passos suaves de 2% em 2% (ou micro-ajuste de 1% em 1% segurando Shift, Ctrl ou em touchpads contínuos), com atualização visual imediata e debounce de 75ms.
+- 📜 **Correção Crítica nas Letras (Início da Música Inacessível)**: Corrigido o bug que cortava as estrofes do começo da música devido ao alinhamento vertical flexbox com overflow (`justify-content: center`). Removido o contêiner de rolagem duplo, permitindo rolar com perfeição de 00:00 até o final.
+- 🎯 **Rolagem Inteligente nas Letras & Botão Sincronizar**: Adicionada pausa automática na rolagem acompanhada quando o usuário rola manualmente para ler a letra com o mouse, acompanhada de botão flutuante "Sincronizar letra" para retornar suavemente à estrofe ativa.
+- 🔇 **Isolamento de Scroll nas Letras e Subtelas**: Corrigido bug em que usar a rodinha do mouse na visualização de letras acionava o ajuste de volume e o badge flutuante em vez de rolar a letra. As subtelas agora isolam eventos de wheel com prioridade nativa.
+- 🎚️ **Retração Fluida da Barra de Volume Compacta**: Corrigido bug em que clicar na barra deslizante deixava o slider travado em estado expandido mesmo após o mouse sair da barra. Removida retenção de foco do DOM com liberação e recolhimento instantâneo no mouseleave.
+- 💾 **Persistência do Modo Compacto/Expandido**: O player agora memoriza e salva automaticamente sua preferência de modo recolhido ou expandido ao clicar na seta do accordion (`ss2-btn-expand`), preservando o estado escolhido entre reinicializações do Discord e trocas de faixas.
+- ⚙️ **Novas Configurações**: Adicionadas opções para ativar/desativar as sugestões em repouso e a preferência pelo computador atual nas configurações do plugin.
+
 ## SpotifySync v3.0.1 (2026-09-17)
 - ⏯️ **Compact Mode Playback Controls**: Restored and optimized Play/Pause, Previous, and Next track buttons directly inside the collapsed header row for instant 1-click playback navigation.
 - 🎚️ **Collapsible Hover Volume & Fluid Header Layout**: Re-engineered the compact volume slider to smoothly expand on hover/focus and collapse when idle, giving priority to playback controls and track title legibility without cluttering narrow sidebars.
